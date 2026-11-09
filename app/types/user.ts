@@ -1,26 +1,20 @@
-import {
-  date,
-  datetime,
-  email,
-  institucionalEmail,
-  passwordHash,
-} from "./common";
+import type { DateString, DateTime, Email, InstitucionalEmail, PasswordHash } from "./common";
 
-export type userId = number;
+export type UserId = number;
 
-export type userInput = {
-  email: email;
-  birthDate: date;
-  emailVerifiedAt: datetime;
-}
+export type UserInput = {
+  email: Email;
+  birthDate: DateString;
+  emailVerifiedAt: DateTime;
+};
 
-export type userDto = userInput & {
-  id: userId;
-  institucionalEmail: institucionalEmail;
-  createdAt: datetime;
-  updatedAt: datetime;
-}
+export type UserDto = UserInput & {
+  id: UserId;
+  institucionalEmail: InstitucionalEmail;
+  createdAt: DateTime;
+  updatedAt: DateTime;
+};
 
-export type user = userDto & {
-  password_hash: passwordHash;
+export type User = UserDto & {
+  password_hash: PasswordHash;
 };
