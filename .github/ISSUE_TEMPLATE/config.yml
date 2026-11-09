@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Contributing Guidelines
+    url: https://github.com/sistema-academico-fatecpg/sistema-academico/blob/main/CONTRIBUTING.md
+    about: Read the contribution guidelines before opening an issue or pull request.
+  - name: Repository README
+    url: https://github.com/sistema-academico-fatecpg/sistema-academico/blob/main/README.md
+    about: General project information and getting started.
