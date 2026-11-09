@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: write
+
+jobs:
+  ############################################################################
+  # Validate that commits follow the Conventional Commits specification.
+  # Covers commits introduced by pull requests and commits pushed to the
+  # default/development branches. Does not validate only the PR title.
+  ############################################################################
+  validate-commits:
+    name: Validate Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine commit range to validate
+        id: range
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Commits introduced by the pull request (head minus base).
+            range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            before="${{ github.event.before }}"
+            after="${{ github.event.after }}"
+            # Fresh branch: validate the single pushed commit.
+            if [ "$before" = "0000000000000000000000000000000000000000" ]; then
+              range="$after"
+            else
+              range="$before..$after"
+            fi
+          fi
+          echo "range=$range" >> "$GITHUB_OUTPUT"
+          echo "Validating commit range: $range"
+
+      - name: Validate commit messages
+        run: node .github/scripts/validate-conventional-commits.js
+        env:
+          COMMIT_RANGE: ${{ steps.range.outputs.range }}
+
+  ############################################################################
+  # Format and lint with Biome, then typecheck with TypeScript.
+  #
+  # Order matters: Biome safe fixes/formatting run first and, when allowed,
+  # the result is committed to the branch being checked. The remaining checks
+  # (Biome read-only validation and TypeScript typecheck) then run against the
+  # formatted source in the same workspace, never against an outdated checkout.
+  ############################################################################
+  ci:
+    name: Format, Lint, and Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # For pull requests check out the head commit so the formatting
+          # commit can be pushed back to the PR's head branch.
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.17.0
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply Biome safe fixes and formatting
+        run: pnpm check:fix
+
+      - name: Detect formatting changes and commit if needed
+        id: biome-commit
+        shell: bash
+        run: |
+          if git diff --quiet HEAD -- .; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No formatting changes detected."
+            exit 0
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "Biome modified tracked files."
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            target_branch="${{ github.event.pull_request.head.ref }}"
+            target_ref="refs/heads/${target_branch}"
+            repo_full="${{ github.event.pull_request.head.repo.full_name }}"
+            is_fork="false"
+            if [ "$repo_full" != "${{ github.repository }}" ]; then
+              is_fork="true"
+            fi
+          else
+            target_branch="${{ github.ref_name }}"
+            target_ref="${{ github.ref }}"
+            is_fork="false"
+          fi
+
+          default_branch="refs/heads/main"
+          actor="${{ github.actor }}"
+
+          # Auto-push only when it is safe to do so:
+          #  - not a fork pull request (token cannot write to the fork),
+          #  - not the default branch (avoid pushing to protected branches),
+          #  - not a commit already made by the bot (avoid loops).
+          should_push="false"
+          if [ "$is_fork" = "false" ] \
+             && [ "$actor" != "github-actions[bot]" ] \
+             && [ "$target_ref" != "$default_branch" ]; then
+            should_push="true"
+          fi
+
+          echo "target_ref=$target_ref" >> "$GITHUB_OUTPUT"
+          echo "should_push=$should_push" >> "$GITHUB_OUTPUT"
+          echo "is_fork=$is_fork" >> "$GITHUB_OUTPUT"
+
+          if [ "$should_push" = "true" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "chore: automatic lint from Github Actions"
+            git push origin "HEAD:${target_ref}"
+            echo "Pushed automatic formatting commit to ${target_ref}"
+          else
+            if [ "$is_fork" = "true" ]; then
+              echo "error: Biome modified files but this is a fork pull request." >&2
+              echo "error: Automatic push to the fork is not supported." >&2
+              echo "error: Please run 'pnpm check:fix' locally and push the changes to your fork." >&2
+            elif [ "$target_ref" = "$default_branch" ]; then
+              echo "error: Biome modified files but automatic pushes to the default branch (${default_branch}) are skipped." >&2
+              echo "error: Please run 'pnpm check:fix' locally and push the fix, or open a pull request." >&2
+            else
+              echo "error: Biome modified files but automatic push is not allowed for this run." >&2
+            fi
+            exit 1
+          fi
+
+      - name: Verify Biome lint and formatting
+        run: pnpm check
+
+      - name: TypeScript typecheck
+        run: pnpm typecheck
+
+      - name: Run tests (if any)
+        shell: bash
+        run: |
+          if find . -path ./node_modules -prune -o \( -name '*.test.*' -o -name '*.spec.*' \) -print -quit 2>/dev/null | grep -q .; then
+            pnpm test:run
+          else
+            echo "No test files found; skipping test step."
+          fi

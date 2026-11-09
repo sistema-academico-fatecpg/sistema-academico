@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:?DATABASE_NAME is required}
+      POSTGRES_USER: ${DATABASE_USER:?DATABASE_USER is required}
+      POSTGRES_PASSWORD: ${DATABASE_PASS:?DATABASE_PASS is required}
+    ports:
+      - "127.0.0.1:${DATABASE_PORT:-5432}:5432"
+    volumes:
+      - ./.docker/database:/docker-entrypoint-initdb.d:ro
+      - database_volume:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}
+    ports: ["${PORT:? PORT is required}:3000"]
+
+volumes:
+  database_volume:
