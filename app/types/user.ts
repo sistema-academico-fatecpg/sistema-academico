@@ -1,4 +1,6 @@
+import { z } from "zod";
 import type { DateString, DateTime, Email, InstitucionalEmail, PasswordHash } from "./common";
+import { DateStringSchema, DateTimeSchema, EmailSchema } from "./common";
 
 export type UserId = number;
 
@@ -7,6 +9,12 @@ export type UserInput = {
   birthDate: DateString;
   emailVerifiedAt: DateTime;
 };
+
+export const UserInputSchema = z.object({
+  email: EmailSchema,
+  birthDate: DateStringSchema,
+  emailVerifiedAt: DateTimeSchema,
+});
 
 export type UserDto = UserInput & {
   id: UserId;

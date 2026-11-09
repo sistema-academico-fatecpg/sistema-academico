@@ -10,7 +10,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!node_modules", "!.next", "!coverage", "!pnpm-lock.yaml"]
+    "includes": ["**", "!node_modules", "!.next", "!coverage", "!pnpm-lock.yaml", "!*.md"]
   },
   "formatter": {
     "enabled": true,
