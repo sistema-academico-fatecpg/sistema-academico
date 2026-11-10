@@ -9,9 +9,6 @@ export type AuditLogInput = {
   action: string;
   module: string;
   recordId: UserId | null;
-  previousValue: string | null;
-  newValue: string | null;
-  success: boolean;
 };
 
 export const AuditLogInputSchema = z.object({
@@ -21,9 +18,6 @@ export const AuditLogInputSchema = z.object({
   action: z.string().min(1),
   module: z.string().min(1),
   record_id: UserIdSchema.nullable(),
-  previous_value: z.string().nullable(),
-  new_value: z.string().nullable(),
-  success: z.boolean(),
 });
 
 export type AuditLog = {
@@ -34,9 +28,6 @@ export type AuditLog = {
   action: string;
   module: string;
   recordId: UserId | null;
-  previousValue: string | null;
-  newValue: string | null;
-  success: boolean;
   createdAt: DateTime;
 };
 
@@ -48,8 +39,5 @@ export const AuditLogSchema = z.object({
   action: z.string().min(1),
   module: z.string().min(1),
   record_id: UserIdSchema.nullable(),
-  previous_value: z.string().nullable(),
-  new_value: z.string().nullable(),
-  success: z.boolean(),
   created_at: DateTimeSchema,
 });
