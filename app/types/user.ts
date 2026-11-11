@@ -1,19 +1,19 @@
 import { z } from "zod";
-import type { AccountStatus, DateTime, Email, InstitucionalEmail, UserId } from "./common";
+import type { AccountStatus, DateTime, Email, InstitucionalEmail, Role, UserId } from "./common";
 import {
   AccountStatusSchema,
   DateTimeSchema,
   EmailSchema,
   InstitucionalEmailSchema,
+  RoleSchema,
   UserIdSchema,
 } from "./common";
 
 /**
  * Usuário do sistema (tabela users).
  *
- * A senha (password_hash) é gerenciada pelo Better Auth e não aparece
- * nos tipos de domínio. O status inicial é PENDING_ACTIVATION (seção 8.1
- * da Política de Segurança).
+ * A senha é gerenciada pelo Better Auth (argon2id). O status inicial
+ * é PENDING_ACTIVATION (seção 8.1 da Política de Segurança).
  */
 export type UserInput = {
   name: string;
@@ -21,7 +21,7 @@ export type UserInput = {
   email: Email;
   institutionalEmail: InstitucionalEmail;
   registrationNumber: string | null;
-  role: string;
+  role: Role;
 };
 
 export const UserInputSchema = z.object({
@@ -30,7 +30,7 @@ export const UserInputSchema = z.object({
   email: EmailSchema,
   institutional_email: InstitucionalEmailSchema,
   registration_number: z.string().nullable(),
-  role: z.string().min(1),
+  role: RoleSchema,
 });
 
 export type UserDto = {
