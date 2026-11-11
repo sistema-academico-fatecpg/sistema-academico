@@ -1,47 +1,74 @@
 import { z } from "zod";
-import type { DateString, DateTime, Email, InstitucionalEmail, RoleName, UserId } from "./common";
+import type { AccountStatus, DateTime, Email, InstitucionalEmail, UserId } from "./common";
 import {
-  DateStringSchema,
+  AccountStatusSchema,
   DateTimeSchema,
   EmailSchema,
   InstitucionalEmailSchema,
-  RoleNameSchema,
   UserIdSchema,
 } from "./common";
 
+/**
+ * Usuário do sistema (tabela users).
+ *
+ * A senha (password_hash) é gerenciada pelo Better Auth e não aparece
+ * nos tipos de domínio. O status inicial é PENDING_ACTIVATION (seção 8.1
+ * da Política de Segurança).
+ */
 export type UserInput = {
+  name: string;
+  socialName: string | null;
   email: Email;
-  birthDate: DateString;
-  emailVerifiedAt: DateTime;
-  role: RoleName;
+  institutionalEmail: InstitucionalEmail;
+  registrationNumber: string | null;
+  role: string;
 };
 
 export const UserInputSchema = z.object({
+  name: z.string().min(1),
+  social_name: z.string().nullable(),
   email: EmailSchema,
-  birthDate: DateStringSchema,
-  emailVerifiedAt: DateTimeSchema,
-  role: RoleNameSchema,
+  institutional_email: InstitucionalEmailSchema,
+  registration_number: z.string().nullable(),
+  role: z.string().min(1),
 });
 
-export type UserDto = UserInput & {
+export type UserDto = {
   id: UserId;
-  institucionalEmail: InstitucionalEmail;
+  name: string;
+  socialName: string | null;
+  email: Email;
+  institutionalEmail: InstitucionalEmail;
+  registrationNumber: string | null;
+  passwordHash: string | null;
+  mfaEnabled: boolean;
+  mfaSecret: string | null;
+  status: AccountStatus;
   createdAt: DateTime;
-  updatedAt: DateTime;
-  status: "ACTIVE" | "BLOCKED";
-  role: RoleName;
+  updatedAt: DateTime | null;
+  blockedAt: DateTime | null;
+  blockedBy: UserId | null;
+  deactivatedAt: DateTime | null;
+  deactivatedBy: UserId | null;
 };
 
 export type User = UserDto;
 
 export const UserSchema = z.object({
   id: UserIdSchema,
+  name: z.string(),
+  social_name: z.string().nullable(),
   email: EmailSchema,
   institutional_email: InstitucionalEmailSchema,
-  birth_date: DateStringSchema,
-  email_verified_at: DateTimeSchema.nullable(),
+  registration_number: z.string().nullable(),
+  password_hash: z.string().nullable(),
+  mfa_enabled: z.boolean(),
+  mfa_secret: z.string().nullable(),
+  status: AccountStatusSchema,
   created_at: DateTimeSchema,
-  updated_at: DateTimeSchema,
-  role_id: UserIdSchema,
-  status: z.enum(["ACTIVE", "BLOCKED"]),
+  updated_at: DateTimeSchema.nullable(),
+  blocked_at: DateTimeSchema.nullable(),
+  blocked_by: UserIdSchema.nullable(),
+  deactivated_at: DateTimeSchema.nullable(),
+  deactivated_by: UserIdSchema.nullable(),
 });

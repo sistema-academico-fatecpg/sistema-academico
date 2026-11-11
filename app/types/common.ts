@@ -40,26 +40,39 @@ export type InstitucionalEmail = z.infer<typeof InstitucionalEmailSchema>;
 
 /**
  * Identificadores específicos de cada entidade (marcados nominalmente).
- * Isso evita confundir, por exemplo, um UserId com um EnrollmentId.
+ * Isso evita confundir, por exemplo, um UserId com um LogId.
  */
 export type UserId = UUID & { readonly __brand: "UserId" };
-export type EnrollmentId = UUID & { readonly __brand: "EnrollmentId" };
-export type GradeId = UUID & { readonly __brand: "GradeId" };
-export type PeriodId = UUID & { readonly __brand: "PeriodId" };
-export type AuditLogId = UUID & { readonly __brand: "AuditLogId" };
-export type RecoveryCodeId = UUID & { readonly __brand: "RecoveryCodeId" };
+export type UserRoleId = UUID & { readonly __brand: "UserRoleId" };
+export type TokenId = UUID & { readonly __brand: "TokenId" };
+export type MfaRecoveryCodeId = UUID & { readonly __brand: "MfaRecoveryCodeId" };
+export type SupportAccessGrantId = UUID & { readonly __brand: "SupportAccessGrantId" };
+export type SupportAccessModuleId = UUID & { readonly __brand: "SupportAccessModuleId" };
+export type CriticalOperationRequestId = UUID & { readonly __brand: "CriticalOperationRequestId" };
+export type LogId = UUID & { readonly __brand: "LogId" };
 
 /**
  * Schemas Zod para os IDs marcados. No nível de validação são apenas UUID;
  * a marca é aplicada apenas no nível de TypeScript.
  */
 export const UserIdSchema = UUIDSchema as unknown as z.ZodType<UserId>;
-export const EnrollmentIdSchema = UUIDSchema as unknown as z.ZodType<EnrollmentId>;
-export const GradeIdSchema = UUIDSchema as unknown as z.ZodType<GradeId>;
-export const PeriodIdSchema = UUIDSchema as unknown as z.ZodType<PeriodId>;
-export const AuditLogIdSchema = UUIDSchema as unknown as z.ZodType<AuditLogId>;
-export const RecoveryCodeIdSchema = UUIDSchema as unknown as z.ZodType<RecoveryCodeId>;
+export const UserRoleIdSchema = UUIDSchema as unknown as z.ZodType<UserRoleId>;
+export const TokenIdSchema = UUIDSchema as unknown as z.ZodType<TokenId>;
+export const MfaRecoveryCodeIdSchema = UUIDSchema as unknown as z.ZodType<MfaRecoveryCodeId>;
+export const SupportAccessGrantIdSchema = UUIDSchema as unknown as z.ZodType<SupportAccessGrantId>;
+export const SupportAccessModuleIdSchema =
+  UUIDSchema as unknown as z.ZodType<SupportAccessModuleId>;
+export const CriticalOperationRequestIdSchema =
+  UUIDSchema as unknown as z.ZodType<CriticalOperationRequestId>;
+export const LogIdSchema = UUIDSchema as unknown as z.ZodType<LogId>;
 
+/**
+ * Enums do banco de dados (DBML).
+ */
+
+/**
+ * Perfis permanentes e temporários do sistema (tabela roles enum).
+ */
 export const RoleNameSchema = z.enum([
   "ADMIN_MASTER",
   "ADMIN_SECUNDARIO",
@@ -70,17 +83,70 @@ export const RoleNameSchema = z.enum([
 ]);
 export type RoleName = z.infer<typeof RoleNameSchema>;
 
-export const ModuleSchema = z.enum([
-  "USERS",
-  "GRADES",
-  "ENROLLMENTS",
-  "LOGS",
-  "PERIODS",
-  "CRITICAL_OPERATIONS",
-  "EXPORT",
-]);
-export type Module = z.infer<typeof ModuleSchema>;
+/**
+ * Status da conta (tabela users.status).
+ */
+export const AccountStatusSchema = z.enum(["PENDING_ACTIVATION", "ACTIVE", "BLOCKED", "INACTIVE"]);
+export type AccountStatus = z.infer<typeof AccountStatusSchema>;
 
+/**
+ * Propósito do token (tabela tokens.purpose).
+ */
+export const TokenPurposeSchema = z.enum([
+  "ACCOUNT_ACTIVATION",
+  "EMAIL_CONFIRMATION",
+  "PASSWORD_RESET",
+]);
+export type TokenPurpose = z.infer<typeof TokenPurposeSchema>;
+
+/**
+ * Módulos do sistema (tabela system_modules enum).
+ */
+export const SystemModuleSchema = z.enum([
+  "USERS",
+  "COURSES",
+  "PERIODS",
+  "SUBJECTS",
+  "ENROLLMENTS",
+  "GRADES",
+  "AUDIT_LOGS",
+  "BACKUPS",
+]);
+export type SystemModule = z.infer<typeof SystemModuleSchema>;
+
+/**
+ * Resultado da operação (tabela logs.result).
+ */
+export const OperationResultSchema = z.enum(["SUCCESS", "FAILURE"]);
+export type OperationResult = z.infer<typeof OperationResultSchema>;
+
+/**
+ * Status do acesso de suporte (tabela support_access_grants.status).
+ */
+export const SupportAccessStatusSchema = z.enum([
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "EXPIRED",
+  "REVOKED",
+]);
+export type SupportAccessStatus = z.infer<typeof SupportAccessStatusSchema>;
+
+/**
+ * Status da aprovação (tabela critical_operation_requests.status).
+ */
+export const ApprovalStatusSchema = z.enum([
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "EXECUTED",
+  "CANCELLED",
+]);
+export type ApprovalStatus = z.infer<typeof ApprovalStatusSchema>;
+
+/**
+ * Operações disponíveis para autorização (RBAC).
+ */
 export const OperationSchema = z.enum(["READ", "SAVE", "REMOVE"]);
 export type Operation = z.infer<typeof OperationSchema>;
 
