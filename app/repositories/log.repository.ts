@@ -75,6 +75,19 @@ export class LogRepository {
     );
   }
 
+  countRecentFailures(userId: string, since: Date) {
+    return withRepositoryErrors(() =>
+      this.client.log.count({
+        where: {
+          userId,
+          action: "LOGIN_FAILED",
+          result: "FAILURE",
+          createdAt: { gte: since },
+        },
+      }),
+    );
+  }
+
   listAlerts(filter: AlertFilter) {
     const where: Prisma.AuditAlertWhereInput = {
       ...(filter.type ? { type: filter.type } : {}),
