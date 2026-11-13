@@ -1,1 +1,5 @@
-export default function () {}
+import { redirect } from "next/navigation";
+
+export default function LegacyLoginPage() {
+  redirect("/login");
+}
