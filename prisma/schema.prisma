@@ -1,5 +1,12 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Esquema do Sistema Acadêmico.
+//
+// Regras gerais:
+// - IDs são UUID para evitar enumeração sequencial de registros (OWASP A01).
+// - Registros acadêmicos e de auditoria nunca são apagados fisicamente.
+// - A tabela `logs` é append-only. A imutabilidade também é reforçada por
+//   trigger criado na migração (ver prisma/migrations).
+// - As tabelas `session`, `account`, `verification` e `two_factor` pertencem ao
+//   Better Auth e seguem o formato exigido pelo adaptador Prisma.
 
 generator client {
   provider = "prisma-client"
@@ -8,43 +15,548 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum RoleName {
+  ADMIN_MASTER
+  ADMIN_SECUNDARIO
+  PROFESSOR
+  ALUNO
+  AUDITOR
+  SUPORTE_TECNICO
+}
+
+enum AccountStatus {
+  PENDING_ACTIVATION
+  ACTIVE
+  BLOCKED
+  INACTIVE
+}
+
+enum TokenPurpose {
+  ACCOUNT_ACTIVATION
+  EMAIL_CONFIRMATION
+  PASSWORD_RESET
+}
+
+enum SystemModule {
+  USERS
+  ROLES
+  COURSES
+  PERIODS
+  SUBJECTS
+  CLASSES
+  ENROLLMENTS
+  GRADES
+  AUDIT_LOGS
+  BACKUPS
+  REPORTS
+}
+
+enum PermissionAction {
+  READ
+  CREATE
+  UPDATE
+  DELETE
+  EXPORT
+  APPROVE
+}
+
+enum OperationResult {
+  SUCCESS
+  FAILURE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+  CANCELLED
+}
+
+enum CriticalOperationType {
+  GRANT_REVOKE_ADMIN_PERMISSION
+  INCLUDE_OR_REPLACE_ADMIN_MASTER
+  GRADE_CORRECTION_AFTER_CLOSING
+  ENROLLMENT_RULE_EXCEPTION
+  ACADEMIC_RECORD_DELETION
+  MASS_PERSONAL_DATA_EXPORT
+  DATA_RESTORE_AFTER_INCIDENT
+  RESET_SECOND_FACTOR
+}
+
+enum SupportAccessStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  REVOKED
+}
+
+enum AlertType {
+  PERMISSION_CHANGED
+  LOGIN_FAILURE_SEQUENCE
+  GRADE_CHANGE_OUTSIDE_PERIOD
+  MASS_EXPORT
+  SELF_APPROVAL_ATTEMPT
+  MASTER_ACCOUNTS_BELOW_MINIMUM
+  SUPPORT_ACCESS_USED
+  EMERGENCY_MASTER_ACCOUNT
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+enum GradeStatus {
+  DRAFT
+  PUBLISHED
+}
+
+// ---------------------------------------------------------------------------
+// RBAC
+// ---------------------------------------------------------------------------
+
 model Role {
-  id          Int            @id @default(autoincrement())
-  name        String         @unique
-  users       User[]
+  id          String           @id @default(uuid())
+  name        RoleName         @unique
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  users       UserRole[]
   permissions RolePermission[]
+
+  @@map("roles")
 }
 
 model Permission {
-  id            Int           @id @default(autoincrement())
-  name          String        @unique
-  description   String?
-  roles         RolePermission[]
+  id          String           @id @default(uuid())
+  module      SystemModule
+  action      PermissionAction
+  name        String           @unique
+  description String?
+  roles       RolePermission[]
+
+  @@unique([module, action])
+  @@map("permissions")
 }
 
 model RolePermission {
-  roleId       Int
-  permissionId Int
-  role         Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission    @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
+  @@map("role_permissions")
 }
 
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  assignedBy String?  @map("assigned_by")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// ---------------------------------------------------------------------------
+// Usuários e autenticação (Better Auth)
+// ---------------------------------------------------------------------------
+
 model User {
-  id                Int       @id @default(autoincrement())
-  email             String    @unique
-  passwordHash      String    @map("password_hash")
-  institutionalEmail String   @map("institucional_email")
-  birthDate         DateTime  @map("birth_date")
-  emailVerifiedAt   DateTime? @map("email_verified_at")
+  id                  String        @id @default(uuid())
+  name                String
+  socialName          String?       @map("social_name")
+  email               String        @unique
+  personalEmail       String?       @map("personal_email")
+  emailVerified       Boolean       @default(false) @map("email_verified")
+  image               String?
+  registrationNumber  String?       @unique @map("registration_number")
+  status              AccountStatus @default(PENDING_ACTIVATION)
+  twoFactorEnabled    Boolean       @default(false) @map("two_factor_enabled")
+  failedLoginAttempts Int           @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?     @map("locked_until")
+  lastLoginAt         DateTime?     @map("last_login_at")
+  blockedAt           DateTime?     @map("blocked_at")
+  blockedBy           String?       @map("blocked_by")
+  blockReason         String?       @map("block_reason")
+  deactivatedAt       DateTime?     @map("deactivated_at")
+  deactivatedBy       String?       @map("deactivated_by")
+  isEmergency         Boolean       @default(false) @map("is_emergency")
+  emergencyExpiresAt  DateTime?     @map("emergency_expires_at")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  roles              UserRole[]
+  sessions           Session[]
+  accounts           Account[]
+  twoFactors         TwoFactor[]
+  tokens             Token[]
+  mfaRecoveryCodes   MfaRecoveryCode[]
+  logs               Log[]
+  requestedOps       CriticalOperationRequest[] @relation("OperationRequestedBy")
+  approvedOps        CriticalOperationRequest[] @relation("OperationApprovedBy")
+  requestedGrants    SupportAccessGrant[]        @relation("GrantRequestedBy")
+  approvedGrants     SupportAccessGrant[]        @relation("GrantApprovedBy")
+  studentProfile     StudentProfile?
+  enrollments        Enrollment[]                @relation("StudentEnrollments")
+  createdEnrollments Enrollment[]                @relation("EnrollmentCreatedBy")
+  grades             Grade[]                     @relation("GradeProfessor")
+  gradeChanges       GradeHistory[]              @relation("GradeChangedBy")
+  taughtClasses      ClassGroup[]                @relation("ClassProfessor")
+
+  @@index([status])
+  @@index([registrationNumber])
+  @@map("users")
+}
+
+model StudentProfile {
+  userId            String    @id
+  courseId          String    @map("course_id")
+  currentPeriod     Int       @default(1) @map("current_period")
+  guardianName      String?   @map("guardian_name")
+  guardianConsentAt DateTime? @map("guardian_consent_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
-  roleId            Int       @map("role_id")
-  role              Role      @relation(fields: [roleId], references: [id])
 
-  @@map("users")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@map("student_profiles")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime @map("expires_at")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+model TwoFactor {
+  id                     String    @id @default(uuid())
+  secret                 String
+  backupCodes            String    @map("backup_codes")
+  userId                 String    @map("user_id")
+  verified               Boolean   @default(true)
+  failedVerificationCount Int       @default(0) @map("failed_verification_count")
+  lockedUntil            DateTime? @map("locked_until")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("two_factor")
+}
+
+model Token {
+  id        String       @id @default(uuid())
+  userId    String       @map("user_id")
+  purpose   TokenPurpose
+  tokenHash String       @unique @map("token_hash")
+  expiresAt DateTime     @map("expires_at")
+  usedAt    DateTime?    @map("used_at")
+  createdAt DateTime     @default(now()) @map("created_at")
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+  @@map("tokens")
+}
+
+model MfaRecoveryCode {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  codeHash  String    @map("code_hash")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_recovery_codes")
+}
+
+// ---------------------------------------------------------------------------
+// Auditoria
+// ---------------------------------------------------------------------------
+
+model Log {
+  id         String          @id @default(uuid())
+  userId     String?         @map("user_id")
+  role       RoleName?
+  ipAddress  String          @map("ip_address")
+  action     String
+  module     SystemModule
+  recordType String?         @map("record_type")
+  recordId   String?         @map("record_id")
+  oldValue   Json?           @map("old_value")
+  newValue   Json?           @map("new_value")
+  result     OperationResult
+  createdAt  DateTime        @default(now()) @map("created_at")
+  user       User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  alerts     AuditAlert[]
+
+  @@index([userId, createdAt])
+  @@index([module, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt])
+  @@map("logs")
+}
+
+model AuditAlert {
+  id             String    @id @default(uuid())
+  type           AlertType
+  message        String
+  metadata       Json?
+  logId          String?   @map("log_id")
+  acknowledgedAt DateTime? @map("acknowledged_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  log            Log?      @relation(fields: [logId], references: [id], onDelete: SetNull)
+
+  @@index([type, createdAt])
+  @@index([acknowledgedAt])
+  @@map("audit_alerts")
+}
+
+// ---------------------------------------------------------------------------
+// Operações críticas e acesso excepcional
+// ---------------------------------------------------------------------------
+
+model CriticalOperationRequest {
+  id                    String                @id @default(uuid())
+  requestedBy           String                @map("requested_by")
+  approvedBy            String?               @map("approved_by")
+  operation             CriticalOperationType
+  module                SystemModule?
+  recordType            String?               @map("record_type")
+  recordId              String?               @map("record_id")
+  reason                String
+  payload               Json?
+  authorizationDocument String?               @map("authorization_document")
+  status                ApprovalStatus        @default(PENDING)
+  decisionReason        String?               @map("decision_reason")
+  requestedAt           DateTime              @default(now()) @map("requested_at")
+  decidedAt             DateTime?             @map("decided_at")
+  executedAt            DateTime?             @map("executed_at")
+  requester             User                  @relation("OperationRequestedBy", fields: [requestedBy], references: [id], onDelete: Restrict)
+  approver              User?                 @relation("OperationApprovedBy", fields: [approvedBy], references: [id], onDelete: Restrict)
+
+  @@index([status, requestedAt])
+  @@index([requestedBy])
+  @@map("critical_operation_requests")
+}
+
+model SupportAccessGrant {
+  id         String              @id @default(uuid())
+  requestedBy String             @map("requested_by")
+  approvedBy String?             @map("approved_by")
+  reason     String
+  status     SupportAccessStatus @default(PENDING)
+  startsAt   DateTime            @map("starts_at")
+  endsAt     DateTime            @map("ends_at")
+  createdAt  DateTime            @default(now()) @map("created_at")
+  decidedAt  DateTime?           @map("decided_at")
+  requester  User                @relation("GrantRequestedBy", fields: [requestedBy], references: [id], onDelete: Restrict)
+  approver   User?               @relation("GrantApprovedBy", fields: [approvedBy], references: [id], onDelete: Restrict)
+  modules    SupportAccessModule[]
+
+  @@index([status, endsAt])
+  @@map("support_access_grants")
+}
+
+model SupportAccessModule {
+  id      String             @id @default(uuid())
+  grantId String             @map("grant_id")
+  module  SystemModule
+  canRead Boolean            @default(true) @map("can_read")
+  grant   SupportAccessGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+
+  @@unique([grantId, module])
+  @@map("support_access_modules")
+}
+
+// ---------------------------------------------------------------------------
+// Módulos acadêmicos
+// ---------------------------------------------------------------------------
+
+model Course {
+  id        String           @id @default(uuid())
+  code      String           @unique
+  name      String
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  subjects  Subject[]
+  profiles  StudentProfile[]
+
+  @@map("courses")
+}
+
+model AcademicPeriod {
+  id                  String       @id @default(uuid())
+  name                String
+  year                Int
+  semester            Int
+  enrollmentOpensAt   DateTime     @map("enrollment_opens_at")
+  enrollmentClosesAt  DateTime     @map("enrollment_closes_at")
+  gradesOpenAt        DateTime?    @map("grades_open_at")
+  gradesCloseAt       DateTime?    @map("grades_close_at")
+  isCurrent           Boolean      @default(false) @map("is_current")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+  classes             ClassGroup[]
+
+  @@unique([year, semester])
+  @@map("academic_periods")
+}
+
+model Subject {
+  id            String       @id @default(uuid())
+  code          String       @unique
+  name          String
+  courseId      String       @map("course_id")
+  periodNumber  Int          @map("period_number")
+  workloadHours Int          @map("workload_hours")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  course        Course       @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  classes       ClassGroup[]
+
+  @@index([courseId, periodNumber])
+  @@map("subjects")
+}
+
+model ClassGroup {
+  id               String         @id @default(uuid())
+  subjectId        String         @map("subject_id")
+  academicPeriodId String         @map("academic_period_id")
+  professorId      String?        @map("professor_id")
+  room             String?
+  schedule         Json
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  subject          Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id], onDelete: Restrict)
+  professor        User?          @relation("ClassProfessor", fields: [professorId], references: [id], onDelete: SetNull)
+  enrollments      Enrollment[]
+
+  @@unique([subjectId, academicPeriodId, professorId])
+  @@index([professorId])
+  @@map("class_groups")
+}
+
+model Enrollment {
+  id           String           @id @default(uuid())
+  studentId    String           @map("student_id")
+  classGroupId String           @map("class_group_id")
+  status       EnrollmentStatus @default(ACTIVE)
+  isDependency Boolean          @default(false) @map("is_dependency")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  createdBy    String           @map("created_by")
+  student      User             @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Restrict)
+  createdByUser User            @relation("EnrollmentCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  classGroup   ClassGroup       @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
+  grade        Grade?
+
+  @@unique([studentId, classGroupId])
+  @@index([studentId, status])
+  @@map("enrollments")
+}
+
+model Grade {
+  id           String      @id @default(uuid())
+  enrollmentId String      @unique @map("enrollment_id")
+  professorId  String      @map("professor_id")
+  value        Decimal?    @db.Decimal(4, 2)
+  status       GradeStatus @default(DRAFT)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  enrollment   Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  professor    User        @relation("GradeProfessor", fields: [professorId], references: [id], onDelete: Restrict)
+  history      GradeHistory[]
+
+  @@map("grades")
+}
+
+model GradeHistory {
+  id        String   @id @default(uuid())
+  gradeId   String   @map("grade_id")
+  oldValue  Decimal? @map("old_value") @db.Decimal(4, 2)
+  newValue  Decimal? @map("new_value") @db.Decimal(4, 2)
+  changedBy String   @map("changed_by")
+  reason    String?
+  changedAt DateTime @default(now()) @map("changed_at")
+  grade     Grade    @relation(fields: [gradeId], references: [id], onDelete: Restrict)
+  user      User     @relation("GradeChangedBy", fields: [changedBy], references: [id], onDelete: Restrict)
+
+  @@index([gradeId, changedAt])
+  @@map("grade_history")
+}
+
+// ---------------------------------------------------------------------------
+// Proteção de dados pessoais sensíveis (LGPD)
+// ---------------------------------------------------------------------------
+
+model SensitiveData {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  type        String
+  cipherText  String   @map("cipher_text")
+  iv          String
+  authTag     String   @map("auth_tag")
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String   @map("created_by")
+  revealedAt  DateTime? @map("revealed_at")
+
+  @@index([userId])
+  @@map("sensitive_data")
 }
