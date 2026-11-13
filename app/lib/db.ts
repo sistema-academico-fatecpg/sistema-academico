@@ -1,4 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
+import type { Prisma } from "@/app/generated/prisma/client";
 import { PrismaClient } from "@/app/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
@@ -23,7 +24,7 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export type DatabaseClient = PrismaClient;
-export type TransactionClient = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
+export type TransactionClient = Prisma.TransactionClient;
 export type DbExecutor = DatabaseClient | TransactionClient;
 
 export async function withTransaction<T>(
