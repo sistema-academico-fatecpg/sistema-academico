@@ -1,6 +1,6 @@
-import { Prisma, SupportAccessGrant, SupportAccessStatus } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { Prisma, SupportAccessGrant, SupportAccessStatus } from "@prisma/client";
 import { db } from "@/lib/db";
+import { BaseRepository } from "@/repositories/base.repository";
 
 type SupportAccessGrantCreateInput = Prisma.SupportAccessGrantCreateInput;
 type SupportAccessGrantUpdateInput = Prisma.SupportAccessGrantUpdateInput;
@@ -70,7 +70,7 @@ export class SupportAccessGrantRepository extends BaseRepository<
       {
         status: "APPROVED",
         approvedBy: approverId,
-      } as SupportAccessGrantUpdateInput
+      } as SupportAccessGrantUpdateInput,
     );
   }
 
@@ -80,7 +80,7 @@ export class SupportAccessGrantRepository extends BaseRepository<
       {
         status: "REJECTED",
         approvedBy: approverId,
-      } as SupportAccessGrantUpdateInput
+      } as SupportAccessGrantUpdateInput,
     );
   }
 
@@ -89,7 +89,16 @@ export class SupportAccessGrantRepository extends BaseRepository<
       { id: grantId } as SupportAccessGrantWhereInput,
       {
         status: "REVOKED",
-      } as SupportAccessGrantUpdateInput
+      } as SupportAccessGrantUpdateInput,
+    );
+  }
+
+  async expire(grantId: string): Promise<SupportAccessGrant> {
+    return this.update(
+      { id: grantId } as SupportAccessGrantWhereInput,
+      {
+        status: "EXPIRED",
+      } as SupportAccessGrantUpdateInput,
     );
   }
 

@@ -1,12 +1,17 @@
-import { Prisma, Role, RoleName, Permission } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { Permission, Prisma, Role, RoleName } from "@prisma/client";
 import { db } from "@/lib/db";
+import { BaseRepository } from "@/repositories/base.repository";
 
 type RoleCreateInput = Prisma.RoleCreateInput;
 type RoleUpdateInput = Prisma.RoleUpdateInput;
 type RoleWhereInput = Prisma.RoleWhereInput;
 
-export class RoleRepository extends BaseRepository<Role, RoleCreateInput, RoleUpdateInput, RoleWhereInput> {
+export class RoleRepository extends BaseRepository<
+  Role,
+  RoleCreateInput,
+  RoleUpdateInput,
+  RoleWhereInput
+> {
   constructor(prisma = db) {
     super("role", prisma);
   }
@@ -15,9 +20,13 @@ export class RoleRepository extends BaseRepository<Role, RoleCreateInput, RoleUp
     return this.findUnique({ name } as RoleWhereInput);
   }
 
-  async findAllWithPermissions(): Promise<(Role & { permissions: (Permission & { permission: Permission })[] })[]> {
+  async findAllWithPermissions(): Promise<
+    (Role & { permissions: (Permission & { permission: Permission })[] })[]
+  > {
     const model = this.prisma.role as unknown as {
-      findMany: (args: { include: { permissions: { include: { permission: boolean } } } }) => Promise<(Role & { permissions: (Permission & { permission: Permission })[] })[]>;
+      findMany: (args: {
+        include: { permissions: { include: { permission: boolean } } };
+      }) => Promise<(Role & { permissions: (Permission & { permission: Permission })[] })[]>;
     };
     return model.findMany({
       include: {
@@ -31,11 +40,16 @@ export class RoleRepository extends BaseRepository<Role, RoleCreateInput, RoleUp
   }
 
   async getPermissions(roleName: RoleName): Promise<string[]> {
-    const rolePermissions = await this.prisma.rolePermission.findMany({
-      where: { roleName },
-      include: { permission: true },
+    const role = await this.prisma.role.findUnique({
+      where: { name: roleName },
+      include: {
+        permissions: {
+          include: { permission: true },
+        },
+      },
     });
-    return rolePermissions.map((rp) => rp.permission.name);
+    if (!role) return [];
+    return role.permissions.map((rp) => rp.permission.name);
   }
 
   async assignPermission(roleName: RoleName, permissionName: string): Promise<void> {
@@ -58,11 +72,18 @@ export class RoleRepository extends BaseRepository<Role, RoleCreateInput, RoleUp
 
   async removePermission(roleName: RoleName, permissionName: string): Promise<void> {
     await this.executeTransaction(async (tx) => {
+      const role = await tx.role.findUnique({ where: { name: roleName } });
+      const permission = await tx.permission.findUnique({ where: { name: permissionName } });
+
+      if (!role || !permission) {
+        throw new Error("Role ou permissão não encontrada");
+      }
+
       await tx.rolePermission.delete({
         where: {
-          roleName_permissionName: {
-            roleName,
-            permissionName,
+          roleId_permissionId: {
+            roleId: role.id,
+            permissionId: permission.id,
           },
         },
       });
@@ -70,13 +91,16 @@ export class RoleRepository extends BaseRepository<Role, RoleCreateInput, RoleUp
   }
 
   async hasPermission(roleName: RoleName, permissionName: string): Promise<boolean> {
-    const count = await this.prisma.rolePermission.count({
-      where: {
-        roleName,
-        permissionName,
+    const role = await this.prisma.role.findUnique({
+      where: { name: roleName },
+      include: {
+        permissions: {
+          include: { permission: true },
+        },
       },
     });
-    return count > 0;
+    if (!role) return false;
+    return role.permissions.some((rp) => rp.permission.name === permissionName);
   }
 }
 

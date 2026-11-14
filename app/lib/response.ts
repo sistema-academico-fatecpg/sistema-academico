@@ -13,11 +13,23 @@ export function successResponse<T>(data: T, status = 200) {
       success: true,
       data,
     },
-    { status }
+    { status },
   );
 }
 
-export function errorResponse(error: ApiError) {
+export function errorResponse(error: ApiError | undefined) {
+  if (!error) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Erro interno do servidor",
+        },
+      },
+      { status: 500 },
+    );
+  }
   return NextResponse.json(
     {
       success: false,
@@ -27,7 +39,7 @@ export function errorResponse(error: ApiError) {
         ...(error.details && { details: error.details }),
       },
     },
-    { status: error.statusCode }
+    { status: error.statusCode },
   );
 }
 

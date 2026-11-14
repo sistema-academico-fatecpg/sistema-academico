@@ -1,7 +1,7 @@
-import { Prisma, Log, OperationResult } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { Log, OperationResult, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { logInfo } from "@/lib/logger";
+import { BaseRepository } from "@/repositories/base.repository";
 
 type LogCreateInput = Prisma.LogCreateInput;
 type LogWhereInput = Prisma.LogWhereInput;
@@ -24,15 +24,15 @@ export class LogRepository extends BaseRepository<Log, LogCreateInput, never, Lo
     result: OperationResult;
   }): Promise<Log> {
     const log = await this.create({
-      userId: args.userId ?? null,
-      role: args.role ?? null,
+      user: args.userId ? { connect: { id: args.userId } } : undefined,
+      role: (args.role ?? null) as any,
       ipAddress: args.ipAddress,
       action: args.action,
-      module: args.module,
+      module: args.module as any,
       recordType: args.recordType ?? null,
       recordId: args.recordId ?? null,
-      oldValue: args.oldValue ?? null,
-      newValue: args.newValue ?? null,
+      oldValue: (args.oldValue ?? null) as any,
+      newValue: (args.newValue ?? null) as any,
       result: args.result,
     });
 

@@ -1,8 +1,8 @@
-import { z } from "zod";
+import type { z } from "zod";
 
 export function validateRequest<T>(
   schema: z.ZodSchema<T>,
-  data: unknown
+  data: unknown,
 ): { success: true; data: T } | { success: false; error: Record<string, string[]> } {
   const result = schema.safeParse(data);
 
@@ -22,9 +22,7 @@ export function validateRequest<T>(
   return { success: false, error: errors };
 }
 
-export function createZodErrorDetails(
-  errors: Record<string, string[]>
-): Record<string, unknown> {
+export function createZodErrorDetails(errors: Record<string, string[]>): Record<string, unknown> {
   return {
     validationErrors: errors,
   };

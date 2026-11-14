@@ -1,12 +1,17 @@
-import { Prisma, Token, TokenPurpose } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { Prisma, Token, TokenPurpose } from "@prisma/client";
 import { db } from "@/lib/db";
+import { BaseRepository } from "@/repositories/base.repository";
 
 type TokenCreateInput = Prisma.TokenCreateInput;
 type TokenUpdateInput = Prisma.TokenUpdateInput;
 type TokenWhereInput = Prisma.TokenWhereInput;
 
-export class TokenRepository extends BaseRepository<Token, TokenCreateInput, TokenUpdateInput, TokenWhereInput> {
+export class TokenRepository extends BaseRepository<
+  Token,
+  TokenCreateInput,
+  TokenUpdateInput,
+  TokenWhereInput
+> {
   constructor(prisma = db) {
     super("token", prisma);
   }
@@ -43,7 +48,7 @@ export class TokenRepository extends BaseRepository<Token, TokenCreateInput, Tok
       { id: tokenId } as TokenWhereInput,
       {
         usedAt: new Date(),
-      } as TokenUpdateInput
+      } as TokenUpdateInput,
     );
   }
 

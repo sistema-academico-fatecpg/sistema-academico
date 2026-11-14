@@ -1,6 +1,6 @@
-import { Prisma, MfaRecoveryCode } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { MfaRecoveryCode, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { BaseRepository } from "@/repositories/base.repository";
 
 type MfaRecoveryCodeCreateInput = Prisma.MfaRecoveryCodeCreateInput;
 type MfaRecoveryCodeWhereInput = Prisma.MfaRecoveryCodeWhereInput;
@@ -33,10 +33,7 @@ export class MfaRecoveryCodeRepository extends BaseRepository<
 
   async markAsUsed(codeId: string): Promise<MfaRecoveryCode> {
     const model = this.prisma.mfaRecoveryCode as unknown as {
-      update: (args: {
-        where: { id: string };
-        data: { usedAt: Date };
-      }) => Promise<MfaRecoveryCode>;
+      update: (args: { where: { id: string }; data: { usedAt: Date } }) => Promise<MfaRecoveryCode>;
     };
     return model.update({
       where: { id: codeId },

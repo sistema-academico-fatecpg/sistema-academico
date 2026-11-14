@@ -1,5 +1,5 @@
-import { betterAuth } from "better-auth";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { betterAuth } from "better-auth";
 import { db } from "@/lib/db";
 
 export const auth = betterAuth({
@@ -61,12 +61,6 @@ export const auth = betterAuth({
   account: {
     accountLinking: {
       enabled: true,
-    },
-  },
-  advanced: {
-    databasePrefix: "",
-    generateId: async () => {
-      return crypto.randomUUID();
     },
   },
   logger: {

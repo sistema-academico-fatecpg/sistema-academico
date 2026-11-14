@@ -1,7 +1,6 @@
-import { Prisma, User, Role, UserRole, RoleName } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { Prisma, Role, RoleName, User, UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
-import { logger } from "@/lib/logger";
+import { BaseRepository } from "@/repositories/base.repository";
 
 type UserCreateInput = Prisma.UserCreateInput;
 type UserUpdateInput = Prisma.UserUpdateInput;
@@ -10,26 +9,77 @@ type UserWhereInput = Prisma.UserWhereInput;
 type UserRoleCreateInput = Prisma.UserRoleCreateInput;
 type UserRoleWhereInput = Prisma.UserRoleWhereInput;
 
-export class UserRepository extends BaseRepository<User, UserCreateInput, UserUpdateInput, UserWhereInput> {
+export class UserRepository extends BaseRepository<
+  User,
+  UserCreateInput,
+  UserUpdateInput,
+  UserWhereInput
+> {
   constructor(prisma = db) {
     super("user", prisma);
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.findUnique({ email } as UserWhereInput);
+  async findByEmail(email: string): Promise<(User & { role: Role }) | null> {
+    const model = this.prisma.user as unknown as {
+      findUnique: (args: {
+        where: unknown;
+        include: { role: boolean };
+      }) => Promise<(User & { role: Role }) | null>;
+    };
+    return model.findUnique({
+      where: { email } as UserWhereInput,
+      include: { role: true },
+    });
   }
 
-  async findByInstitutionalEmail(institutionalEmail: string): Promise<User | null> {
-    return this.findUnique({ institutionalEmail } as UserWhereInput);
+  async findByInstitutionalEmail(
+    institutionalEmail: string,
+  ): Promise<(User & { role: Role }) | null> {
+    const model = this.prisma.user as unknown as {
+      findUnique: (args: {
+        where: unknown;
+        include: { role: boolean };
+      }) => Promise<(User & { role: Role }) | null>;
+    };
+    return model.findUnique({
+      where: { institutionalEmail } as UserWhereInput,
+      include: { role: true },
+    });
   }
 
-  async findByRegistrationNumber(registrationNumber: string): Promise<User | null> {
-    return this.findUnique({ registrationNumber } as UserWhereInput);
+  async findByRegistrationNumber(
+    registrationNumber: string,
+  ): Promise<(User & { role: Role }) | null> {
+    const model = this.prisma.user as unknown as {
+      findUnique: (args: {
+        where: unknown;
+        include: { role: boolean };
+      }) => Promise<(User & { role: Role }) | null>;
+    };
+    return model.findUnique({
+      where: { registrationNumber } as UserWhereInput,
+      include: { role: true },
+    });
+  }
+
+  async findUnique(where: UserWhereInput): Promise<(User & { role: Role }) | null> {
+    const model = this.prisma.user as unknown as {
+      findUnique: (args: {
+        where: unknown;
+        include: { role: boolean };
+      }) => Promise<(User & { role: Role }) | null>;
+    };
+    return model.findUnique({
+      where,
+      include: { role: true },
+    });
   }
 
   async findUsersWithRoles(): Promise<(User & { userRoles: (UserRole & { role: Role })[] })[]> {
     const model = this.prisma.user as unknown as {
-      findMany: (args: { include: { userRoles: { include: { role: boolean } } } }) => Promise<(User & { userRoles: (UserRole & { role: Role })[] })[]>;
+      findMany: (args: {
+        include: { userRoles: { include: { role: boolean } } };
+      }) => Promise<(User & { userRoles: (UserRole & { role: Role })[] })[]>;
     };
     return model.findMany({
       include: {
@@ -76,7 +126,7 @@ export class UserRepository extends BaseRepository<User, UserCreateInput, UserUp
         status: "BLOCKED",
         blockedAt: new Date(),
         blockedBy,
-      } as UserUpdateInput
+      } as UserUpdateInput,
     );
   }
 
@@ -85,7 +135,7 @@ export class UserRepository extends BaseRepository<User, UserCreateInput, UserUp
       { id: userId } as UserWhereInput,
       {
         status: "ACTIVE",
-      } as UserUpdateInput
+      } as UserUpdateInput,
     );
   }
 
@@ -96,7 +146,7 @@ export class UserRepository extends BaseRepository<User, UserCreateInput, UserUp
         status: "INACTIVE",
         deactivatedAt: new Date(),
         deactivatedBy,
-      } as UserUpdateInput
+      } as UserUpdateInput,
     );
   }
 
@@ -121,11 +171,19 @@ export class UserRepository extends BaseRepository<User, UserCreateInput, UserUp
 
   async removeRole(userId: string, roleName: RoleName): Promise<void> {
     await this.executeTransaction(async (tx) => {
+      const role = await tx.role.findUnique({
+        where: { name: roleName },
+      });
+
+      if (!role) {
+        throw new Error(`Role ${roleName} não encontrado`);
+      }
+
       await tx.userRole.delete({
         where: {
-          userId_roleName: {
+          userId_roleId: {
             userId,
-            roleName,
+            roleId: role.id,
           },
         },
       });

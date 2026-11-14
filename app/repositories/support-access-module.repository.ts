@@ -1,6 +1,6 @@
-import { Prisma, SupportAccessModule } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { Prisma, SupportAccessModule } from "@prisma/client";
 import { db } from "@/lib/db";
+import { BaseRepository } from "@/repositories/base.repository";
 
 type SupportAccessModuleCreateInput = Prisma.SupportAccessModuleCreateInput;
 type SupportAccessModuleWhereInput = Prisma.SupportAccessModuleWhereInput;
@@ -24,9 +24,11 @@ export class SupportAccessModuleRepository extends BaseRepository<
   async createManyForGrant(grantId: string, modules: string[]): Promise<{ count: number }> {
     return this.createMany(
       modules.map((module) => ({
-        grantId,
+        grant: {
+          connect: { id: grantId },
+        },
         module: module as any,
-      }))
+      })),
     );
   }
 

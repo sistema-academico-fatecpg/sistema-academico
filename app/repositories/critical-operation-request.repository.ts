@@ -1,6 +1,6 @@
-import { Prisma, CriticalOperationRequest, ApprovalStatus } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { ApprovalStatus, CriticalOperationRequest, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { BaseRepository } from "@/repositories/base.repository";
 
 type CriticalOperationRequestCreateInput = Prisma.CriticalOperationRequestCreateInput;
 type CriticalOperationRequestUpdateInput = Prisma.CriticalOperationRequestUpdateInput;
@@ -41,7 +41,7 @@ export class CriticalOperationRequestRepository extends BaseRepository<
         status: "APPROVED",
         approvedBy: approverId,
         decidedAt: new Date(),
-      } as CriticalOperationRequestUpdateInput
+      } as CriticalOperationRequestUpdateInput,
     );
   }
 
@@ -52,7 +52,7 @@ export class CriticalOperationRequestRepository extends BaseRepository<
         status: "REJECTED",
         approvedBy: approverId,
         decidedAt: new Date(),
-      } as CriticalOperationRequestUpdateInput
+      } as CriticalOperationRequestUpdateInput,
     );
   }
 
@@ -62,7 +62,7 @@ export class CriticalOperationRequestRepository extends BaseRepository<
       {
         status: "EXECUTED",
         executedAt: new Date(),
-      } as CriticalOperationRequestUpdateInput
+      } as CriticalOperationRequestUpdateInput,
     );
   }
 
@@ -71,7 +71,7 @@ export class CriticalOperationRequestRepository extends BaseRepository<
       { id: requestId } as CriticalOperationRequestWhereInput,
       {
         status: "CANCELLED",
-      } as CriticalOperationRequestUpdateInput
+      } as CriticalOperationRequestUpdateInput,
     );
   }
 }
