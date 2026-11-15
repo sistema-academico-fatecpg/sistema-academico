@@ -118,6 +118,8 @@ model User {
   approvedOperations CriticalOperationRequest[] @relation("ApprovedOperations")
   executedOperations CriticalOperationRequest[] @relation("ExecutedOperations")
   logs              Log[]
+  enrollments       Enrollment[]
+  recordedGrades    Grade[]   @relation("recordedByUser")
 
   @@map("users")
 }
@@ -229,4 +231,78 @@ model Log {
   @@index([module, action])
   @@index([createdAt])
   @@map("logs")
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  periods     Period[]
+  subjects    Subject[]
+
+  @@map("courses")
+}
+
+model Period {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  isActive    Boolean  @default(false) @map("is_active")
+  courseId    String   @map("course_id")
+  course      Course   @relation(fields: [courseId], references: [id])
+  subjects    Subject[]
+
+  @@index([courseId])
+  @@index([isActive])
+  @@map("periods")
+}
+
+model Subject {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  courseId    String   @map("course_id")
+  course      Course   @relation(fields: [courseId], references: [id])
+  periodId    String   @map("period_id")
+  period      Period   @relation(fields: [periodId], references: [id])
+  enrollments Enrollment[]
+
+  @@index([courseId])
+  @@index([periodId])
+  @@map("subjects")
+}
+
+model Enrollment {
+  id          String   @id @default(uuid())
+  studentId   String   @map("student_id")
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId   String   @map("subject_id")
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  enrolledAt  DateTime @default(now()) @map("enrolled_at")
+  status      String   @default("ACTIVE") @map("status") // ACTIVE, COMPLETED, CANCELLED, DP (dependência)
+  finalGrade  Decimal? @map("final_grade")
+  grades      Grade[]
+
+  @@index([studentId])
+  @@index([subjectId])
+  @@index([status])
+  @@map("enrollments")
+}
+
+model Grade {
+  id          String   @id @default(uuid())
+  enrollmentId String   @map("enrollment_id")
+  enrollment  Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  value       Decimal  @map("value") // 0 a 10
+  type        String   @default("EXAM") // EXAM, PROJECT, PARTICIPATION, RECOVERY
+  recordedAt  DateTime @default(now()) @map("recorded_at")
+  recordedBy  String   @map("recorded_by")
+  recordedByUser User?   @relation("recordedByUser", fields: [recordedBy], references: [id])
+
+  @@index([enrollmentId])
+  @@index([recordedBy])
+  @@map("grades")
 }

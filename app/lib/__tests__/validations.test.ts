@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { EmailSchema, PasswordSchema, RoleNameSchema, UserInputSchema } from "@/lib/validations";
 
 describe("Zod Schemas", () => {
@@ -40,7 +40,14 @@ describe("Zod Schemas", () => {
 
   describe("RoleNameSchema", () => {
     it("deve aceitar todos os papéis válidos", () => {
-      const roles = ["ADMIN_MASTER", "ADMIN_SECUNDARIO", "PROFESSOR", "ALUNO", "AUDITOR", "SUPORTE_TECNICO"];
+      const roles = [
+        "ADMIN_MASTER",
+        "ADMIN_SECUNDARIO",
+        "PROFESSOR",
+        "ALUNO",
+        "AUDITOR",
+        "SUPORTE_TECNICO",
+      ];
       roles.forEach((role) => {
         expect(RoleNameSchema.safeParse(role).success).toBe(true);
       });

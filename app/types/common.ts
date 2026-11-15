@@ -19,6 +19,11 @@ export type SupportAccessGrantId = UUID & { readonly __brand: "SupportAccessGran
 export type SupportAccessModuleId = UUID & { readonly __brand: "SupportAccessModuleId" };
 export type CriticalOperationRequestId = UUID & { readonly __brand: "CriticalOperationRequestId" };
 export type LogId = UUID & { readonly __brand: "LogId" };
+export type PeriodId = UUID & { readonly __brand: "PeriodId" };
+export type SubjectId = UUID & { readonly __brand: "SubjectId" };
+export type CourseId = UUID & { readonly __brand: "CourseId" };
+export type EnrollmentId = UUID & { readonly __brand: "EnrollmentId" };
+export type GradeId = UUID & { readonly __brand: "GradeId" };
 
 /**
  * Schemas Zod para os IDs. Na validação são apenas UUID; a marca
@@ -33,6 +38,11 @@ export const SupportAccessModuleIdSchema =
 export const CriticalOperationRequestIdSchema =
   UUIDSchema as unknown as z.ZodType<CriticalOperationRequestId>;
 export const LogIdSchema = UUIDSchema as unknown as z.ZodType<LogId>;
+export const PeriodIdSchema = UUIDSchema as unknown as z.ZodType<PeriodId>;
+export const SubjectIdSchema = UUIDSchema as unknown as z.ZodType<SubjectId>;
+export const CourseIdSchema = UUIDSchema as unknown as z.ZodType<CourseId>;
+export const EnrollmentIdSchema = UUIDSchema as unknown as z.ZodType<EnrollmentId>;
+export const GradeIdSchema = UUIDSchema as unknown as z.ZodType<GradeId>;
 
 /**
  * Endereço de e-mail (Zod v4: .email() deprecated, usa refine).

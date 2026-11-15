@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserRepository } from "@/repositories/user.repository";
 
 const createMockDb = () => {
@@ -209,8 +209,8 @@ describe("UserRepository", () => {
     it("deve lançar erro quando papel não existe", async () => {
       mockDb.role.findUnique.mockResolvedValue(null);
 
-      await expect(repo.assignRole("user-1", "INVALID_ROLE")).rejects.toThrow(
-        "Role INVALID_ROLE não encontrado"
+      await expect(repo.assignRole("user-1", "INVALID_ROLE" as any)).rejects.toThrow(
+        "Role INVALID_ROLE não encontrado",
       );
     });
   });
