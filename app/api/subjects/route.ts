@@ -1,0 +1,86 @@
+import { OperationResult, SystemModule } from "@prisma/client";
+import type { NextRequest } from "next/server";
+import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
+import { logError } from "@/lib/logger";
+import { ApiErrors, errorResponse, successResponse } from "@/lib/response";
+import { validateRequest } from "@/lib/validation";
+import { logRepository, subjectRepository } from "@/repositories";
+import { SubjectInputSchema } from "@/types/academic";
+
+async function requireAuth(req: NextRequest) {
+  const token = getTokenFromRequest(req);
+  if (!token) {
+    return { error: ApiErrors.UNAUTHORIZED() };
+  }
+  const user = verifyToken(token);
+  if (!user) {
+    return { error: ApiErrors.UNAUTHORIZED("Token inválido") };
+  }
+  return { user };
+}
+
+async function requireRole(req: NextRequest, allowedRoles: string[]) {
+  const auth = await requireAuth(req);
+  if ("error" in auth) {
+    return auth;
+  }
+  if (!allowedRoles.includes(auth.user.role)) {
+    return { error: ApiErrors.FORBIDDEN("Permissão insuficiente") };
+  }
+  return { user: auth.user };
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const auth = await requireAuth(req);
+    if ("error" in auth) {
+      return errorResponse(auth.error);
+    }
+
+    const subjects = await subjectRepository.findMany({
+      orderBy: { name: "asc" },
+    });
+
+    return successResponse(subjects);
+  } catch (error) {
+    logError("Erro listar disciplinas", error);
+    return errorResponse(ApiErrors.INTERNAL_SERVER());
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const auth = await requireRole(req, ["ADMIN_MASTER", "ADMIN_SECUNDARIO"]);
+    if ("error" in auth) {
+      return errorResponse(auth.error);
+    }
+
+    const body = await req.json();
+    const validation = validateRequest(SubjectInputSchema, body);
+    if (!validation.success) {
+      return errorResponse(ApiErrors.VALIDATION(validation.error));
+    }
+
+    const existing = await subjectRepository.findByCode(validation.data.code);
+    if (existing) {
+      return errorResponse(ApiErrors.CONFLICT("Código de disciplina já existe"));
+    }
+
+    const subject = await subjectRepository.create(validation.data as any);
+
+    await logRepository.createLog({
+      userId: auth.user.sub,
+      role: auth.user.role,
+      ipAddress: req.headers.get("x-forwarded-for") || "unknown",
+      action: "CREATE_SUBJECT",
+      module: SystemModule.SUBJECTS,
+      recordId: subject.id,
+      result: OperationResult.SUCCESS,
+    });
+
+    return successResponse(subject, 201);
+  } catch (error) {
+    logError("Erro criar disciplina", error);
+    return errorResponse(ApiErrors.INTERNAL_SERVER());
+  }
+}
