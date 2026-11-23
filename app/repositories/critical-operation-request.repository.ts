@@ -1,79 +1,92 @@
-import { Prisma, CriticalOperationRequest, ApprovalStatus } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
-import { db } from "@/lib/db";
+import type { Prisma } from "@/app/generated/prisma/client";
+import { type DbExecutor, db } from "@/app/lib/db";
+import type { ApprovalStatus } from "@/app/types/common";
+import type { CriticalOperationRequestInput } from "@/app/types/critical-operation";
+import { withRepositoryErrors } from "./errors";
 
-type CriticalOperationRequestCreateInput = Prisma.CriticalOperationRequestCreateInput;
-type CriticalOperationRequestUpdateInput = Prisma.CriticalOperationRequestUpdateInput;
-type CriticalOperationRequestWhereInput = Prisma.CriticalOperationRequestWhereInput;
+export class CriticalOperationRequestRepository {
+  constructor(private readonly client: DbExecutor = db) {}
 
-export class CriticalOperationRequestRepository extends BaseRepository<
-  CriticalOperationRequest,
-  CriticalOperationRequestCreateInput,
-  CriticalOperationRequestUpdateInput,
-  CriticalOperationRequestWhereInput
-> {
-  constructor(prisma = db) {
-    super("criticalOperationRequest", prisma);
+  create(requestedBy: string, input: CriticalOperationRequestInput) {
+    return withRepositoryErrors(() =>
+      this.client.criticalOperationRequest.create({
+        data: {
+          requestedBy,
+          operation: input.operation,
+          module: input.module ?? null,
+          recordType: input.recordType ?? null,
+          recordId: input.recordId ?? null,
+          reason: input.reason,
+          payload: input.payload
+            ? (JSON.parse(JSON.stringify(input.payload)) as Prisma.InputJsonValue)
+            : undefined,
+          authorizationDocument: input.authorizationDocument ?? null,
+        },
+      }),
+    );
   }
 
-  async findByStatus(status: ApprovalStatus): Promise<CriticalOperationRequest[]> {
-    return this.findMany({
-      where: { status } as CriticalOperationRequestWhereInput,
-      orderBy: { requestedAt: "desc" },
+  findById(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.criticalOperationRequest.findUnique({
+        where: { id },
+        include: { requester: true, approver: true },
+      }),
+    );
+  }
+
+  findPendingIncludingOwn(_userId: string) {
+    return withRepositoryErrors(() =>
+      this.client.criticalOperationRequest.findMany({
+        where: { status: "PENDING" },
+        include: { requester: true, approver: true },
+        orderBy: { requestedAt: "asc" },
+      }),
+    );
+  }
+
+  list(filter: { status?: ApprovalStatus; page: number; pageSize: number }) {
+    const where: Prisma.CriticalOperationRequestWhereInput = filter.status
+      ? { status: filter.status }
+      : {};
+    return withRepositoryErrors(async () => {
+      const [items, total] = await Promise.all([
+        this.client.criticalOperationRequest.findMany({
+          where,
+          include: { requester: true, approver: true },
+          orderBy: { requestedAt: "desc" },
+          skip: (filter.page - 1) * filter.pageSize,
+          take: filter.pageSize,
+        }),
+        this.client.criticalOperationRequest.count({ where }),
+      ]);
+      return { items, total, page: filter.page, pageSize: filter.pageSize };
     });
   }
 
-  async findByRequester(userId: string): Promise<CriticalOperationRequest[]> {
-    return this.findMany({
-      where: { requestedBy: userId } as CriticalOperationRequestWhereInput,
-      orderBy: { requestedAt: "desc" },
-    });
-  }
-
-  async findPending(): Promise<CriticalOperationRequest[]> {
-    return this.findByStatus("PENDING");
-  }
-
-  async approve(requestId: string, approverId: string): Promise<CriticalOperationRequest> {
-    return this.update(
-      { id: requestId } as CriticalOperationRequestWhereInput,
-      {
-        status: "APPROVED",
-        approvedBy: approverId,
-        decidedAt: new Date(),
-      } as CriticalOperationRequestUpdateInput
+  decide(
+    id: string,
+    status: Exclude<ApprovalStatus, "PENDING">,
+    approvedBy: string | null,
+    reason?: string,
+  ) {
+    return withRepositoryErrors(() =>
+      this.client.criticalOperationRequest.update({
+        where: { id },
+        data: {
+          status,
+          approvedBy,
+          decisionReason: reason ?? null,
+          decidedAt: new Date(),
+          executedAt: status === "EXECUTED" ? new Date() : null,
+        },
+      }),
     );
   }
 
-  async reject(requestId: string, approverId: string): Promise<CriticalOperationRequest> {
-    return this.update(
-      { id: requestId } as CriticalOperationRequestWhereInput,
-      {
-        status: "REJECTED",
-        approvedBy: approverId,
-        decidedAt: new Date(),
-      } as CriticalOperationRequestUpdateInput
-    );
-  }
-
-  async execute(requestId: string): Promise<CriticalOperationRequest> {
-    return this.update(
-      { id: requestId } as CriticalOperationRequestWhereInput,
-      {
-        status: "EXECUTED",
-        executedAt: new Date(),
-      } as CriticalOperationRequestUpdateInput
-    );
-  }
-
-  async cancel(requestId: string): Promise<CriticalOperationRequest> {
-    return this.update(
-      { id: requestId } as CriticalOperationRequestWhereInput,
-      {
-        status: "CANCELLED",
-      } as CriticalOperationRequestUpdateInput
+  countPending() {
+    return withRepositoryErrors(() =>
+      this.client.criticalOperationRequest.count({ where: { status: "PENDING" } }),
     );
   }
 }
-
-export const criticalOperationRequestRepository = new CriticalOperationRequestRepository();

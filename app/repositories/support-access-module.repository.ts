@@ -1,47 +1,35 @@
-import { Prisma, SupportAccessModule } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
-import { db } from "@/lib/db";
+import { type DbExecutor, db } from "@/app/lib/db";
+import type { SystemModule } from "@/app/types/common";
+import { withRepositoryErrors } from "./errors";
 
-type SupportAccessModuleCreateInput = Prisma.SupportAccessModuleCreateInput;
-type SupportAccessModuleWhereInput = Prisma.SupportAccessModuleWhereInput;
+export class SupportAccessModuleRepository {
+  constructor(private readonly client: DbExecutor = db) {}
 
-export class SupportAccessModuleRepository extends BaseRepository<
-  SupportAccessModule,
-  SupportAccessModuleCreateInput,
-  never,
-  SupportAccessModuleWhereInput
-> {
-  constructor(prisma = db) {
-    super("supportAccessModule", prisma);
-  }
-
-  async findByGrant(grantId: string): Promise<SupportAccessModule[]> {
-    return this.findMany({
-      where: { grantId } as SupportAccessModuleWhereInput,
-    });
-  }
-
-  async createManyForGrant(grantId: string, modules: string[]): Promise<{ count: number }> {
-    return this.createMany(
-      modules.map((module) => ({
-        grantId,
-        module: module as any,
-      }))
+  listForGrant(grantId: string) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessModule.findMany({ where: { grantId } }),
     );
   }
 
-  async deleteByGrant(grantId: string): Promise<{ count: number }> {
-    const model = this.prisma.supportAccessModule as unknown as {
-      deleteMany: (args: {
-        where: {
-          grantId: string;
-        };
-      }) => Promise<{ count: number }>;
-    };
-    return model.deleteMany({
-      where: { grantId },
-    });
+  canRead(grantId: string, module: SystemModule) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessModule.findFirst({
+        where: { grantId, module, canRead: true },
+      }),
+    );
+  }
+
+  add(grantId: string, module: SystemModule) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessModule.create({
+        data: { grantId, module, canRead: true },
+      }),
+    );
+  }
+
+  remove(grantId: string, module: SystemModule) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessModule.deleteMany({ where: { grantId, module } }),
+    );
   }
 }
-
-export const supportAccessModuleRepository = new SupportAccessModuleRepository();

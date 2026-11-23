@@ -1,79 +1,48 @@
-import { Prisma, Token, TokenPurpose } from "@prisma/client";
-import { BaseRepository } from "@/repositories/base.repository";
-import { db } from "@/lib/db";
+import { type DbExecutor, db } from "@/app/lib/db";
+import type { TokenPurpose } from "@/app/types/common";
+import { withRepositoryErrors } from "./errors";
 
-type TokenCreateInput = Prisma.TokenCreateInput;
-type TokenUpdateInput = Prisma.TokenUpdateInput;
-type TokenWhereInput = Prisma.TokenWhereInput;
+export class TokenRepository {
+  constructor(private readonly client: DbExecutor = db) {}
 
-export class TokenRepository extends BaseRepository<Token, TokenCreateInput, TokenUpdateInput, TokenWhereInput> {
-  constructor(prisma = db) {
-    super("token", prisma);
-  }
-
-  async findByTokenHash(tokenHash: string): Promise<Token | null> {
-    return this.findUnique({ tokenHash } as TokenWhereInput);
-  }
-
-  async findByUserAndPurpose(userId: string, purpose: TokenPurpose): Promise<Token[]> {
-    const model = this.prisma.token as unknown as {
-      findMany: (args: {
-        where: {
-          userId: string;
-          purpose: TokenPurpose;
-        };
-      }) => Promise<Token[]>;
-    };
-    return model.findMany({
-      where: {
-        userId,
-        purpose,
-      },
-    });
-  }
-
-  async findUnexpiredByPurpose(userId: string, purpose: TokenPurpose): Promise<Token | null> {
-    const tokens = await this.findByUserAndPurpose(userId, purpose);
-    const now = new Date();
-    return tokens.find((t) => t.expiresAt > now && !t.usedAt) || null;
-  }
-
-  async markAsUsed(tokenId: string): Promise<Token> {
-    return this.update(
-      { id: tokenId } as TokenWhereInput,
-      {
-        usedAt: new Date(),
-      } as TokenUpdateInput
+  create(input: { userId: string; purpose: TokenPurpose; tokenHash: string; expiresAt: Date }) {
+    return withRepositoryErrors(() =>
+      this.client.token.create({
+        data: {
+          userId: input.userId,
+          purpose: input.purpose,
+          tokenHash: input.tokenHash,
+          expiresAt: input.expiresAt,
+        },
+      }),
     );
   }
 
-  async deleteExpired(): Promise<{ count: number }> {
-    const model = this.prisma.token as unknown as {
-      deleteMany: (args: {
-        where: {
-          expiresAt: {
-            lt: Date;
-          };
-        };
-      }) => Promise<{ count: number }>;
-    };
-    return model.deleteMany({
-      where: {
-        expiresAt: {
-          lt: new Date(),
-        },
-      },
-    });
+  findByHash(tokenHash: string) {
+    return withRepositoryErrors(() =>
+      this.client.token.findUnique({ where: { tokenHash }, include: { user: true } }),
+    );
   }
 
-  async deleteByUserAndPurpose(userId: string, purpose: TokenPurpose): Promise<void> {
-    await this.prisma.token.deleteMany({
-      where: {
-        userId,
-        purpose,
-      },
-    });
+  consume(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.token.update({
+        where: { id },
+        data: { usedAt: new Date() },
+      }),
+    );
+  }
+
+  invalidateForUser(userId: string, purpose?: TokenPurpose) {
+    return withRepositoryErrors(() =>
+      this.client.token.updateMany({
+        where: { userId, purpose, usedAt: null },
+        data: { usedAt: new Date() },
+      }),
+    );
+  }
+
+  invalidateForUserAndPurpose(userId: string, purpose: TokenPurpose) {
+    return this.invalidateForUser(userId, purpose);
   }
 }
-
-export const tokenRepository = new TokenRepository();

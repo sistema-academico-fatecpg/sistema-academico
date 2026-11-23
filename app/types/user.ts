@@ -1,74 +1,100 @@
 import { z } from "zod";
-import type { AccountStatus, DateTime, Email, InstitucionalEmail, Role, UserId } from "./common";
 import {
+  type AccountStatus,
   AccountStatusSchema,
+  type DateTime,
   DateTimeSchema,
+  type Email,
   EmailSchema,
+  type InstitucionalEmail,
   InstitucionalEmailSchema,
-  RoleSchema,
+  type RoleName,
+  RoleNameSchema,
+  type UserId,
   UserIdSchema,
 } from "./common";
 
-/**
- * Usuário do sistema (tabela users).
- *
- * A senha é gerenciada pelo Better Auth (argon2id). O status inicial
- * é PENDING_ACTIVATION (seção 8.1 da Política de Segurança).
- */
 export type UserInput = {
   name: string;
-  socialName: string | null;
-  email: Email;
-  institutionalEmail: InstitucionalEmail;
-  registrationNumber: string | null;
-  role: Role;
+  socialName?: string | null;
+  email: InstitucionalEmail;
+  personalEmail?: Email | null;
+  registrationNumber?: string | null;
+  role: RoleName;
 };
 
 export const UserInputSchema = z.object({
-  name: z.string().min(1),
-  social_name: z.string().nullable(),
-  email: EmailSchema,
-  institutional_email: InstitucionalEmailSchema,
-  registration_number: z.string().nullable(),
-  role: RoleSchema,
+  name: z.string().trim().min(3, "Nome deve ter ao menos 3 caracteres").max(150),
+  socialName: z.string().trim().max(150).nullable().optional(),
+  email: InstitucionalEmailSchema,
+  personalEmail: EmailSchema.nullable().optional(),
+  registrationNumber: z.string().trim().min(1).max(30).nullable().optional(),
+  role: RoleNameSchema,
 });
 
 export type UserDto = {
   id: UserId;
   name: string;
   socialName: string | null;
-  email: Email;
+  email: InstitucionalEmail;
   institutionalEmail: InstitucionalEmail;
+  personalEmail: Email | null;
   registrationNumber: string | null;
-  passwordHash: string | null;
-  mfaEnabled: boolean;
-  mfaSecret: string | null;
+  role: RoleName;
+  roles: RoleName[];
   status: AccountStatus;
+  mfaEnabled: boolean;
+  lastLoginAt: DateTime | null;
   createdAt: DateTime;
-  updatedAt: DateTime | null;
-  blockedAt: DateTime | null;
-  blockedBy: UserId | null;
-  deactivatedAt: DateTime | null;
-  deactivatedBy: UserId | null;
+  updatedAt: DateTime;
 };
 
-export type User = UserDto;
-
-export const UserSchema = z.object({
+export const UserDtoSchema = z.object({
   id: UserIdSchema,
   name: z.string(),
-  social_name: z.string().nullable(),
+  socialName: z.string().nullable(),
   email: EmailSchema,
-  institutional_email: InstitucionalEmailSchema,
-  registration_number: z.string().nullable(),
-  password_hash: z.string().nullable(),
-  mfa_enabled: z.boolean(),
-  mfa_secret: z.string().nullable(),
+  institutionalEmail: EmailSchema,
+  personalEmail: EmailSchema.nullable(),
+  registrationNumber: z.string().nullable(),
+  role: RoleNameSchema,
+  roles: z.array(RoleNameSchema),
   status: AccountStatusSchema,
-  created_at: DateTimeSchema,
-  updated_at: DateTimeSchema.nullable(),
-  blocked_at: DateTimeSchema.nullable(),
-  blocked_by: UserIdSchema.nullable(),
-  deactivated_at: DateTimeSchema.nullable(),
-  deactivated_by: UserIdSchema.nullable(),
+  mfaEnabled: z.boolean(),
+  lastLoginAt: DateTimeSchema.nullable(),
+  createdAt: DateTimeSchema,
+  updatedAt: DateTimeSchema,
 });
+
+export const ListUsersQuerySchema = z.object({
+  role: RoleNameSchema.optional(),
+  status: AccountStatusSchema.optional(),
+  search: z.string().trim().max(150).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type ListUsersQuery = z.infer<typeof ListUsersQuerySchema>;
+
+export const BlockUserSchema = z.object({
+  reason: z.string().trim().min(5, "Informe o motivo do bloqueio").max(500),
+});
+
+export const ChangeUserRoleSchema = z.object({
+  role: RoleNameSchema,
+  reason: z.string().trim().min(5).max(500),
+});
+
+const institutionalEmailDomain = process.env.INSTITUTIONAL_EMAIL_DOMAIN?.trim();
+
+/** Contas genéricas (ex.: secretaria@) são proibidas pela seção 8.4.1. */
+export function isGenericAccount(email: string): boolean {
+  const localPart = email.split("@")[0]?.toLowerCase() ?? "";
+  return ["secretaria", "admin", "administrador", "suporte", "ti", "financeiro"].includes(
+    localPart,
+  );
+}
+
+export function isInstitutionalEmailAllowed(email: string): boolean {
+  if (!institutionalEmailDomain) return true;
+  return email.toLowerCase().endsWith(`@${institutionalEmailDomain.toLowerCase()}`);
+}
