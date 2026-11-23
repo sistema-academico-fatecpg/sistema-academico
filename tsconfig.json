@@ -18,10 +18,8 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["app/*"],
-      "@prisma/client": ["./app/generated/prisma/client"]
+      "@/*": ["./*"]
     }
   },
   "include": [
@@ -30,8 +28,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts",
-    "app/generated/prisma/**/*"
+    "**/*.mts"
   ],
   "exclude": ["node_modules"]
 }

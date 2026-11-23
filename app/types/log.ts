@@ -1,72 +1,88 @@
 import { z } from "zod";
-import type { DateTime, LogId, OperationResult, SystemModule, UserId } from "./common";
 import {
-  DateTimeSchema,
-  LogIdSchema,
+  type AlertType,
+  AlertTypeSchema,
+  type LogId,
   OperationResultSchema,
+  type RoleName,
+  RoleNameSchema,
   SystemModuleSchema,
+  type UserId,
   UserIdSchema,
 } from "./common";
 
-/**
- * Registro de auditoria (tabela logs).
- *
- * Logs são imutáveis e append-only: somente inclusão, nunca alteração
- * ou exclusão (seção 10.3 da Política de Segurança). Não há updated_at,
- * apenas created_at.
- */
 export type LogInput = {
-  userId: UserId | null;
-  role: string | null;
+  userId?: UserId | null;
+  role?: RoleName | null;
   ipAddress: string;
   action: string;
-  module: SystemModule;
-  recordType: string | null;
-  recordId: string | null;
-  oldValue: unknown | null;
-  newValue: unknown | null;
-  result: OperationResult;
+  module: z.infer<typeof SystemModuleSchema>;
+  recordType?: string | null;
+  recordId?: string | null;
+  oldValue?: unknown;
+  newValue?: unknown;
+  result: z.infer<typeof OperationResultSchema>;
+  createdAt?: Date;
 };
 
 export const LogInputSchema = z.object({
-  user_id: UserIdSchema.nullable(),
-  role: z.string().nullable(),
-  ip_address: z.string().min(1),
-  action: z.string().min(1),
+  userId: UserIdSchema.nullable().optional(),
+  role: RoleNameSchema.nullable().optional(),
+  ipAddress: z.string().trim().min(1),
+  action: z.string().trim().min(1).max(120),
   module: SystemModuleSchema,
-  record_type: z.string().nullable(),
-  record_id: z.string().nullable(),
-  old_value: z.unknown().nullable(),
-  new_value: z.unknown().nullable(),
+  recordType: z.string().trim().max(80).nullable().optional(),
+  recordId: z.string().trim().max(80).nullable().optional(),
+  oldValue: z.unknown().optional(),
+  newValue: z.unknown().optional(),
   result: OperationResultSchema,
 });
 
-export type Log = {
+export type LogDto = {
   id: LogId;
   userId: UserId | null;
-  role: string | null;
+  role: RoleName | null;
   ipAddress: string;
   action: string;
-  module: SystemModule;
+  module: z.infer<typeof SystemModuleSchema>;
   recordType: string | null;
   recordId: string | null;
-  oldValue: unknown | null;
-  newValue: unknown | null;
-  result: OperationResult;
-  createdAt: DateTime;
+  oldValue: unknown;
+  newValue: unknown;
+  result: z.infer<typeof OperationResultSchema>;
+  createdAt: Date;
 };
 
-export const LogSchema = z.object({
-  id: LogIdSchema,
-  user_id: UserIdSchema.nullable(),
-  role: z.string().nullable(),
-  ip_address: z.string().min(1),
-  action: z.string().min(1),
-  module: SystemModuleSchema,
-  record_type: z.string().nullable(),
-  record_id: z.string().nullable(),
-  old_value: z.unknown().nullable(),
-  new_value: z.unknown().nullable(),
-  result: OperationResultSchema,
-  created_at: DateTimeSchema,
+export const LogFilterSchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  userId: UserIdSchema.optional(),
+  module: SystemModuleSchema.optional(),
+  action: z.string().trim().max(120).optional(),
+  result: OperationResultSchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(200).default(50),
 });
+export type LogFilter = z.infer<typeof LogFilterSchema>;
+
+export type AuditAlertDto = {
+  id: string;
+  type: AlertType;
+  message: string;
+  metadata: unknown;
+  logId: LogId | null;
+  acknowledgedAt: Date | null;
+  createdAt: Date;
+};
+
+export const AlertFilterSchema = z.object({
+  acknowledged: z.enum(["true", "false"]).optional(),
+  type: AlertTypeSchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(200).default(50),
+});
+export type AlertFilter = z.infer<typeof AlertFilterSchema>;
+
+/** Campos que nunca podem ser persistidos em log (seção 10.5). */
+export const SENSITIVE_FIELD_PATTERN =
+  /(password|senha|token|secret|code|codigo|código|authorization|cookie|api[_-]?key)/i;

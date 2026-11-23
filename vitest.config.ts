@@ -1,14 +1,16 @@
-import path from "node:path";
+import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  plugins: [tsconfigPaths()],
   test: {
     environment: "node",
-    setupFiles: ["./app/lib/__tests__/setup.ts"],
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./app"),
+    include: ["**/*.test.ts", "**/*.test.tsx"],
+    exclude: ["node_modules", ".next", "app/generated/**"],
+    coverage: {
+      reporter: ["text", "lcov"],
+      include: ["app/**/*.ts"],
+      exclude: ["app/generated/**", "app/**/*.test.ts"],
     },
   },
 });

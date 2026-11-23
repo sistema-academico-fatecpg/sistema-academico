@@ -1,66 +1,35 @@
-import type { MfaRecoveryCode, Prisma } from "@prisma/client";
-import { db } from "@/lib/db";
-import { BaseRepository } from "@/repositories/base.repository";
+import { type DbExecutor, db } from "@/app/lib/db";
+import { withRepositoryErrors } from "./errors";
 
-type MfaRecoveryCodeCreateInput = Prisma.MfaRecoveryCodeCreateInput;
-type MfaRecoveryCodeWhereInput = Prisma.MfaRecoveryCodeWhereInput;
+export class MfaRecoveryCodeRepository {
+  constructor(private readonly client: DbExecutor = db) {}
 
-export class MfaRecoveryCodeRepository extends BaseRepository<
-  MfaRecoveryCode,
-  MfaRecoveryCodeCreateInput,
-  never,
-  MfaRecoveryCodeWhereInput
-> {
-  constructor(prisma = db) {
-    super("mfaRecoveryCode", prisma);
+  createMany(userId: string, codeHashes: string[]) {
+    return withRepositoryErrors(() =>
+      this.client.mfaRecoveryCode.createMany({
+        data: codeHashes.map((codeHash) => ({ userId, codeHash })),
+      }),
+    );
   }
 
-  async findByUser(userId: string): Promise<MfaRecoveryCode[]> {
-    return this.findMany({
-      where: { userId } as MfaRecoveryCodeWhereInput,
-      orderBy: { createdAt: "desc" },
-    });
+  findUnusedByUser(userId: string) {
+    return withRepositoryErrors(() =>
+      this.client.mfaRecoveryCode.findMany({
+        where: { userId, usedAt: null },
+        orderBy: { createdAt: "asc" },
+      }),
+    );
   }
 
-  async findUnusedByUser(userId: string): Promise<MfaRecoveryCode[]> {
-    return this.findMany({
-      where: {
-        userId,
-        usedAt: null,
-      } as MfaRecoveryCodeWhereInput,
-    });
+  consume(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.mfaRecoveryCode.update({ where: { id }, data: { usedAt: new Date() } }),
+    );
   }
 
-  async markAsUsed(codeId: string): Promise<MfaRecoveryCode> {
-    const model = this.prisma.mfaRecoveryCode as unknown as {
-      update: (args: { where: { id: string }; data: { usedAt: Date } }) => Promise<MfaRecoveryCode>;
-    };
-    return model.update({
-      where: { id: codeId },
-      data: { usedAt: new Date() },
-    });
-  }
-
-  async deleteUsedByUser(userId: string): Promise<{ count: number }> {
-    const model = this.prisma.mfaRecoveryCode as unknown as {
-      deleteMany: (args: {
-        where: {
-          userId: string;
-          usedAt: {
-            not: null;
-          };
-        };
-      }) => Promise<{ count: number }>;
-    };
-    return model.deleteMany({
-      where: {
-        userId,
-        usedAt: {
-          not: null,
-        },
-      },
-    });
+  deleteAllForUser(userId: string) {
+    return withRepositoryErrors(() =>
+      this.client.mfaRecoveryCode.deleteMany({ where: { userId } }),
+    );
   }
 }
-
-export const mfaRecoveryCodeRepository = new MfaRecoveryCodeRepository();

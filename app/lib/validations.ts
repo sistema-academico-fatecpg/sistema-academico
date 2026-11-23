@@ -21,7 +21,12 @@ export const RoleNameSchema = z.enum([
   "SUPORTE_TECNICO",
 ]);
 
-export const AccountStatusSchema = z.enum(["PENDING_ACTIVATION", "ACTIVE", "BLOCKED", "INACTIVE"]);
+export const AccountStatusSchema = z.enum([
+  "PENDING_ACTIVATION",
+  "ACTIVE",
+  "BLOCKED",
+  "INACTIVE",
+]);
 
 export const SystemModuleSchema = z.enum([
   "USERS",
@@ -80,7 +85,11 @@ export const LoginSchema = z.object({
 
 export const TokenInputSchema = z.object({
   userId: UUIDSchema,
-  purpose: z.enum(["ACCOUNT_ACTIVATION", "EMAIL_CONFIRMATION", "PASSWORD_RESET"]),
+  purpose: z.enum([
+    "ACCOUNT_ACTIVATION",
+    "EMAIL_CONFIRMATION",
+    "PASSWORD_RESET",
+  ]),
   expiresAt: z.string().datetime(),
 });
 
