@@ -1,9 +1,7 @@
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { withTransaction } from "@/lib/transaction";
 
-export type PrismaTx = Omit<
-  PrismaClient,
-  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
->;
+export type PrismaTx = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
 
 export abstract class BaseRepository<T, CreateInput, UpdateInput, WhereInput> {
   protected readonly model: string;
@@ -23,10 +21,7 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput, WhereInput> {
 
   async createMany(data: CreateInput[]): Promise<{ count: number }> {
     const model = this.prisma[this.model as keyof PrismaClient] as unknown as {
-      createMany: (args: {
-        data: unknown[];
-        skipDuplicates?: boolean;
-      }) => Promise<{ count: number }>;
+      createMany: (args: { data: unknown[]; skipDuplicates?: boolean }) => Promise<{ count: number }>;
     };
     return model.createMany({ data, skipDuplicates: true });
   }
@@ -79,7 +74,9 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput, WhereInput> {
     return model.delete({ where });
   }
 
-  async executeTransaction<T>(callback: (tx: PrismaTx) => Promise<T>): Promise<T> {
-    return this.prisma.$transaction(callback);
+  async executeTransaction<T>(
+    callback: (tx: PrismaTx) => Promise<T>
+  ): Promise<T> {
+    return withTransaction(callback);
   }
 }

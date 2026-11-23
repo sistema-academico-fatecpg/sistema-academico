@@ -1,134 +1,89 @@
-import type { Prisma, SupportAccessGrant, SupportAccessStatus } from "@prisma/client";
-import { db } from "@/lib/db";
-import { BaseRepository } from "@/repositories/base.repository";
+import { type DbExecutor, db } from "@/app/lib/db";
+import type { SystemModule } from "@/app/types/common";
+import { withRepositoryErrors } from "./errors";
 
-type SupportAccessGrantCreateInput = Prisma.SupportAccessGrantCreateInput;
-type SupportAccessGrantUpdateInput = Prisma.SupportAccessGrantUpdateInput;
-type SupportAccessGrantWhereInput = Prisma.SupportAccessGrantWhereInput;
+export class SupportAccessGrantRepository {
+  constructor(private readonly client: DbExecutor = db) {}
 
-export class SupportAccessGrantRepository extends BaseRepository<
-  SupportAccessGrant,
-  SupportAccessGrantCreateInput,
-  SupportAccessGrantUpdateInput,
-  SupportAccessGrantWhereInput
-> {
-  constructor(prisma = db) {
-    super("supportAccessGrant", prisma);
-  }
-
-  async findByStatus(status: SupportAccessStatus): Promise<SupportAccessGrant[]> {
-    return this.findMany({
-      where: { status } as SupportAccessGrantWhereInput,
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  async findByUser(userId: string): Promise<SupportAccessGrant[]> {
-    return this.findMany({
-      where: { userId } as SupportAccessGrantWhereInput,
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  async findPending(): Promise<SupportAccessGrant[]> {
-    return this.findByStatus("PENDING");
-  }
-
-  async findActive(): Promise<SupportAccessGrant[]> {
-    const now = new Date();
-    const model = this.prisma.supportAccessGrant as unknown as {
-      findMany: (args: {
-        where: {
-          status: SupportAccessStatus;
-          startsAt: {
-            lte: Date;
-          };
-          expiresAt: {
-            gte: Date;
-          };
-        };
-        orderBy?: unknown;
-      }) => Promise<SupportAccessGrant[]>;
-    };
-    return model.findMany({
-      where: {
-        status: "APPROVED",
-        startsAt: {
-          lte: now,
-        },
-        expiresAt: {
-          gte: now,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  async approve(grantId: string, approverId: string): Promise<SupportAccessGrant> {
-    return this.update(
-      { id: grantId } as SupportAccessGrantWhereInput,
-      {
-        status: "APPROVED",
-        approvedBy: approverId,
-      } as SupportAccessGrantUpdateInput,
-    );
-  }
-
-  async reject(grantId: string, approverId: string): Promise<SupportAccessGrant> {
-    return this.update(
-      { id: grantId } as SupportAccessGrantWhereInput,
-      {
-        status: "REJECTED",
-        approvedBy: approverId,
-      } as SupportAccessGrantUpdateInput,
-    );
-  }
-
-  async revoke(grantId: string): Promise<SupportAccessGrant> {
-    return this.update(
-      { id: grantId } as SupportAccessGrantWhereInput,
-      {
-        status: "REVOKED",
-      } as SupportAccessGrantUpdateInput,
-    );
-  }
-
-  async expire(grantId: string): Promise<SupportAccessGrant> {
-    return this.update(
-      { id: grantId } as SupportAccessGrantWhereInput,
-      {
-        status: "EXPIRED",
-      } as SupportAccessGrantUpdateInput,
-    );
-  }
-
-  async expireExpired(): Promise<{ count: number }> {
-    const now = new Date();
-    const model = this.prisma.supportAccessGrant as unknown as {
-      updateMany: (args: {
-        where: {
-          status: SupportAccessStatus;
-          expiresAt: {
-            lt: Date;
-          };
-        };
+  create(input: {
+    requestedBy: string;
+    reason: string;
+    startsAt: Date;
+    endsAt: Date;
+    modules: SystemModule[];
+  }) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessGrant.create({
         data: {
-          status: SupportAccessStatus;
-        };
-      }) => Promise<{ count: number }>;
-    };
-    return model.updateMany({
-      where: {
-        status: "APPROVED",
-        expiresAt: {
-          lt: now,
+          requestedBy: input.requestedBy,
+          reason: input.reason,
+          startsAt: input.startsAt,
+          endsAt: input.endsAt,
+          modules: {
+            create: input.modules.map((module) => ({ module, canRead: true })),
+          },
         },
-      },
-      data: {
-        status: "EXPIRED",
-      },
-    });
+        include: { modules: true },
+      }),
+    );
+  }
+
+  findById(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessGrant.findUnique({
+        where: { id },
+        include: { modules: true, requester: true, approver: true },
+      }),
+    );
+  }
+
+  list(filter?: { status?: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED" | "REVOKED" }) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessGrant.findMany({
+        where: filter?.status ? { status: filter.status } : {},
+        include: { modules: true, requester: true, approver: true },
+        orderBy: { createdAt: "desc" },
+      }),
+    );
+  }
+
+  decide(id: string, status: "APPROVED" | "REJECTED", approvedBy: string) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessGrant.update({
+        where: { id },
+        data: { status, approvedBy, decidedAt: new Date() },
+        include: { modules: true },
+      }),
+    );
+  }
+
+  revoke(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessGrant.update({ where: { id }, data: { status: "REVOKED" } }),
+    );
+  }
+
+  expireDue(now = new Date()) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessGrant.updateMany({
+        where: { status: "APPROVED", endsAt: { lte: now } },
+        data: { status: "EXPIRED" },
+      }),
+    );
+  }
+
+  findActiveForUser(userId: string, now = new Date()) {
+    return withRepositoryErrors(() =>
+      this.client.supportAccessGrant.findFirst({
+        where: {
+          requestedBy: userId,
+          status: "APPROVED",
+          startsAt: { lte: now },
+          endsAt: { gt: now },
+        },
+        include: { modules: true },
+        orderBy: { endsAt: "desc" },
+      }),
+    );
   }
 }
-
-export const supportAccessGrantRepository = new SupportAccessGrantRepository();

@@ -1,169 +1,117 @@
 import { z } from "zod";
-import type { DateTime, PeriodId, SubjectId, UserId } from "./common";
-import { DateTimeSchema, PeriodIdSchema, SubjectIdSchema, UserIdSchema } from "./common";
+import { type DateTime, DateTimeSchema, UserIdSchema } from "./common";
 
-export type CourseInput = {
-  name: string;
-  code: string;
-  description: string | null;
-};
+export const ScheduleSlotSchema = z.object({
+  weekday: z.number().int().min(0).max(6),
+  start: z.string().regex(/^\d{2}:\d{2}$/),
+  end: z.string().regex(/^\d{2}:\d{2}$/),
+});
+export type ScheduleSlot = z.infer<typeof ScheduleSlotSchema>;
 
-export const CourseInputSchema = z.object({
-  name: z.string().min(1, "Nome é obrigatório"),
-  code: z.string().min(1, "Código é obrigatório").toUpperCase(),
-  description: z.string().nullable(),
+export const CreateAcademicPeriodSchema = z
+  .object({
+    name: z.string().trim().min(3).max(120),
+    year: z.coerce.number().int().min(2000).max(2100),
+    semester: z.coerce.number().int().min(1).max(2),
+    enrollmentOpensAt: DateTimeSchema,
+    enrollmentClosesAt: DateTimeSchema,
+    gradesOpenAt: DateTimeSchema.optional(),
+    gradesCloseAt: DateTimeSchema.optional(),
+    isCurrent: z.boolean().default(false),
+  })
+  .refine((data) => new Date(data.enrollmentOpensAt) < new Date(data.enrollmentClosesAt), {
+    message: "Abertura da matrícula deve ser anterior ao fechamento",
+    path: ["enrollmentClosesAt"],
+  });
+export type CreateAcademicPeriodInput = z.infer<typeof CreateAcademicPeriodSchema>;
+
+export const GradePeriodSchema = z
+  .object({
+    gradesOpenAt: DateTimeSchema,
+    gradesCloseAt: DateTimeSchema,
+  })
+  .refine((data) => new Date(data.gradesOpenAt) < new Date(data.gradesCloseAt), {
+    message: "Abertura das notas deve ser anterior ao fechamento",
+    path: ["gradesCloseAt"],
+  });
+
+export const CreateCourseSchema = z.object({
+  code: z.string().trim().min(2).max(20),
+  name: z.string().trim().min(3).max(150),
 });
 
-export type Course = {
-  id: string;
-  name: string;
-  code: string;
-  description: string | null;
-  createdAt: DateTime;
-  updatedAt: DateTime;
-};
-
-export const CourseSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  code: z.string(),
-  description: z.string().nullable(),
-  createdAt: DateTimeSchema,
-  updatedAt: DateTimeSchema,
-});
-
-export type PeriodInput = {
-  name: string;
-  code: string;
-  startDate: DateTime;
-  endDate: DateTime;
-  isActive: boolean;
-  courseId: string;
-};
-
-export const PeriodInputSchema = z.object({
-  name: z.string().min(1, "Nome é obrigatório"),
-  code: z.string().min(1, "Código é obrigatório").toUpperCase(),
-  startDate: DateTimeSchema,
-  endDate: DateTimeSchema,
-  isActive: z.boolean().default(false),
-  courseId: PeriodIdSchema,
-});
-
-export type Period = {
-  id: PeriodId;
-  name: string;
-  code: string;
-  startDate: DateTime;
-  endDate: DateTime;
-  isActive: boolean;
-  courseId: string;
-  createdAt: DateTime;
-  updatedAt: DateTime;
-};
-
-export const PeriodSchema = z.object({
-  id: PeriodIdSchema,
-  name: z.string(),
-  code: z.string(),
-  startDate: DateTimeSchema,
-  endDate: DateTimeSchema,
-  isActive: z.boolean(),
-  courseId: PeriodIdSchema,
-  createdAt: DateTimeSchema,
-  updatedAt: DateTimeSchema,
-});
-
-export type SubjectInput = {
-  name: string;
-  code: string;
-  courseId: string;
-  periodId: string;
-};
-
-export const SubjectInputSchema = z.object({
-  name: z.string().min(1, "Nome é obrigatório"),
-  code: z.string().min(1, "Código é obrigatório").toUpperCase(),
+export const CreateSubjectSchema = z.object({
+  code: z.string().trim().min(2).max(20),
+  name: z.string().trim().min(3).max(150),
   courseId: z.string().uuid(),
-  periodId: z.string().uuid(),
+  periodNumber: z.coerce.number().int().min(1).max(20),
+  workloadHours: z.coerce.number().int().min(1).max(1000),
 });
 
-export type Subject = {
-  id: SubjectId;
+export const CreateClassGroupSchema = z.object({
+  subjectId: z.string().uuid(),
+  academicPeriodId: z.string().uuid(),
+  professorId: z.string().uuid().nullable().optional(),
+  room: z.string().trim().max(50).optional(),
+  schedule: z.array(ScheduleSlotSchema).min(1),
+});
+
+export const EnrollSchema = z.object({
+  classGroupIds: z.array(z.string().uuid()).min(1).max(20),
+});
+
+export const SetGradeSchema = z.object({
+  enrollmentId: z.string().uuid(),
+  value: z.coerce.number().min(0).max(10),
+});
+
+export const CorrectGradeSchema = z.object({
+  enrollmentId: z.string().uuid(),
+  value: z.coerce.number().min(0).max(10),
+  reason: z.string().trim().min(10).max(1000),
+});
+
+export type AcademicPeriodDto = {
+  id: string;
   name: string;
-  code: string;
-  courseId: string;
-  periodId: string;
-  createdAt: DateTime;
-  updatedAt: DateTime;
+  year: number;
+  semester: number;
+  enrollmentOpensAt: DateTime;
+  enrollmentClosesAt: DateTime;
+  gradesOpenAt: DateTime | null;
+  gradesCloseAt: DateTime | null;
+  isCurrent: boolean;
 };
 
-export const SubjectSchema = z.object({
-  id: SubjectIdSchema,
-  name: z.string(),
-  code: z.string(),
-  courseId: z.string().uuid(),
-  periodId: z.string().uuid(),
-  createdAt: DateTimeSchema,
-  updatedAt: DateTimeSchema,
-});
-
-export type EnrollmentInput = {
-  studentId: UserId;
-  subjectId: SubjectId;
-};
-
-export const EnrollmentInputSchema = z.object({
-  studentId: UserIdSchema,
-  subjectId: SubjectIdSchema,
-});
-
-export type Enrollment = {
+export type ClassGroupDto = {
   id: string;
-  studentId: UserId;
-  subjectId: SubjectId;
-  enrolledAt: DateTime;
-  status: string;
-  finalGrade: number | null;
+  subjectId: string;
+  subjectCode: string;
+  subjectName: string;
+  periodNumber: number;
+  professorId: string | null;
+  professorName: string | null;
+  schedule: ScheduleSlot[];
+  room: string | null;
+  isDependency: boolean;
+  hasConflict: boolean;
 };
 
-export const EnrollmentSchema = z.object({
-  id: z.string().uuid(),
-  studentId: UserIdSchema,
-  subjectId: SubjectIdSchema,
-  enrolledAt: DateTimeSchema,
-  status: z.string(),
-  finalGrade: z.number().nullable(),
-});
-
-export type GradeInput = {
+export type StudentGradeDto = {
   enrollmentId: string;
-  value: number;
-  type: string;
-  recordedBy: UserId;
+  classGroupId: string;
+  subjectCode: string;
+  subjectName: string;
+  professorName: string | null;
+  grade: number | null;
+  status: "DRAFT" | "PUBLISHED";
+  updatedAt: DateTime | null;
 };
 
-export const GradeInputSchema = z.object({
-  enrollmentId: z.string().uuid(),
-  value: z.number().min(0).max(10),
-  type: z.string().default("EXAM"),
-  recordedBy: UserIdSchema,
+export const ExportScopeSchema = z.object({
+  scope: z.enum(["ENROLLMENTS", "GRADES", "USERS"]),
+  mass: z.boolean().default(false),
+  reason: z.string().trim().max(1000).optional(),
+  studentId: UserIdSchema.optional(),
 });
-
-export type Grade = {
-  id: string;
-  enrollmentId: string;
-  value: number;
-  type: string;
-  recordedAt: DateTime;
-  recordedBy: UserId;
-};
-
-export const GradeSchema = z.object({
-  id: z.string().uuid(),
-  enrollmentId: z.string().uuid(),
-  value: z.number(),
-  type: z.string(),
-  recordedAt: DateTimeSchema,
-  recordedBy: UserIdSchema,
-});
+export type ExportScope = z.infer<typeof ExportScopeSchema>;

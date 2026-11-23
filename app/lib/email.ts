@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY as string);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendEmail({
   to,
@@ -20,7 +20,7 @@ export async function sendEmail({
       subject,
       text,
       html,
-    } as any);
+    });
     return result;
   } catch (error) {
     console.error("Erro ao enviar email:", error);

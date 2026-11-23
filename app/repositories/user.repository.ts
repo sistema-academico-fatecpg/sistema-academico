@@ -1,225 +1,177 @@
-import type { Prisma, Role, RoleName, User, UserRole } from "@prisma/client";
-import { db } from "@/lib/db";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { Prisma } from "@/app/generated/prisma/client";
+import { type DbExecutor, db } from "@/app/lib/db";
+import type { RoleName } from "@/app/types/common";
+import type { ListUsersQuery, UserInput } from "@/app/types/user";
+import { withRepositoryErrors } from "./errors";
 
-type UserCreateInput = Prisma.UserCreateInput;
-type UserUpdateInput = Prisma.UserUpdateInput;
-type UserWhereInput = Prisma.UserWhereInput;
+const userWithRoles = {
+  roles: { include: { role: true } },
+  studentProfile: true,
+} satisfies Prisma.UserInclude;
 
-type UserRoleCreateInput = Prisma.UserRoleCreateInput;
-type UserRoleWhereInput = Prisma.UserRoleWhereInput;
+export type UserWithRoles = Prisma.UserGetPayload<{ include: typeof userWithRoles }>;
 
-export class UserRepository extends BaseRepository<
-  User,
-  UserCreateInput,
-  UserUpdateInput,
-  UserWhereInput
-> {
-  constructor(prisma = db) {
-    super("user", prisma);
+export class UserRepository {
+  constructor(private readonly client: DbExecutor = db) {}
+
+  findById(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.user.findUnique({ where: { id }, include: userWithRoles }),
+    );
   }
 
-  async findByEmail(email: string): Promise<(User & { role: Role }) | null> {
-    const model = this.prisma.user as unknown as {
-      findUnique: (args: {
-        where: unknown;
-        include: { role: boolean };
-      }) => Promise<(User & { role: Role }) | null>;
+  findByEmail(email: string) {
+    return withRepositoryErrors(() =>
+      this.client.user.findUnique({
+        where: { email: email.toLowerCase() },
+        include: userWithRoles,
+      }),
+    );
+  }
+
+  async list(query: ListUsersQuery, visibleRoles: readonly RoleName[]) {
+    const where: Prisma.UserWhereInput = {
+      AND: [
+        { roles: { some: { role: { name: { in: visibleRoles as RoleName[] } } } } },
+        query.role ? { roles: { some: { role: { name: query.role } } } } : {},
+        query.status ? { status: query.status } : {},
+        query.search
+          ? {
+              OR: [
+                { name: { contains: query.search, mode: "insensitive" } },
+                { email: { contains: query.search, mode: "insensitive" } },
+                { registrationNumber: { contains: query.search, mode: "insensitive" } },
+              ],
+            }
+          : {},
+      ],
     };
-    return model.findUnique({
-      where: { email } as UserWhereInput,
-      include: { role: true },
+
+    return withRepositoryErrors(async () => {
+      const [items, total] = await Promise.all([
+        this.client.user.findMany({
+          where,
+          include: userWithRoles,
+          orderBy: { name: "asc" },
+          skip: (query.page - 1) * query.pageSize,
+          take: query.pageSize,
+        }),
+        this.client.user.count({ where }),
+      ]);
+      return { items, total, page: query.page, pageSize: query.pageSize };
     });
   }
 
-  async findByInstitutionalEmail(
-    institutionalEmail: string,
-  ): Promise<(User & { role: Role }) | null> {
-    const model = this.prisma.user as unknown as {
-      findUnique: (args: {
-        where: unknown;
-        include: { role: boolean };
-      }) => Promise<(User & { role: Role }) | null>;
-    };
-    return model.findUnique({
-      where: { institutionalEmail } as UserWhereInput,
-      include: { role: true },
-    });
-  }
-
-  async findByRegistrationNumber(
-    registrationNumber: string,
-  ): Promise<(User & { role: Role }) | null> {
-    const model = this.prisma.user as unknown as {
-      findUnique: (args: {
-        where: unknown;
-        include: { role: boolean };
-      }) => Promise<(User & { role: Role }) | null>;
-    };
-    return model.findUnique({
-      where: { registrationNumber } as UserWhereInput,
-      include: { role: true },
-    });
-  }
-
-  async findUnique(where: UserWhereInput): Promise<(User & { role: Role }) | null> {
-    const model = this.prisma.user as unknown as {
-      findUnique: (args: {
-        where: unknown;
-        include: { role: boolean };
-      }) => Promise<(User & { role: Role }) | null>;
-    };
-    return model.findUnique({
-      where,
-      include: { role: true },
-    });
-  }
-
-  async findUsersWithRoles(): Promise<(User & { userRoles: (UserRole & { role: Role })[] })[]> {
-    const model = this.prisma.user as unknown as {
-      findMany: (args: {
-        include: { userRoles: { include: { role: boolean } } };
-      }) => Promise<(User & { userRoles: (UserRole & { role: Role })[] })[]>;
-    };
-    return model.findMany({
-      include: {
-        userRoles: {
-          include: {
-            role: true,
+  async create(input: UserInput & { createdBy?: string | null }) {
+    return withRepositoryErrors(() =>
+      this.client.$transaction(async (tx) => {
+        const role = await tx.role.findUniqueOrThrow({ where: { name: input.role } });
+        const user = await tx.user.create({
+          data: {
+            name: input.name,
+            socialName: input.socialName ?? null,
+            email: input.email,
+            personalEmail: input.personalEmail ?? null,
+            registrationNumber: input.registrationNumber ?? null,
+            status: "PENDING_ACTIVATION",
+            roles: { create: { roleId: role.id, assignedBy: input.createdBy ?? null } },
           },
-        },
-      },
-    });
+          include: userWithRoles,
+        });
+        return user;
+      }),
+    );
   }
 
-  async findByRole(roleName: RoleName): Promise<User[]> {
-    const model = this.prisma.user as unknown as {
-      findMany: (args: {
-        where: {
-          userRoles: {
-            some: {
-              role: {
-                name: RoleName;
-              };
-            };
-          };
-        };
-      }) => Promise<User[]>;
-    };
-    return model.findMany({
-      where: {
-        userRoles: {
-          some: {
-            role: {
-              name: roleName,
-            },
+  update(id: string, data: Prisma.UserUpdateInput) {
+    return withRepositoryErrors(() =>
+      this.client.user.update({ where: { id }, data, include: userWithRoles }),
+    );
+  }
+
+  block(id: string, blockedBy: string, reason: string) {
+    return withRepositoryErrors(() =>
+      this.client.$transaction(async (tx) => {
+        const user = await tx.user.update({
+          where: { id },
+          data: {
+            status: "BLOCKED",
+            blockedAt: new Date(),
+            blockedBy,
+            blockReason: reason,
           },
-        },
-      },
-    });
-  }
-
-  async blockUser(userId: string, blockedBy: string | null): Promise<User> {
-    return this.update(
-      { id: userId } as UserWhereInput,
-      {
-        status: "BLOCKED",
-        blockedAt: new Date(),
-        blockedBy,
-      } as UserUpdateInput,
+        });
+        await tx.session.deleteMany({ where: { userId: id } });
+        await tx.token.updateMany({
+          where: { userId: id, usedAt: null },
+          data: { usedAt: new Date() },
+        });
+        return user;
+      }),
     );
   }
 
-  async activateUser(userId: string): Promise<User> {
-    return this.update(
-      { id: userId } as UserWhereInput,
-      {
-        status: "ACTIVE",
-      } as UserUpdateInput,
-    );
-  }
-
-  async deactivateUser(userId: string, deactivatedBy: string | null): Promise<User> {
-    return this.update(
-      { id: userId } as UserWhereInput,
-      {
-        status: "INACTIVE",
-        deactivatedAt: new Date(),
-        deactivatedBy,
-      } as UserUpdateInput,
-    );
-  }
-
-  async assignRole(userId: string, roleName: RoleName): Promise<UserRole> {
-    return this.executeTransaction(async (tx) => {
-      const role = await tx.role.findUnique({
-        where: { name: roleName },
-      });
-
-      if (!role) {
-        throw new Error(`Role ${roleName} não encontrado`);
-      }
-
-      return tx.userRole.create({
+  deactivate(id: string, deactivatedBy: string) {
+    return withRepositoryErrors(() =>
+      this.client.user.update({
+        where: { id },
         data: {
-          userId,
-          roleId: role.id,
+          status: "INACTIVE",
+          deactivatedAt: new Date(),
+          deactivatedBy,
         },
-      });
-    });
+      }),
+    );
   }
 
-  async removeRole(userId: string, roleName: RoleName): Promise<void> {
-    await this.executeTransaction(async (tx) => {
-      const role = await tx.role.findUnique({
-        where: { name: roleName },
-      });
-
-      if (!role) {
-        throw new Error(`Role ${roleName} não encontrado`);
-      }
-
-      await tx.userRole.delete({
-        where: {
-          userId_roleId: {
-            userId,
-            roleId: role.id,
+  registerFailedLogin(id: string, maxAttempts: number, lockMinutes: number) {
+    return withRepositoryErrors(() =>
+      this.client.$transaction(async (tx) => {
+        const user = await tx.user.findUniqueOrThrow({ where: { id } });
+        const attempts = user.failedLoginAttempts + 1;
+        const shouldLock = attempts >= maxAttempts;
+        return tx.user.update({
+          where: { id },
+          data: {
+            failedLoginAttempts: shouldLock ? 0 : attempts,
+            lockedUntil: shouldLock
+              ? new Date(Date.now() + lockMinutes * 60_000)
+              : user.lockedUntil,
           },
+        });
+      }),
+    );
+  }
+
+  registerSuccessfulLogin(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.user.update({
+        where: { id },
+        data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
+      }),
+    );
+  }
+
+  countActiveMasters() {
+    return withRepositoryErrors(() =>
+      this.client.user.count({
+        where: {
+          status: "ACTIVE",
+          roles: { some: { role: { name: "ADMIN_MASTER" } } },
         },
-      });
-    });
+      }),
+    );
   }
 
-  async getUserRoles(userId: string): Promise<RoleName[]> {
-    const userRoles = await this.prisma.userRole.findMany({
-      where: { userId },
-      include: { role: true },
-    });
-    return userRoles.map((ur) => ur.role.name as RoleName);
+  listExpiredEmergencyAccounts(now = new Date()) {
+    return withRepositoryErrors(() =>
+      this.client.user.findMany({
+        where: { isEmergency: true, emergencyExpiresAt: { lte: now }, status: "ACTIVE" },
+      }),
+    );
   }
 
-  async hasRole(userId: string, roleName: RoleName): Promise<boolean> {
-    const count = await this.prisma.userRole.count({
-      where: {
-        userId,
-        role: { name: roleName },
-      },
-    });
-    return count > 0;
-  }
-
-  async countByStatus(status: string): Promise<number> {
-    return this.count({ status } as UserWhereInput);
-  }
-
-  async findPendingActivation(): Promise<User[]> {
-    const model = this.prisma.user as unknown as {
-      findMany: (args: { where: { status: string } }) => Promise<User[]>;
-    };
-    return model.findMany({
-      where: { status: "PENDING_ACTIVATION" },
-    });
+  revokeSessions(userId: string) {
+    return withRepositoryErrors(() => this.client.session.deleteMany({ where: { userId } }));
   }
 }
-
-export const userRepository = new UserRepository();

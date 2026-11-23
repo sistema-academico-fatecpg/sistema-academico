@@ -1,107 +1,71 @@
-import type { Permission, Prisma, Role, RoleName } from "@prisma/client";
-import { db } from "@/lib/db";
-import { BaseRepository } from "@/repositories/base.repository";
+import { type DbExecutor, db } from "@/app/lib/db";
+import type { PermissionAction, RoleName, SystemModule } from "@/app/types/common";
+import { withRepositoryErrors } from "./errors";
 
-type RoleCreateInput = Prisma.RoleCreateInput;
-type RoleUpdateInput = Prisma.RoleUpdateInput;
-type RoleWhereInput = Prisma.RoleWhereInput;
+export class RoleRepository {
+  constructor(private readonly client: DbExecutor = db) {}
 
-export class RoleRepository extends BaseRepository<
-  Role,
-  RoleCreateInput,
-  RoleUpdateInput,
-  RoleWhereInput
-> {
-  constructor(prisma = db) {
-    super("role", prisma);
+  listAll() {
+    return withRepositoryErrors(() =>
+      this.client.role.findMany({
+        orderBy: { name: "asc" },
+        include: { permissions: { include: { permission: true } } },
+      }),
+    );
   }
 
-  async findByName(name: RoleName): Promise<Role | null> {
-    return this.findUnique({ name } as RoleWhereInput);
+  findByName(name: RoleName) {
+    return withRepositoryErrors(() =>
+      this.client.role.findUnique({
+        where: { name },
+        include: { permissions: { include: { permission: true } } },
+      }),
+    );
   }
 
-  async findAllWithPermissions(): Promise<
-    (Role & { permissions: (Permission & { permission: Permission })[] })[]
-  > {
-    const model = this.prisma.role as unknown as {
-      findMany: (args: {
-        include: { permissions: { include: { permission: boolean } } };
-      }) => Promise<(Role & { permissions: (Permission & { permission: Permission })[] })[]>;
-    };
-    return model.findMany({
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
-    });
+  findUserRoles(userId: string) {
+    return withRepositoryErrors(() =>
+      this.client.userRole.findMany({ where: { userId }, include: { role: true } }),
+    );
   }
 
-  async getPermissions(roleName: RoleName): Promise<string[]> {
-    const role = await this.prisma.role.findUnique({
-      where: { name: roleName },
-      include: {
-        permissions: {
-          include: { permission: true },
-        },
-      },
-    });
-    if (!role) return [];
-    return role.permissions.map((rp) => rp.permission.name);
+  assignRole(userId: string, roleId: string, assignedBy?: string | null) {
+    return withRepositoryErrors(() =>
+      this.client.userRole.upsert({
+        where: { userId_roleId: { userId, roleId } },
+        update: {},
+        create: { userId, roleId, assignedBy: assignedBy ?? null },
+      }),
+    );
   }
 
-  async assignPermission(roleName: RoleName, permissionName: string): Promise<void> {
-    await this.executeTransaction(async (tx) => {
-      const role = await tx.role.findUnique({ where: { name: roleName } });
-      const permission = await tx.permission.findUnique({ where: { name: permissionName } });
-
-      if (!role || !permission) {
-        throw new Error("Role ou permissão não encontrada");
-      }
-
-      await tx.rolePermission.create({
-        data: {
-          roleId: role.id,
-          permissionId: permission.id,
-        },
-      });
-    });
+  removeRole(userId: string, roleId: string) {
+    return withRepositoryErrors(() =>
+      this.client.userRole.delete({ where: { userId_roleId: { userId, roleId } } }),
+    );
   }
 
-  async removePermission(roleName: RoleName, permissionName: string): Promise<void> {
-    await this.executeTransaction(async (tx) => {
-      const role = await tx.role.findUnique({ where: { name: roleName } });
-      const permission = await tx.permission.findUnique({ where: { name: permissionName } });
-
-      if (!role || !permission) {
-        throw new Error("Role ou permissão não encontrada");
-      }
-
-      await tx.rolePermission.delete({
-        where: {
-          roleId_permissionId: {
-            roleId: role.id,
-            permissionId: permission.id,
-          },
-        },
-      });
-    });
+  upsertPermission(module: SystemModule, action: PermissionAction, description?: string) {
+    const name = `${module}:${action}`;
+    return withRepositoryErrors(() =>
+      this.client.permission.upsert({
+        where: { name },
+        update: { description },
+        create: { module, action, name, description },
+      }),
+    );
   }
 
-  async hasPermission(roleName: RoleName, permissionName: string): Promise<boolean> {
-    const role = await this.prisma.role.findUnique({
-      where: { name: roleName },
-      include: {
-        permissions: {
-          include: { permission: true },
-        },
-      },
-    });
-    if (!role) return false;
-    return role.permissions.some((rp) => rp.permission.name === permissionName);
+  setRolePermissions(roleId: string, permissionIds: string[]) {
+    return withRepositoryErrors(() =>
+      this.client.$transaction(async (tx) => {
+        await tx.rolePermission.deleteMany({ where: { roleId } });
+        if (permissionIds.length > 0) {
+          await tx.rolePermission.createMany({
+            data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
+          });
+        }
+      }),
+    );
   }
 }
-
-export const roleRepository = new RoleRepository();

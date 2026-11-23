@@ -1,7 +1,11 @@
-import { type JwtPayload, sign, verify } from "jsonwebtoken";
+import { sign, verify, type JwtPayload } from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "default-secret-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
+
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET não definido nas variáveis de ambiente");
+}
 
 export interface TokenPayload extends JwtPayload {
   sub: string;
@@ -10,15 +14,10 @@ export interface TokenPayload extends JwtPayload {
 }
 
 export async function signToken(payload: Omit<TokenPayload, "iat" | "exp">): Promise<string> {
-  return new Promise((resolve, reject) => {
-    sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as any, (err, token) => {
-      if (err) reject(err);
-      else resolve(token as string);
-    });
-  });
+  return sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
-export function verifyToken(token: string): TokenPayload | null {
+export async function verifyToken(token: string): Promise<TokenPayload | null> {
   try {
     const decoded = verify(token, JWT_SECRET) as TokenPayload;
     return decoded;
@@ -29,7 +28,7 @@ export function verifyToken(token: string): TokenPayload | null {
 
 export function getTokenFromRequest(req: Request): string | null {
   const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return null;
   }
   return authHeader.slice(7);
