@@ -17,20 +17,20 @@ export default async function UsersPage() {
   );
 
   return (
-    <section>
+    <section className="space-y-5">
       <div className="flex items-end justify-between">
-        <h1 className="text-2xl font-semibold">Usuários gerenciáveis</h1>
-        <a className="text-sm underline" href="/usuarios/novo">
+        <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#9a7a45]">Administração</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Usuários</h1></div>
+        <a className="rounded-lg bg-[#6b1720] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#501018]" href="/usuarios/novo">
           Cadastrar usuário
         </a>
       </div>
-      <p className="mt-2 text-sm text-zinc-600">
+      <p className="text-sm text-slate-500">
         A visão respeita o perfil do solicitante; perfis administrativos não aparecem para a
         secretaria.
       </p>
-      <div className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-100 text-xs uppercase text-zinc-600">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
             <tr>
               <th className="px-4 py-3">Nome</th>
               <th className="px-4 py-3">E-mail</th>
