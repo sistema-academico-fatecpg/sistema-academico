@@ -23,7 +23,8 @@
     "db:studio": "prisma studio",
     "bootstrap:master": "tsx scripts/bootstrap-master.ts",
     "expire:emergency": "tsx scripts/expire-emergency-masters.ts",
-    "close:grades": "tsx scripts/close-grades.ts"
+    "close:grades": "tsx scripts/close-grades.ts",
+    "audit:retention": "tsx scripts/audit-retention-report.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.7.18",

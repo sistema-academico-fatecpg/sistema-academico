@@ -63,7 +63,10 @@ export const ApprovalFilterSchema = z.object({
 export const SupportAccessRequestSchema = z.object({
   reason: z.string().trim().min(10).max(2000),
   modules: z.array(SystemModuleSchema).min(1).max(10),
+  startsAt: DateTimeSchema.optional(),
   endsAt: DateTimeSchema,
+  involvesAuditor: z.boolean().default(false),
+  authorizationDocument: z.string().trim().max(255).optional(),
 });
 export type SupportAccessRequestInput = z.infer<typeof SupportAccessRequestSchema>;
 
