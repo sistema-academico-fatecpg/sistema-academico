@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { actorFrom, jsonError } from "@/app/lib/api/responses";
 import { AccountService, visibleRolesFor } from "@/app/lib/auth/account-service";
 import { requirePermission } from "@/app/lib/auth/session";
@@ -49,7 +50,9 @@ export async function GET(request: Request) {
   }
 }
 
-const CreateUserBodySchema = UserInputSchema.superRefine((value, ctx) => {
+const CreateUserBodySchema = UserInputSchema.extend({
+  requestReason: z.string().trim().min(10).max(2000).optional(),
+}).superRefine((value, ctx) => {
   if (isGenericAccount(value.email)) {
     ctx.addIssue({
       code: "custom",
@@ -69,8 +72,12 @@ const CreateUserBodySchema = UserInputSchema.superRefine((value, ctx) => {
 export async function POST(request: Request) {
   try {
     const actor = await requirePermission(PERMISSIONS.USERS_CREATE);
-    const body = CreateUserBodySchema.parse(await request.json());
-    const result = await new AccountService().createUser(body, actorFrom(actor, request));
+    const { requestReason, ...body } = CreateUserBodySchema.parse(await request.json());
+    const result = await new AccountService().createUser(
+      body,
+      actorFrom(actor, request),
+      requestReason,
+    );
 
     if (result.kind === "PENDING_APPROVAL") {
       return Response.json(

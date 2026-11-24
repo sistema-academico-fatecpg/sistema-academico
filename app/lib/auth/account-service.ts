@@ -1,13 +1,14 @@
 import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { CriticalOperationService } from "@/app/lib/critical-operations/service";
 import { db } from "@/app/lib/db";
 import { sendEmail } from "@/app/lib/email";
-import { accountActivationEmail, passwordResetEmail } from "@/app/lib/email/templates";
-import { CriticalOperationRequestRepository } from "@/app/repositories/critical-operation-request.repository";
+import { passwordResetEmail } from "@/app/lib/email/templates";
 import { RoleRepository } from "@/app/repositories/role.repository";
 import { UserRepository, type UserWithRoles } from "@/app/repositories/user.repository";
 import type { RoleName, UserId } from "@/app/types/common";
 import type { UserInput } from "@/app/types/user";
+import { deliverActivation, passwordResetUrl } from "./activation";
 import { setUserPassword } from "./credentials";
 import { AuthError, forbidden, invalidToken, notFound, validationError } from "./errors";
 import { validatePassword } from "./password-policy";
@@ -30,18 +31,6 @@ export type CreateUserResult =
   | { kind: "CREATED"; user: UserWithRoles }
   | { kind: "ROLE_ADDED"; user: UserWithRoles }
   | { kind: "PENDING_APPROVAL"; requestId: string };
-
-export function appBaseUrl(): string {
-  return (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
-}
-
-export function activationUrl(token: string): string {
-  return `${appBaseUrl()}/ativar?token=${encodeURIComponent(token)}`;
-}
-
-export function passwordResetUrl(token: string): string {
-  return `${appBaseUrl()}/redefinir-senha?token=${encodeURIComponent(token)}`;
-}
 
 function rolesOf(user: UserWithRoles): RoleName[] {
   return user.roles.map((userRole) => userRole.role.name);
@@ -84,7 +73,7 @@ export class AccountService {
     private readonly users = new UserRepository(),
     private readonly roles = new RoleRepository(),
     private readonly tokens = new TokenService(),
-    private readonly criticalOperations = new CriticalOperationRequestRepository(),
+    private readonly criticalOperations = new CriticalOperationService(),
     private readonly audit = createAuditService(),
   ) {}
 
@@ -92,37 +81,44 @@ export class AccountService {
    * POST /users — endpoint único de cadastro, sem senha. O titular define a
    * própria senha pelo link de ativação (seções 8.2 e 8.3.1).
    */
-  async createUser(input: UserInput, actor: ActorContext): Promise<CreateUserResult> {
+  async createUser(
+    input: UserInput,
+    actor: ActorContext,
+    requestReason?: string,
+  ): Promise<CreateUserResult> {
     assertCanAssignRole(actor, input.role);
+    if (!actor.actorId) throw forbidden("Sessão sem usuário identificado");
 
     const existing = await this.users.findByEmail(input.email);
 
     if (roleRequiresApproval(input.role)) {
-      const request = await this.criticalOperations.create(actor.actorId ?? "", {
-        operation:
-          input.role === "ADMIN_MASTER"
-            ? "INCLUDE_OR_REPLACE_ADMIN_MASTER"
-            : "GRANT_REVOKE_ADMIN_PERMISSION",
-        module: "USERS",
-        recordType: "User",
-        recordId: existing?.id,
-        reason: `Cadastro de usuário com perfil ${input.role}`,
-        payload: existing
-          ? { action: "ADD_ROLE", userId: existing.id, role: input.role }
-          : { action: "CREATE_USER", user: input },
-      });
+      const reason = requestReason?.trim();
+      if (!reason || reason.length < 10) {
+        throw validationError(
+          "Justificativa obrigatória (mínimo de 10 caracteres) para cadastro com perfil administrativo",
+        );
+      }
 
-      await this.audit.record({
-        userId: auditUserId(actor.actorId),
-        role: actor.actorRoles[0] ?? null,
-        ipAddress: actor.ipAddress,
-        action: AUDIT_ACTIONS.CRITICAL_OPERATION_REQUESTED,
-        module: "USERS",
-        recordType: "User",
-        recordId: existing?.id ?? null,
-        result: "SUCCESS",
-        newValue: { operation: request.operation, role: input.role, email: input.email },
-      });
+      const request = await this.criticalOperations.request(
+        {
+          id: actor.actorId,
+          roles: actor.actorRoles,
+          ipAddress: actor.ipAddress,
+        },
+        {
+          operation:
+            input.role === "ADMIN_MASTER"
+              ? "INCLUDE_OR_REPLACE_ADMIN_MASTER"
+              : "GRANT_REVOKE_ADMIN_PERMISSION",
+          module: "USERS",
+          recordType: "User",
+          recordId: existing?.id,
+          reason,
+          payload: existing
+            ? { action: "ADD_ROLE", userId: existing.id, role: input.role }
+            : { action: "CREATE_USER", user: input },
+        },
+      );
 
       return { kind: "PENDING_APPROVAL", requestId: request.id };
     }
@@ -177,16 +173,7 @@ export class AccountService {
   }
 
   async sendActivation(user: UserWithRoles, ipAddress: string, resent = false): Promise<void> {
-    const issued = await this.tokens.issue(user.id, "ACCOUNT_ACTIVATION");
-    await sendEmail(
-      accountActivationEmail({
-        to: user.email,
-        name: user.name,
-        activationUrl: activationUrl(issued.token),
-        code: issued.code,
-        validHours: 24,
-      }),
-    );
+    await deliverActivation(user, this.tokens);
     if (resent) {
       await this.audit.record({
         userId: auditUserId(user.id),
@@ -348,6 +335,7 @@ export class AccountService {
       result: "SUCCESS",
       newValue: { reason },
     });
+    await this.alertIfMastersBelowMinimum(actor);
   }
 
   async deactivate(userId: string, actor: ActorContext): Promise<void> {
@@ -366,6 +354,26 @@ export class AccountService {
       recordType: "User",
       recordId: userId,
       result: "SUCCESS",
+    });
+    await this.alertIfMastersBelowMinimum(actor);
+  }
+
+  /**
+   * Alerta a direção e o Auditor sempre que restarem menos de duas contas
+   * Admin Master ativas (seções 8.1.2 e 8.8).
+   */
+  private async alertIfMastersBelowMinimum(actor: ActorContext): Promise<void> {
+    const activeMasters = await this.users.countActiveMasters();
+    if (activeMasters >= 2) return;
+    await this.audit.record({
+      userId: auditUserId(actor.actorId),
+      role: actor.actorRoles[0] ?? null,
+      ipAddress: actor.ipAddress,
+      action: AUDIT_ACTIONS.MASTER_ACCOUNTS_BELOW_MINIMUM,
+      module: "USERS",
+      recordType: "User",
+      result: "SUCCESS",
+      newValue: { activeMasters },
     });
   }
 }
