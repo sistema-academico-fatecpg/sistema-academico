@@ -42,7 +42,7 @@ export class AcademicPeriodRepository {
     return withRepositoryErrors(() =>
       this.client.academicPeriod.update({
         where: { id },
-        data: { gradesOpenAt: opensAt, gradesCloseAt: closesAt },
+        data: { gradesOpenAt: opensAt, gradesCloseAt: closesAt, gradesClosedAt: null },
       }),
     );
   }
@@ -51,7 +51,27 @@ export class AcademicPeriodRepository {
     return withRepositoryErrors(() =>
       this.client.academicPeriod.update({
         where: { id },
-        data: { gradesCloseAt: new Date() },
+        data: { gradesCloseAt: new Date(), gradesClosedAt: new Date() },
+      }),
+    );
+  }
+
+  listExpiredGradeWindows(now = new Date()) {
+    return withRepositoryErrors(() =>
+      this.client.academicPeriod.findMany({
+        where: {
+          gradesOpenAt: { not: null },
+          gradesCloseAt: { lte: now },
+          gradesClosedAt: null,
+        },
+      }),
+    );
+  }
+
+  createSnapshot(academicPeriodId: string, payload: Prisma.InputJsonValue) {
+    return withRepositoryErrors(() =>
+      this.client.gradeClosingSnapshot.create({
+        data: { academicPeriodId, payload },
       }),
     );
   }

@@ -1,8 +1,66 @@
 export const instant = false;
 
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { EnrollmentService } from "@/app/lib/academic/enrollment-service";
+import { getAuthenticatedUser } from "@/app/lib/auth/session";
+import { EnrollmentForm } from "./EnrollmentForm";
+
 export const metadata: Metadata = { title: "Matrículas" };
-export default function Page() {
+
+export default async function Page() {
+  const actor = await getAuthenticatedUser();
+  if (!actor) redirect("/login");
+
+  const service = new EnrollmentService();
+  const academicActor = { id: actor.id, roles: actor.roles, ipAddress: "server" };
+
+  if (actor.roles.includes("ALUNO")) {
+    const [available, history] = await Promise.all([
+      service.available(academicActor),
+      service.ownHistory(academicActor),
+    ]);
+    return (
+      <section className="space-y-6">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[.16em] text-[#9a7a45]">
+            Módulo institucional
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Matrículas</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+            A lista mostra apenas as disciplinas do seu período. Havendo DP, ela é obrigatória e as
+            turmas com conflito de horário ficam bloqueadas.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="font-semibold text-slate-900">Turmas disponíveis</h2>
+          <div className="mt-4">
+            <EnrollmentForm items={available} />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="font-semibold text-slate-900">Histórico</h2>
+          <ul className="mt-4 space-y-2 text-sm">
+            {history.map((item) => (
+              <li
+                className="flex justify-between border-b border-slate-100 py-2"
+                key={item.enrollmentId}
+              >
+                <span>
+                  {item.subjectCode} — {item.subjectName}
+                </span>
+                <span className="text-slate-500">
+                  {item.grade ?? "—"} · {item.status}
+                </span>
+              </li>
+            ))}
+            {history.length === 0 ? <li className="text-slate-500">Nenhuma matrícula.</li> : null}
+          </ul>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-6">
       <div>
@@ -11,32 +69,18 @@ export default function Page() {
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Matrículas</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-          Matrículas, dependências e vínculos com turmas.
+          A matrícula é pessoal e feita pelo aluno autenticado. Exceções às regras de DP, período ou
+          conflito são registradas por <code>/api/enrollments/exception</code> e só executam após
+          dupla aprovação em{" "}
+          <a className="underline" href="/aprovacoes">
+            /aprovacoes
+          </a>
+          .
         </p>
       </div>
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold text-slate-900">Serviço do módulo</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              A interface utiliza os serviços existentes do projeto; as regras de autorização devem
-              ser aplicadas novamente no servidor.
-            </p>
-          </div>
-          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-            Integração de interface
-          </span>
-        </div>
-        <div className="mt-5 rounded-lg bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Endpoint existente
-          </p>
-          <code className="mt-1 block text-sm text-[#6b1720]">/api/enrollments</code>
-        </div>
-        <p className="mt-4 text-xs leading-5 text-slate-500">
-          Perfis previstos: ADMIN_MASTER, ADMIN_SECUNDARIO, PROFESSOR, ALUNO. A autorização efetiva
-          depende das permissões concedidas no servidor, não apenas da visibilidade desta tela.
-        </p>
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+        Consultas administrativas: <code>/api/exports?scope=ENROLLMENTS</code>. O identificador do
+        aluno nunca é aceito em consultas pessoais fora da sessão.
       </div>
     </section>
   );

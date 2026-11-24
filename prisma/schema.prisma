@@ -215,6 +215,7 @@ model User {
   grades             Grade[]                     @relation("GradeProfessor")
   gradeChanges       GradeHistory[]              @relation("GradeChangedBy")
   taughtClasses      ClassGroup[]                @relation("ClassProfessor")
+  dependencies       StudentDependency[]
 
   @@index([status])
   @@index([registrationNumber])
@@ -234,6 +235,21 @@ model StudentProfile {
   course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
 
   @@map("student_profiles")
+}
+
+/** Dependências (DP) pendentes do aluno (seção 9.1). */
+model StudentDependency {
+  id          String    @id @default(uuid())
+  studentId   String    @map("student_id")
+  subjectId   String    @map("subject_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  student     User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, subjectId])
+  @@index([studentId, resolvedAt])
+  @@map("student_dependencies")
 }
 
 model Session {
@@ -451,10 +467,12 @@ model AcademicPeriod {
   enrollmentClosesAt  DateTime     @map("enrollment_closes_at")
   gradesOpenAt        DateTime?    @map("grades_open_at")
   gradesCloseAt       DateTime?    @map("grades_close_at")
+  gradesClosedAt      DateTime?    @map("grades_closed_at")
   isCurrent           Boolean      @default(false) @map("is_current")
   createdAt           DateTime     @default(now()) @map("created_at")
   updatedAt           DateTime     @updatedAt @map("updated_at")
   classes             ClassGroup[]
+  snapshots           GradeClosingSnapshot[]
 
   @@unique([year, semester])
   @@map("academic_periods")
@@ -471,6 +489,7 @@ model Subject {
   updatedAt     DateTime     @updatedAt @map("updated_at")
   course        Course       @relation(fields: [courseId], references: [id], onDelete: Restrict)
   classes       ClassGroup[]
+  dependencies  StudentDependency[]
 
   @@index([courseId, periodNumber])
   @@map("subjects")
@@ -541,6 +560,18 @@ model GradeHistory {
 
   @@index([gradeId, changedAt])
   @@map("grade_history")
+}
+
+/** Cópia de segurança gerada no fechamento do período de notas (9.2). */
+model GradeClosingSnapshot {
+  id               String         @id @default(uuid())
+  academicPeriodId String         @map("academic_period_id")
+  payload          Json
+  createdAt        DateTime       @default(now()) @map("created_at")
+  academicPeriod   AcademicPeriod @relation(fields: [academicPeriodId], references: [id], onDelete: Restrict)
+
+  @@index([academicPeriodId, createdAt])
+  @@map("grade_closing_snapshots")
 }
 
 // ---------------------------------------------------------------------------
