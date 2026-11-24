@@ -1,8 +1,11 @@
+export { CourseRepository } from "./course.repository";
 export { CriticalOperationRequestRepository } from "./critical-operation-request.repository";
 export { mapPrismaError, RepositoryError, withRepositoryErrors } from "./errors";
 export { LogRepository } from "./log.repository";
 export { MfaRecoveryCodeRepository } from "./mfa-recovery-code.repository";
+export { AcademicPeriodRepository } from "./period.repository";
 export { RoleRepository } from "./role.repository";
+export { SubjectRepository } from "./subject.repository";
 export { SupportAccessGrantRepository } from "./support-access-grant.repository";
 export { SupportAccessModuleRepository } from "./support-access-module.repository";
 export { TokenRepository } from "./token.repository";

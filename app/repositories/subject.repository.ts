@@ -1,59 +1,44 @@
-import type { Prisma, Subject } from "@prisma/client";
-import { db } from "@/lib/db";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { Prisma } from "@/app/generated/prisma/client";
+import { type DbExecutor, db } from "@/app/lib/db";
+import { withRepositoryErrors } from "./errors";
 
-type SubjectCreateInput = Prisma.SubjectCreateInput;
-type SubjectUpdateInput = Prisma.SubjectUpdateInput;
-type SubjectWhereInput = Prisma.SubjectWhereInput;
+export class SubjectRepository {
+  constructor(private readonly client: DbExecutor = db) {}
 
-export class SubjectRepository extends BaseRepository<
-  Subject,
-  SubjectCreateInput,
-  SubjectUpdateInput,
-  SubjectWhereInput
-> {
-  constructor(prisma = db) {
-    super("subject", prisma);
+  list(courseId?: string) {
+    return withRepositoryErrors(() =>
+      this.client.subject.findMany({
+        where: courseId ? { courseId } : {},
+        orderBy: [{ periodNumber: "asc" }, { name: "asc" }],
+        include: { course: { select: { id: true, code: true, name: true } } },
+      }),
+    );
   }
 
-  async findByCode(code: string): Promise<Subject | null> {
-    return this.findUnique({ code } as SubjectWhereInput);
+  findById(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.subject.findUnique({
+        where: { id },
+        include: { course: true },
+      }),
+    );
   }
 
-  async findByCourse(courseId: string): Promise<Subject[]> {
-    const model = this.prisma.subject as unknown as {
-      findMany: (args: { where: { courseId: string } }) => Promise<Subject[]>;
-    };
-    return model.findMany({
-      where: { courseId },
-    });
+  findByCode(code: string) {
+    return withRepositoryErrors(() =>
+      this.client.subject.findUnique({ where: { code: code.toUpperCase() } }),
+    );
   }
 
-  async findByPeriod(periodId: string): Promise<Subject[]> {
-    const model = this.prisma.subject as unknown as {
-      findMany: (args: { where: { periodId: string } }) => Promise<Subject[]>;
-    };
-    return model.findMany({
-      where: { periodId },
-    });
+  create(data: Prisma.SubjectCreateInput) {
+    return withRepositoryErrors(() =>
+      this.client.subject.create({
+        data: { ...data, code: data.code.toUpperCase() },
+      }),
+    );
   }
 
-  async findWithEnrollments(): Promise<(Subject & { enrollments: any[] })[]> {
-    const model = this.prisma.subject as unknown as {
-      findMany: (args: {
-        include: { enrollments: { include: { student: true } } };
-      }) => Promise<(Subject & { enrollments: any[] })[]>;
-    };
-    return model.findMany({
-      include: {
-        enrollments: {
-          include: {
-            student: true,
-          },
-        },
-      },
-    });
+  update(id: string, data: Prisma.SubjectUpdateInput) {
+    return withRepositoryErrors(() => this.client.subject.update({ where: { id }, data }));
   }
 }
-
-export const subjectRepository = new SubjectRepository();

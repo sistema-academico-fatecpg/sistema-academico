@@ -1,7 +1,3 @@
-"use client";
-
-import { cn } from "@/lib/utils";
-
-export function cn(...inputs: (string | undefined | null | false)[]) {
-  return inputs.filter(Boolean).join(" ");
+export function cn(...values: Array<string | false | null | undefined>): string {
+  return values.filter(Boolean).join(" ");
 }

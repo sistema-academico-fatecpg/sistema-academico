@@ -4,19 +4,32 @@ import { twoFactor } from "better-auth/plugins";
 import { db } from "@/app/lib/db";
 import { sendEmail } from "@/app/lib/email";
 import { passwordResetEmail } from "@/app/lib/email/templates";
+import { hashPassword, verifyPassword } from "@/app/lib/security/password-hash";
+import { requiresMfa } from "@/app/types/roles";
 
 function authSecret(): string {
   const secret = process.env.BETTER_AUTH_SECRET;
   if (secret && secret !== "replace-with-a-secure-secret") return secret;
+  // A coleta de páginas durante o build não deve exigir segredos de runtime.
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return "build-time-placeholder-not-used-at-runtime";
+  }
   if (process.env.NODE_ENV === "production") {
     throw new Error("BETTER_AUTH_SECRET não configurada");
   }
-  // Valor apenas para desenvolvimento local e testes; nunca usado em produção.
   return "desenvolvimento-apenas-nao-usar-em-producao-000000";
 }
 
 function baseUrl(): string {
   return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+}
+
+async function currentRoles(userId: string): Promise<string[]> {
+  const roles = await db.userRole.findMany({
+    where: { userId },
+    select: { role: { select: { name: true } } },
+  });
+  return roles.map((item) => item.role.name);
 }
 
 export const auth = betterAuth({
@@ -27,10 +40,19 @@ export const auth = betterAuth({
   trustedOrigins: [baseUrl()],
   emailAndPassword: {
     enabled: true,
+    // Não existe autocadastro: a secretaria cria a conta e o titular a ativa
+    // pelo link de uso único (seções 8.2 e 8.3).
+    disableSignUp: true,
     requireEmailVerification: true,
     minPasswordLength: 12,
     maxPasswordLength: 128,
     autoSignIn: false,
+    resetPasswordTokenExpiresIn: 30 * 60,
+    revokeSessionsOnPasswordReset: true,
+    password: {
+      hash: hashPassword,
+      verify: ({ hash, password }) => verifyPassword(hash, password),
+    },
     sendResetPassword: async ({ user, url }) => {
       await sendEmail(
         passwordResetEmail({
@@ -85,11 +107,46 @@ export const auth = betterAuth({
         before: async (session) => {
           const user = await db.user.findUnique({
             where: { id: session.userId },
-            select: { status: true, lockedUntil: true },
+            select: {
+              status: true,
+              lockedUntil: true,
+              isEmergency: true,
+              emergencyExpiresAt: true,
+            },
           });
           if (user?.status !== "ACTIVE") return false;
           if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) return false;
+          if (
+            user.isEmergency &&
+            user.emergencyExpiresAt &&
+            user.emergencyExpiresAt.getTime() <= Date.now()
+          ) {
+            return false;
+          }
           return true;
+        },
+        after: async (session) => {
+          // Executado somente quando a sessão é realmente criada, ou seja,
+          // depois da senha e, quando exigido, do segundo fator.
+          try {
+            const { UserRepository } = await import("@/app/repositories/user.repository");
+            const { createAuditService } = await import("@/app/lib/audit");
+            const { AUDIT_ACTIONS } = await import("@/app/lib/audit/audit-service");
+            const roles = await currentRoles(session.userId);
+            await new UserRepository().registerSuccessfulLogin(session.userId);
+            await createAuditService().record({
+              userId: session.userId as never,
+              role: (roles[0] ?? null) as never,
+              ipAddress: session.ipAddress ?? "unknown",
+              action: AUDIT_ACTIONS.LOGIN_SUCCESS,
+              module: "USERS",
+              recordType: "User",
+              recordId: session.userId,
+              result: "SUCCESS",
+            });
+          } catch {
+            // A auditoria nunca deve impedir uma sessão já autenticada.
+          }
         },
       },
     },
@@ -101,8 +158,24 @@ export const auth = betterAuth({
         digits: 6,
         period: 30,
       },
+      backupCodeOptions: {
+        amount: 10,
+        length: 10,
+        storeBackupCodes: "encrypted",
+      },
     }),
   ],
 });
+
+/** Indica se o usuário precisa concluir a configuração do segundo fator. */
+export async function needsTwoFactorSetup(userId: string): Promise<boolean> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { twoFactorEnabled: true },
+  });
+  if (!user) return false;
+  const roles = (await currentRoles(userId)) as Parameters<typeof requiresMfa>[0];
+  return requiresMfa(roles) && !user.twoFactorEnabled;
+}
 
 export type Auth = typeof auth;

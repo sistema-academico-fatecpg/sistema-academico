@@ -1,86 +1,55 @@
-import { OperationResult, SystemModule } from "@prisma/client";
-import type { NextRequest } from "next/server";
-import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
-import { logError } from "@/lib/logger";
-import { ApiErrors, errorResponse, successResponse } from "@/lib/response";
-import { validateRequest } from "@/lib/validation";
-import { logRepository, periodRepository } from "@/repositories";
-import { PeriodInputSchema } from "@/types/academic";
+import { jsonError } from "@/app/lib/api/responses";
+import { createAuditService } from "@/app/lib/audit";
+import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { requirePermission } from "@/app/lib/auth/session";
+import { getClientIp } from "@/app/lib/request-context";
+import { AcademicPeriodRepository } from "@/app/repositories/period.repository";
+import { CreateAcademicPeriodSchema } from "@/app/types/academic";
+import { PERMISSIONS } from "@/app/types/roles";
 
-async function requireAuth(req: NextRequest) {
-  const token = getTokenFromRequest(req);
-  if (!token) {
-    return { error: ApiErrors.UNAUTHORIZED() };
-  }
-  const user = verifyToken(token);
-  if (!user) {
-    return { error: ApiErrors.UNAUTHORIZED("Token inválido") };
-  }
-  return { user };
-}
-
-async function requireRole(req: NextRequest, allowedRoles: string[]) {
-  const auth = await requireAuth(req);
-  if ("error" in auth) {
-    return auth;
-  }
-  if (!allowedRoles.includes(auth.user.role)) {
-    return { error: ApiErrors.FORBIDDEN("Permissão insuficiente") };
-  }
-  return { user: auth.user };
-}
-
-export async function GET(req: NextRequest) {
+export async function GET(_request: Request) {
   try {
-    const auth = await requireAuth(req);
-    if ("error" in auth) {
-      return errorResponse(auth.error);
-    }
+    await requirePermission(PERMISSIONS.PERIODS_READ);
+    const periods = await new AcademicPeriodRepository().list();
+    return Response.json({ items: periods });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
 
-    const periods = await periodRepository.findMany({
-      orderBy: { name: "asc" },
+export async function POST(request: Request) {
+  try {
+    const actor = await requirePermission(PERMISSIONS.PERIODS_CREATE);
+    const input = CreateAcademicPeriodSchema.parse(await request.json());
+    const period = await new AcademicPeriodRepository().create({
+      name: input.name,
+      year: input.year,
+      semester: input.semester,
+      enrollmentOpensAt: new Date(input.enrollmentOpensAt),
+      enrollmentClosesAt: new Date(input.enrollmentClosesAt),
+      gradesOpenAt: input.gradesOpenAt ? new Date(input.gradesOpenAt) : null,
+      gradesCloseAt: input.gradesCloseAt ? new Date(input.gradesCloseAt) : null,
+      isCurrent: input.isCurrent,
     });
 
-    return successResponse(periods);
-  } catch (error) {
-    logError("Erro listar períodos", error);
-    return errorResponse(ApiErrors.INTERNAL_SERVER());
-  }
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const auth = await requireRole(req, ["ADMIN_MASTER"]);
-    if ("error" in auth) {
-      return errorResponse(auth.error);
-    }
-
-    const body = await req.json();
-    const validation = validateRequest(PeriodInputSchema, body);
-    if (!validation.success) {
-      return errorResponse(ApiErrors.VALIDATION(validation.error));
-    }
-
-    const existing = await periodRepository.findByCode(validation.data.code);
-    if (existing) {
-      return errorResponse(ApiErrors.CONFLICT("Código de período já existe"));
-    }
-
-    const period = await periodRepository.create(validation.data as any);
-
-    await logRepository.createLog({
-      userId: auth.user.sub,
-      role: auth.user.role,
-      ipAddress: req.headers.get("x-forwarded-for") || "unknown",
-      action: "CREATE_PERIOD",
-      module: SystemModule.PERIODS,
+    await createAuditService().record({
+      userId: actor.id as never,
+      role: actor.roles[0] ?? null,
+      ipAddress: getClientIp(request),
+      action: AUDIT_ACTIONS.ACADEMIC_PERIOD_CREATED,
+      module: "PERIODS",
+      recordType: "AcademicPeriod",
       recordId: period.id,
-      result: OperationResult.SUCCESS,
+      result: "SUCCESS",
+      newValue: {
+        year: period.year,
+        semester: period.semester,
+        enrollmentOpensAt: period.enrollmentOpensAt,
+        enrollmentClosesAt: period.enrollmentClosesAt,
+      },
     });
-
-    return successResponse(period, 201);
+    return Response.json(period, { status: 201 });
   } catch (error) {
-    logError("Erro criar período", error);
-    return errorResponse(ApiErrors.INTERNAL_SERVER());
+    return jsonError(error);
   }
 }

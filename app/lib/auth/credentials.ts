@@ -1,9 +1,9 @@
-import { hashPassword } from "better-auth/crypto";
 import { db } from "@/app/lib/db";
+import { hashPassword } from "@/app/lib/security/password-hash";
 
 /**
- * Grava a credencial usando o mesmo formato do Better Auth: a senha nunca é
- * armazenada em texto puro, apenas com hash forte e salt (seção 8.3.5).
+ * Grava a credencial usando Argon2id (seção 8.3.5). A senha nunca é
+ * armazenada em texto puro e não há criptografia reversível.
  */
 export async function setUserPassword(userId: string, password: string): Promise<void> {
   const passwordHash = await hashPassword(password);
