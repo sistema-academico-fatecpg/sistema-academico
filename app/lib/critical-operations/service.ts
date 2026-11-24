@@ -242,6 +242,7 @@ export class CriticalOperationService {
     requestId: string,
     decision: { decision: "APPROVE" | "REJECT"; reason?: string },
     actor: CriticalOperationActor,
+    directionAuthorization?: string,
   ): Promise<DecideResult> {
     const parsed = ApprovalDecisionSchema.parse(decision);
     const request = await this.requests.findById(requestId);
@@ -294,8 +295,27 @@ export class CriticalOperationService {
     }
 
     const auditorApproval = masterInclusion && (status.singleAccountMode || emergencyRequest);
+    const restoreRequest = request.operation === "DATA_RESTORE_AFTER_INCIDENT";
 
-    if (auditorApproval) {
+    if (restoreRequest) {
+      // 13.2: restauração é aprovada pelo Auditor; se o incidente envolver um
+      // Admin Master, a aprovação cabe à direção (documento formal).
+      if (!actor.roles.includes("AUDITOR")) {
+        throw forbidden("Restauração após incidente é aprovada pelo Auditor");
+      }
+      const payload = request.payload;
+      const involvesMaster =
+        payload &&
+        typeof payload === "object" &&
+        !Array.isArray(payload) &&
+        (payload as Record<string, unknown>).involvesMaster === true;
+      if (involvesMaster) {
+        const document = (payload as Record<string, unknown>).authorizationDocument;
+        if (!directionAuthorization || directionAuthorization !== document) {
+          throw forbidden("Incidente com Admin Master exige autorização formal da direção");
+        }
+      }
+    } else if (auditorApproval) {
       if (!actor.roles.includes("AUDITOR")) {
         throw forbidden("Neste cenário, a aprovação cabe ao Auditor (seção 8.8.2)");
       }

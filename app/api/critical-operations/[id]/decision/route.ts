@@ -21,6 +21,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
         ipAddress: getClientIp(request),
         permissions: actor.permissions,
       },
+      request.headers.get("x-direction-authorization") ?? undefined,
     );
 
     return Response.json({

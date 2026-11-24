@@ -107,6 +107,9 @@ enum AlertType {
   MASTER_ACCOUNTS_BELOW_MINIMUM
   SUPPORT_ACCESS_USED
   EMERGENCY_MASTER_ACCOUNT
+  INCIDENT_REPORTED
+  DATA_SUBJECT_REQUESTED
+  BACKUP_FAILED
 }
 
 enum EnrollmentStatus {
@@ -118,6 +121,50 @@ enum EnrollmentStatus {
 enum GradeStatus {
   DRAFT
   PUBLISHED
+}
+
+enum DataSubjectRequestType {
+  ACCESS
+  CORRECTION
+  COPY
+  ELIMINATION
+}
+
+enum DataSubjectRequestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  REPORTED
+  CONTAINED
+  ANALYZED
+  RESTORE_REQUESTED
+  RESTORED
+  NOTIFIED
+  CLOSED
+}
+
+enum BackupType {
+  FULL
+  INCREMENTAL
+  SEMESTER_CLOSING
+}
+
+enum BackupStatus {
+  CREATED
+  VERIFIED
+  RESTORE_TESTED
+  EXPIRED
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +263,10 @@ model User {
   gradeChanges       GradeHistory[]              @relation("GradeChangedBy")
   taughtClasses      ClassGroup[]                @relation("ClassProfessor")
   dependencies       StudentDependency[]
+  dataSubjectRequests DataSubjectRequest[]
+  sensitiveData      SensitiveData[]
+  reportedIncidents  Incident[]                  @relation("IncidentReportedBy")
+  containedIncidents Incident[]                  @relation("IncidentContainedBy")
 
   @@index([status])
   @@index([registrationNumber])
@@ -590,7 +641,75 @@ model SensitiveData {
   createdAt   DateTime @default(now()) @map("created_at")
   createdBy   String   @map("created_by")
   revealedAt  DateTime? @map("revealed_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("sensitive_data")
+}
+
+// ---------------------------------------------------------------------------
+// LGPD, incidentes e cópias de segurança (seções 11 e 13)
+// ---------------------------------------------------------------------------
+
+model DataSubjectRequest {
+  id         String                  @id @default(uuid())
+  userId     String                  @map("user_id")
+  type       DataSubjectRequestType
+  status     DataSubjectRequestStatus @default(PENDING)
+  reason     String
+  payload    Json?
+  decidedBy  String?                 @map("decided_by")
+  decidedAt  DateTime?               @map("decided_at")
+  createdAt  DateTime                @default(now()) @map("created_at")
+  user       User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@map("data_subject_requests")
+}
+
+model Incident {
+  id                      String          @id @default(uuid())
+  title                   String
+  description             String
+  severity                IncidentSeverity
+  status                  IncidentStatus  @default(REPORTED)
+  reportedBy              String          @map("reported_by")
+  containedBy             String?         @map("contained_by")
+  analysisReport          String?         @map("analysis_report")
+  backupId                String?         @map("backup_id")
+  affectedRecordIds       Json?           @map("affected_record_ids")
+  directionAuthorization  String?         @map("direction_authorization")
+  notifiedAnpdAt          DateTime?       @map("notified_anpd_at")
+  notifiedSubjectsAt      DateTime?       @map("notified_subjects_at")
+  evidence                Json?
+  reportedAt              DateTime        @default(now()) @map("reported_at")
+  containedAt             DateTime?       @map("contained_at")
+  analyzedAt              DateTime?       @map("analyzed_at")
+  restoredAt              DateTime?       @map("restored_at")
+  closedAt                DateTime?       @map("closed_at")
+  reporter                User            @relation("IncidentReportedBy", fields: [reportedBy], references: [id], onDelete: Restrict)
+  container               User?           @relation("IncidentContainedBy", fields: [containedBy], references: [id], onDelete: SetNull)
+
+  @@index([status, reportedAt])
+  @@map("incidents")
+}
+
+model BackupRecord {
+  id             String        @id @default(uuid())
+  type           BackupType
+  status         BackupStatus  @default(CREATED)
+  destinations   String
+  filePath       String        @map("file_path")
+  checksum       String
+  iv             String
+  authTag        String        @map("auth_tag")
+  sizeBytes      Int           @map("size_bytes")
+  encrypted      Boolean       @default(true)
+  retentionUntil DateTime     @map("retention_until")
+  restoreTestAt  DateTime?     @map("restore_test_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  createdBy      String        @map("created_by")
+
+  @@index([type, createdAt])
+  @@map("backup_records")
 }
