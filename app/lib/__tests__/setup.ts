@@ -65,7 +65,7 @@ const mockDb = {
     update: vi.fn(),
     delete: vi.fn(),
   },
-  $transaction: vi.fn(async (callback: any) => callback(mockDb)),
+  $transaction: vi.fn(async (callback: (db: typeof mockDb) => unknown) => callback(mockDb)),
 };
 
 vi.mock("@/lib/db", () => ({

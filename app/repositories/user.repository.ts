@@ -5,7 +5,15 @@ import type { ListUsersQuery, UserInput } from "@/app/types/user";
 import { withRepositoryErrors } from "./errors";
 
 const userWithRoles = {
-  roles: { include: { role: true } },
+  roles: {
+    include: {
+      role: {
+        include: {
+          permissions: { include: { permission: true } },
+        },
+      },
+    },
+  },
   studentProfile: true,
 } satisfies Prisma.UserInclude;
 

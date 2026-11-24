@@ -1,7 +1,9 @@
-import { describe, it, expect } from "vitest";
+// @vitest-environment jsdom
+
 import { render, screen } from "@testing-library/react";
-import { Button } from "@/components/ui/button";
+import { describe, expect, it } from "vitest";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 describe("Button component", () => {
   it("deve renderizar o texto do botão", () => {

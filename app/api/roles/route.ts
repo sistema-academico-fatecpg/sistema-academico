@@ -1,50 +1,23 @@
-import type { NextRequest } from "next/server";
-import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
-import { logError } from "@/lib/logger";
-import { ApiErrors, errorResponse, successResponse } from "@/lib/response";
-import { roleRepository } from "@/repositories";
+import { jsonError } from "@/app/lib/api/responses";
+import { requirePermission } from "@/app/lib/auth/session";
+import { RoleRepository } from "@/app/repositories/role.repository";
+import { PERMISSIONS } from "@/app/types/roles";
 
-async function requireAuth(req: NextRequest) {
-  const token = getTokenFromRequest(req);
-  if (!token) {
-    return { error: ApiErrors.UNAUTHORIZED() };
-  }
-  const user = verifyToken(token);
-  if (!user) {
-    return { error: ApiErrors.UNAUTHORIZED("Token inválido") };
-  }
-  return { user };
-}
-
-async function requireRole(req: NextRequest, allowedRoles: string[]) {
-  const auth = await requireAuth(req);
-  if ("error" in auth) {
-    return auth;
-  }
-  if (!allowedRoles.includes(auth.user.role)) {
-    return { error: ApiErrors.FORBIDDEN("Permissão insuficiente") };
-  }
-  return { user: auth.user };
-}
-
-export async function GET(req: NextRequest) {
+export async function GET(_request: Request) {
   try {
-    const auth = await requireRole(req, ["ADMIN_MASTER", "ADMIN_SECUNDARIO"]);
-    if ("error" in auth) {
-      return errorResponse(auth.error);
-    }
-
-    const roles = await roleRepository.findAllWithPermissions();
-
-    return successResponse(
-      roles.map((r) => ({
-        id: r.id,
-        name: r.name,
-        permissions: r.permissions.map((p) => p.permission.name),
+    await requirePermission(PERMISSIONS.ROLES_READ);
+    const roles = await new RoleRepository().listAll();
+    return Response.json({
+      items: roles.map((role) => ({
+        id: role.id,
+        name: role.name,
+        description: role.description,
+        permissions: role.permissions
+          .map((item) => item.permission.name)
+          .sort((a, b) => a.localeCompare(b)),
       })),
-    );
+    });
   } catch (error) {
-    logError("Erro ao listar roles", error);
-    return errorResponse(ApiErrors.INTERNAL_SERVER());
+    return jsonError(error);
   }
 }

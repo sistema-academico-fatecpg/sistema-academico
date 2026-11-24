@@ -19,8 +19,16 @@ export default async function UsersPage() {
   return (
     <section className="space-y-5">
       <div className="flex items-end justify-between">
-        <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#9a7a45]">Administração</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Usuários</h1></div>
-        <a className="rounded-lg bg-[#6b1720] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#501018]" href="/usuarios/novo">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[.16em] text-[#9a7a45]">
+            Administração
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Usuários</h1>
+        </div>
+        <a
+          className="rounded-lg bg-[#6b1720] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#501018]"
+          href="/usuarios/novo"
+        >
           Cadastrar usuário
         </a>
       </div>

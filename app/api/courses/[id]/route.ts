@@ -1,138 +1,53 @@
-import { OperationResult, SystemModule } from "@prisma/client";
-import type { NextRequest } from "next/server";
-import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
-import { logError } from "@/lib/logger";
-import { ApiErrors, errorResponse, successResponse } from "@/lib/response";
-import { validateRequest } from "@/lib/validation";
-import { UUIDSchema } from "@/lib/validations";
-import { courseRepository, logRepository } from "@/repositories";
+import { z } from "zod";
+import { jsonError } from "@/app/lib/api/responses";
+import { createAuditService } from "@/app/lib/audit";
+import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { requirePermission } from "@/app/lib/auth/session";
+import { getClientIp } from "@/app/lib/request-context";
+import { CourseRepository } from "@/app/repositories/course.repository";
+import { PERMISSIONS } from "@/app/types/roles";
 
-async function requireAuth(req: NextRequest) {
-  const token = getTokenFromRequest(req);
-  if (!token) {
-    return { error: ApiErrors.UNAUTHORIZED() };
-  }
-  const user = verifyToken(token);
-  if (!user) {
-    return { error: ApiErrors.UNAUTHORIZED("Token inválido") };
-  }
-  return { user };
-}
+const UpdateCourseSchema = z.object({
+  name: z.string().trim().min(3).max(150),
+});
 
-async function requireRole(req: NextRequest, allowedRoles: string[]) {
-  const auth = await requireAuth(req);
-  if ("error" in auth) {
-    return auth;
-  }
-  if (!allowedRoles.includes(auth.user.role)) {
-    return { error: ApiErrors.FORBIDDEN("Permissão insuficiente") };
-  }
-  return { user: auth.user };
-}
-
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireAuth(req);
-    if ("error" in auth) {
-      return errorResponse(auth.error);
-    }
-
-    const validation = validateRequest(UUIDSchema, params.id);
-    if (!validation.success) {
-      return errorResponse(ApiErrors.VALIDATION(validation.error));
-    }
-
-    const course = await courseRepository.findUnique({
-      id: validation.data,
-    } as any);
-
-    if (!course) {
-      return errorResponse(ApiErrors.NOT_FOUND("Curso"));
-    }
-
-    return successResponse(course);
+    await requirePermission(PERMISSIONS.COURSES_READ);
+    const { id } = await ctx.params;
+    const course = await new CourseRepository().findById(z.string().uuid().parse(id));
+    if (!course) return Response.json({ error: "Curso não encontrado" }, { status: 404 });
+    return Response.json(course);
   } catch (error) {
-    logError("Erro ao buscar curso", error);
-    return errorResponse(ApiErrors.INTERNAL_SERVER());
+    return jsonError(error);
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireRole(req, ["ADMIN_MASTER"]);
-    if ("error" in auth) {
-      return errorResponse(auth.error);
-    }
+    const actor = await requirePermission(PERMISSIONS.COURSES_UPDATE);
+    const { id } = await ctx.params;
+    const courseId = z.string().uuid().parse(id);
+    const input = UpdateCourseSchema.parse(await request.json());
+    const repository = new CourseRepository();
+    const existing = await repository.findById(courseId);
+    if (!existing) return Response.json({ error: "Curso não encontrado" }, { status: 404 });
 
-    const validation = validateRequest(UUIDSchema, params.id);
-    if (!validation.success) {
-      return errorResponse(ApiErrors.VALIDATION(validation.error));
-    }
-
-    const body = await req.json();
-    const existingCourse = await courseRepository.findUnique({
-      id: validation.data,
-    } as any);
-    if (!existingCourse) {
-      return errorResponse(ApiErrors.NOT_FOUND("Curso"));
-    }
-
-    const updatedCourse = await courseRepository.update(
-      { id: validation.data } as any,
-      body as any,
-    );
-
-    await logRepository.createLog({
-      userId: auth.user.sub,
-      role: auth.user.role,
-      ipAddress: req.headers.get("x-forwarded-for") || "unknown",
-      action: "UPDATE_COURSE",
-      module: SystemModule.COURSES,
-      recordId: validation.data,
-      result: OperationResult.SUCCESS,
+    const course = await repository.update(courseId, { name: input.name });
+    await createAuditService().record({
+      userId: actor.id as never,
+      role: actor.roles[0] ?? null,
+      ipAddress: getClientIp(request),
+      action: AUDIT_ACTIONS.ACADEMIC_RECORD_UPDATED,
+      module: "COURSES",
+      recordType: "Course",
+      recordId: course.id,
+      oldValue: { name: existing.name },
+      newValue: { name: course.name },
+      result: "SUCCESS",
     });
-
-    return successResponse(updatedCourse);
+    return Response.json(course);
   } catch (error) {
-    logError("Erro ao atualizar curso", error);
-    return errorResponse(ApiErrors.INTERNAL_SERVER());
-  }
-}
-
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    const auth = await requireRole(req, ["ADMIN_MASTER"]);
-    if ("error" in auth) {
-      return errorResponse(auth.error);
-    }
-
-    const validation = validateRequest(UUIDSchema, params.id);
-    if (!validation.success) {
-      return errorResponse(ApiErrors.VALIDATION(validation.error));
-    }
-
-    const existingCourse = await courseRepository.findUnique({
-      id: validation.data,
-    } as any);
-    if (!existingCourse) {
-      return errorResponse(ApiErrors.NOT_FOUND("Curso"));
-    }
-
-    await courseRepository.delete({ id: validation.data } as any);
-
-    await logRepository.createLog({
-      userId: auth.user.sub,
-      role: auth.user.role,
-      ipAddress: req.headers.get("x-forwarded-for") || "unknown",
-      action: "DELETE_COURSE",
-      module: SystemModule.COURSES,
-      recordId: validation.data,
-      result: OperationResult.SUCCESS,
-    });
-
-    return successResponse({ message: "Curso excluído com sucesso" });
-  } catch (error) {
-    logError("Erro ao excluir curso", error);
-    return errorResponse(ApiErrors.INTERNAL_SERVER());
+    return jsonError(error);
   }
 }

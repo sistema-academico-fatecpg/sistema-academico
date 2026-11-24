@@ -13,7 +13,7 @@ export function successResponse<T>(data: T, status = 200) {
       success: true,
       data,
     },
-    { status }
+    { status },
   );
 }
 
@@ -27,7 +27,7 @@ export function errorResponse(error: ApiError) {
         ...(error.details && { details: error.details }),
       },
     },
-    { status: error.statusCode }
+    { status: error.statusCode },
   );
 }
 

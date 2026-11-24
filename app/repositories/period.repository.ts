@@ -1,42 +1,58 @@
-import type { Period, Prisma } from "@prisma/client";
-import { db } from "@/lib/db";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { Prisma } from "@/app/generated/prisma/client";
+import { type DbExecutor, db } from "@/app/lib/db";
+import { withRepositoryErrors } from "./errors";
 
-type PeriodCreateInput = Prisma.PeriodCreateInput;
-type PeriodUpdateInput = Prisma.PeriodUpdateInput;
-type PeriodWhereInput = Prisma.PeriodWhereInput;
+export class AcademicPeriodRepository {
+  constructor(private readonly client: DbExecutor = db) {}
 
-export class PeriodRepository extends BaseRepository<
-  Period,
-  PeriodCreateInput,
-  PeriodUpdateInput,
-  PeriodWhereInput
-> {
-  constructor(prisma = db) {
-    super("period", prisma);
+  list() {
+    return withRepositoryErrors(() =>
+      this.client.academicPeriod.findMany({ orderBy: [{ year: "desc" }, { semester: "desc" }] }),
+    );
   }
 
-  async findByCode(code: string): Promise<Period | null> {
-    return this.findUnique({ code } as PeriodWhereInput);
+  findById(id: string) {
+    return withRepositoryErrors(() => this.client.academicPeriod.findUnique({ where: { id } }));
   }
 
-  async findActive(): Promise<Period[]> {
-    const model = this.prisma.period as unknown as {
-      findMany: (args: { where: { isActive: boolean } }) => Promise<Period[]>;
-    };
-    return model.findMany({
-      where: { isActive: true },
-    });
+  findCurrent() {
+    return withRepositoryErrors(() =>
+      this.client.academicPeriod.findFirst({ where: { isCurrent: true } }),
+    );
   }
 
-  async findByCourse(courseId: string): Promise<Period[]> {
-    const model = this.prisma.period as unknown as {
-      findMany: (args: { where: { courseId: string } }) => Promise<Period[]>;
-    };
-    return model.findMany({
-      where: { courseId },
-    });
+  create(data: Prisma.AcademicPeriodCreateInput) {
+    return withRepositoryErrors(() => this.client.academicPeriod.create({ data }));
+  }
+
+  update(id: string, data: Prisma.AcademicPeriodUpdateInput) {
+    return withRepositoryErrors(() => this.client.academicPeriod.update({ where: { id }, data }));
+  }
+
+  setCurrent(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.$transaction(async (tx) => {
+        await tx.academicPeriod.updateMany({ data: { isCurrent: false } });
+        return tx.academicPeriod.update({ where: { id }, data: { isCurrent: true } });
+      }),
+    );
+  }
+
+  setGradesWindow(id: string, opensAt: Date | null, closesAt: Date | null) {
+    return withRepositoryErrors(() =>
+      this.client.academicPeriod.update({
+        where: { id },
+        data: { gradesOpenAt: opensAt, gradesCloseAt: closesAt },
+      }),
+    );
+  }
+
+  closeGrades(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.academicPeriod.update({
+        where: { id },
+        data: { gradesCloseAt: new Date() },
+      }),
+    );
   }
 }
-
-export const periodRepository = new PeriodRepository();

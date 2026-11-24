@@ -1,37 +1,47 @@
-import type { Course, Prisma } from "@prisma/client";
-import { db } from "@/lib/db";
-import { BaseRepository } from "@/repositories/base.repository";
+import type { Prisma } from "@/app/generated/prisma/client";
+import { type DbExecutor, db } from "@/app/lib/db";
+import { withRepositoryErrors } from "./errors";
 
-type CourseCreateInput = Prisma.CourseCreateInput;
-type CourseUpdateInput = Prisma.CourseUpdateInput;
-type CourseWhereInput = Prisma.CourseWhereInput;
+export class CourseRepository {
+  constructor(private readonly client: DbExecutor = db) {}
 
-export class CourseRepository extends BaseRepository<
-  Course,
-  CourseCreateInput,
-  CourseUpdateInput,
-  CourseWhereInput
-> {
-  constructor(prisma = db) {
-    super("course", prisma);
+  list() {
+    return withRepositoryErrors(() =>
+      this.client.course.findMany({
+        orderBy: { name: "asc" },
+        include: { _count: { select: { subjects: true } } },
+      }),
+    );
   }
 
-  async findByCode(code: string): Promise<Course | null> {
-    return this.findUnique({ code } as CourseWhereInput);
+  findById(id: string) {
+    return withRepositoryErrors(() => this.client.course.findUnique({ where: { id } }));
   }
 
-  async findWithSubjects(): Promise<(Course & { subjects: any[] })[]> {
-    const model = this.prisma.course as unknown as {
-      findMany: (args: {
-        include: { subjects: boolean };
-      }) => Promise<(Course & { subjects: any[] })[]>;
-    };
-    return model.findMany({
-      include: {
-        subjects: true,
-      },
-    });
+  findByCode(code: string) {
+    return withRepositoryErrors(() =>
+      this.client.course.findUnique({ where: { code: code.toUpperCase() } }),
+    );
+  }
+
+  create(data: { code: string; name: string }) {
+    return withRepositoryErrors(() =>
+      this.client.course.create({
+        data: { code: data.code.toUpperCase(), name: data.name },
+      }),
+    );
+  }
+
+  update(id: string, data: Prisma.CourseUpdateInput) {
+    return withRepositoryErrors(() => this.client.course.update({ where: { id }, data }));
+  }
+
+  countDependents(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.course.findUnique({
+        where: { id },
+        select: { _count: { select: { subjects: true, profiles: true } } },
+      }),
+    );
   }
 }
-
-export const courseRepository = new CourseRepository();

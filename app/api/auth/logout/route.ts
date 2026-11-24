@@ -1,35 +1,37 @@
-import { OperationResult, SystemModule } from "@prisma/client";
-import type { NextRequest } from "next/server";
-import { getTokenFromRequest, verifyToken } from "@/lib/jwt";
-import { logInfo } from "@/lib/logger";
-import { ApiErrors, errorResponse, successResponse } from "@/lib/response";
-import { logRepository } from "@/repositories";
+import { createAuditService } from "@/app/lib/audit";
+import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { auth } from "@/app/lib/auth/better-auth";
+import { getAuthenticatedUser } from "@/app/lib/auth/session";
+import { getClientIp } from "@/app/lib/request-context";
 
-export async function POST(req: NextRequest) {
-  try {
-    const token = getTokenFromRequest(req);
-    if (!token) {
-      return errorResponse(ApiErrors.UNAUTHORIZED("Não autenticado"));
+export async function POST(request: Request) {
+  const actor = await getAuthenticatedUser(request.headers);
+
+  const upstream = await (
+    auth.api as unknown as {
+      signOut: (options: { headers: Headers; asResponse: true }) => Promise<Response>;
     }
+  ).signOut({ headers: request.headers, asResponse: true });
 
-    const payload = verifyToken(token);
-    if (!payload) {
-      return errorResponse(ApiErrors.UNAUTHORIZED("Token inválido"));
-    }
-
-    await logRepository.createLog({
-      userId: payload.sub,
-      role: payload.role,
-      ipAddress: req.headers.get("x-forwarded-for") || "unknown",
-      action: "LOGOUT",
-      module: SystemModule.USERS,
-      result: OperationResult.SUCCESS,
+  if (actor) {
+    await createAuditService().record({
+      userId: actor.id as never,
+      role: actor.roles[0] ?? null,
+      ipAddress: getClientIp(request),
+      action: AUDIT_ACTIONS.LOGOUT,
+      module: "USERS",
+      recordType: "User",
+      recordId: actor.id,
+      result: "SUCCESS",
     });
-
-    logInfo("Logout realizado", { userId: payload.sub });
-
-    return successResponse({ message: "Logout realizado com sucesso" });
-  } catch (_error) {
-    return errorResponse(ApiErrors.INTERNAL_SERVER());
   }
+
+  const response = new Response(null, {
+    status: 303,
+    headers: { location: new URL("/login", request.url).toString() },
+  });
+  for (const cookie of upstream.headers.getSetCookie()) {
+    response.headers.append("set-cookie", cookie);
+  }
+  return response;
 }

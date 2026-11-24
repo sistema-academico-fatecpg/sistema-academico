@@ -31,17 +31,22 @@ export function LoginForm() {
       return;
     }
 
-    const result = await authClient.signIn.email({ email, password });
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await response.json().catch(() => ({}));
     setLoading(false);
-    if (result.error) {
-      setError(result.error.message ?? "Não foi possível entrar");
+    if (!response.ok) {
+      setError("Credenciais inválidas.");
       return;
     }
-    if (result.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
+    if (data.twoFactorRedirect) {
       setNeedsTotp(true);
       return;
     }
-    router.push("/");
+    router.push("/dashboard");
     router.refresh();
   }
 
@@ -109,6 +114,17 @@ export function LoginForm() {
           Configurar 2FA
         </Link>
       </div>
+      <p className="border-t border-zinc-200 pt-4 text-xs leading-5 text-zinc-500">
+        Ao entrar, você declara ciência do{" "}
+        <Link className="underline" href="/privacidade">
+          Aviso de Privacidade
+        </Link>
+        . Encarregado de Dados:{" "}
+        <a className="underline" href="mailto:dpo@fatecpg.edu.br">
+          dpo@fatecpg.edu.br
+        </a>
+        .
+      </p>
     </form>
   );
 }
