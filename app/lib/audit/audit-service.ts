@@ -2,6 +2,7 @@ import type { LogRepository } from "@/app/repositories/log.repository";
 import type { AlertType, RoleName, SystemModule } from "@/app/types/common";
 import type { LogInput } from "@/app/types/log";
 import { redactSensitiveData } from "./redact";
+import { SeparateAuditStore, separateAuditEnabled } from "./separate-store";
 
 export type AuditEvent = LogInput;
 
@@ -78,6 +79,10 @@ export class AuditService {
   constructor(
     private readonly repository: LogRepository,
     private readonly notifier?: AlertNotifier,
+    /** Base separada e append-only (10.3); ausente apenas em desenvolvimento. */
+    private readonly mirror: SeparateAuditStore | null = separateAuditEnabled()
+      ? new SeparateAuditStore()
+      : null,
   ) {}
 
   /**
@@ -100,6 +105,9 @@ export class AuditService {
     };
 
     const log = await this.repository.append(sanitized);
+    // Espelha na base isolada antes de qualquer alerta. Sem AUDIT_DATABASE_URL,
+    // o espelho é nulo e vale apenas a base local de desenvolvimento.
+    await this.mirror?.append(sanitized);
 
     if (event.userId && event.action === AUDIT_ACTIONS.LOGIN_FAILED) {
       await this.alertLoginFailureSequence(event.userId, event.ipAddress);
@@ -124,6 +132,7 @@ export class AuditService {
       ipAddress: event.ipAddress,
     });
     const alert = await this.repository.createAlert(type, message, metadata, logId);
+    await this.mirror?.createAlert(type, message, metadata, logId);
     await this.notifier?.({ type, message, metadata });
     return alert;
   }
@@ -133,10 +142,16 @@ export class AuditService {
     const failures = await this.repository.countRecentFailures(userId, since);
     if (failures < LOGIN_FAILURE_ALERT_THRESHOLD) return;
 
+    const loginFailureMetadata = redactSensitiveData({ userId, ipAddress, failures });
     await this.repository.createAlert(
       "LOGIN_FAILURE_SEQUENCE",
       `Sequência de ${failures} falhas de login em ${LOGIN_FAILURE_WINDOW_MINUTES} minutos.`,
-      redactSensitiveData({ userId, ipAddress, failures }),
+      loginFailureMetadata,
+    );
+    await this.mirror?.createAlert(
+      "LOGIN_FAILURE_SEQUENCE",
+      `Sequência de ${failures} falhas de login em ${LOGIN_FAILURE_WINDOW_MINUTES} minutos.`,
+      loginFailureMetadata,
     );
   }
 }

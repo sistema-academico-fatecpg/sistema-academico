@@ -11,6 +11,8 @@ export class SupportAccessGrantRepository {
     startsAt: Date;
     endsAt: Date;
     modules: SystemModule[];
+    involvesAuditor?: boolean;
+    authorizationDocument?: string | null;
   }) {
     return withRepositoryErrors(() =>
       this.client.supportAccessGrant.create({
@@ -19,6 +21,8 @@ export class SupportAccessGrantRepository {
           reason: input.reason,
           startsAt: input.startsAt,
           endsAt: input.endsAt,
+          involvesAuditor: input.involvesAuditor ?? false,
+          authorizationDocument: input.authorizationDocument ?? null,
           modules: {
             create: input.modules.map((module) => ({ module, canRead: true })),
           },

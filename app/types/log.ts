@@ -55,9 +55,14 @@ export type LogDto = {
   createdAt: Date;
 };
 
+const DateFilterSchema = z
+  .string()
+  .trim()
+  .refine((value) => !Number.isNaN(Date.parse(value)), "Data inválida");
+
 export const LogFilterSchema = z.object({
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
+  from: DateFilterSchema.optional(),
+  to: DateFilterSchema.optional(),
   userId: UserIdSchema.optional(),
   module: SystemModuleSchema.optional(),
   action: z.string().trim().max(120).optional(),
