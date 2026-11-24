@@ -1,13 +1,17 @@
 import { z } from "zod";
 import {
   ApprovalStatusSchema,
+  ClassGroupIdSchema,
   CriticalOperationRequestIdSchema,
   CriticalOperationTypeSchema,
   type DateTime,
   DateTimeSchema,
+  EnrollmentIdSchema,
+  RoleNameSchema,
   SystemModuleSchema,
   UserIdSchema,
 } from "./common";
+import { UserInputSchema } from "./user";
 
 export const CriticalOperationRequestInputSchema = z.object({
   operation: CriticalOperationTypeSchema,
@@ -71,3 +75,85 @@ export const SupportAccessDecisionSchema = z.object({
 export const CriticalOperationIdSchema = CriticalOperationRequestIdSchema;
 export const CriticalUserNameSchema = z.object({});
 export const CriticalRequesterSchema = z.object({ userId: UserIdSchema });
+
+// ---------------------------------------------------------------------------
+// Payloads executados após a dupla aprovação (seções 7.5 e 8.8)
+// ---------------------------------------------------------------------------
+
+const CreateAdminUserPayloadSchema = z.object({
+  action: z.literal("CREATE_USER"),
+  user: UserInputSchema,
+  emergency: z.boolean().optional(),
+  emergencyExpiresAt: DateTimeSchema.optional(),
+  replaceUserId: UserIdSchema.optional(),
+});
+
+const AssignRolePayloadSchema = z.object({
+  action: z.enum(["ADD_ROLE", "ASSIGN_ROLE"]),
+  userId: UserIdSchema,
+  role: RoleNameSchema,
+});
+
+const RemoveRolePayloadSchema = z.object({
+  action: z.enum(["REMOVE_ROLE", "REVOKE_ROLE"]),
+  userId: UserIdSchema,
+  role: RoleNameSchema,
+});
+
+export const AdminAccessPayloadSchema = z.union([
+  CreateAdminUserPayloadSchema,
+  AssignRolePayloadSchema,
+  RemoveRolePayloadSchema,
+]);
+
+export const GradeCorrectionPayloadSchema = z.object({
+  enrollmentId: EnrollmentIdSchema,
+  value: z.coerce.number().min(0).max(10),
+  reason: z.string().trim().min(10).max(1000),
+});
+
+export const AcademicRecordDeletionPayloadSchema = z.object({
+  enrollmentId: EnrollmentIdSchema,
+  reason: z.string().trim().min(10).max(1000),
+});
+
+export const EnrollmentExceptionPayloadSchema = z.object({
+  studentId: UserIdSchema,
+  classGroupId: ClassGroupIdSchema,
+  isDependency: z.boolean().default(false),
+  justification: z.string().trim().min(10).max(1000),
+});
+
+export const MassExportPayloadSchema = z.object({
+  scope: z.enum(["ENROLLMENTS", "GRADES", "USERS"]),
+  filters: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const DataRestorePayloadSchema = z.object({
+  backupId: z.string().trim().min(1).max(255),
+  restorePoint: DateTimeSchema.optional(),
+  incidentId: z.string().trim().min(1).max(120).optional(),
+});
+
+export const ResetSecondFactorPayloadSchema = z.object({
+  userId: UserIdSchema,
+  identityVerifiedAt: DateTimeSchema.optional(),
+});
+
+export const EMERGENCY_MASTER_MAX_DAYS = 30;
+
+/**
+ * Valida o payload de execução de cada tipo de operação crítica. O conteúdo
+ * nunca é executado como veio do cliente: ele é interpretado por um handler
+ * fechado, por tipo de operação (seção 12.6).
+ */
+export const CriticalOperationPayloadSchemas = {
+  GRANT_REVOKE_ADMIN_PERMISSION: AdminAccessPayloadSchema,
+  INCLUDE_OR_REPLACE_ADMIN_MASTER: AdminAccessPayloadSchema,
+  GRADE_CORRECTION_AFTER_CLOSING: GradeCorrectionPayloadSchema,
+  ENROLLMENT_RULE_EXCEPTION: EnrollmentExceptionPayloadSchema,
+  ACADEMIC_RECORD_DELETION: AcademicRecordDeletionPayloadSchema,
+  MASS_PERSONAL_DATA_EXPORT: MassExportPayloadSchema,
+  DATA_RESTORE_AFTER_INCIDENT: DataRestorePayloadSchema,
+  RESET_SECOND_FACTOR: ResetSecondFactorPayloadSchema,
+} as const satisfies Record<z.infer<typeof CriticalOperationTypeSchema>, z.ZodTypeAny>;

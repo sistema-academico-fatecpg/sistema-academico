@@ -4,6 +4,10 @@ import type { ApprovalStatus } from "@/app/types/common";
 import type { CriticalOperationRequestInput } from "@/app/types/critical-operation";
 import { withRepositoryErrors } from "./errors";
 
+export type CriticalOperationRequestWithUsers = Prisma.CriticalOperationRequestGetPayload<{
+  include: { requester: true; approver: true };
+}>;
+
 export class CriticalOperationRequestRepository {
   constructor(private readonly client: DbExecutor = db) {}
 

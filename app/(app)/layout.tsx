@@ -35,7 +35,7 @@ const navigation = [
     label: "Notas",
     roles: ["ADMIN_MASTER", "ADMIN_SECUNDARIO", "PROFESSOR", "ALUNO"],
   },
-  { href: "/aprovacoes", label: "Aprovações", roles: ["ADMIN_MASTER"] },
+  { href: "/aprovacoes", label: "Aprovações", roles: ["ADMIN_MASTER", "AUDITOR"] },
   { href: "/auditoria", label: "Auditoria", roles: ["AUDITOR"] },
   { href: "/suporte", label: "Acesso de suporte", roles: ["AUDITOR", "SUPORTE_TECNICO"] },
 ];

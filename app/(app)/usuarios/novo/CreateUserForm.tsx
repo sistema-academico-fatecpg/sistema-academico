@@ -16,6 +16,8 @@ export function CreateUserForm({ creatableRoles }: { creatableRoles: RoleName[] 
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<RoleName>(creatableRoles[0] ?? "ALUNO");
+  const adminRole = role === "ADMIN_MASTER" || role === "ADMIN_SECUNDARIO";
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,6 +34,7 @@ export function CreateUserForm({ creatableRoles }: { creatableRoles: RoleName[] 
         email: form.get("email"),
         registrationNumber: form.get("registrationNumber") || null,
         role: form.get("role"),
+        requestReason: form.get("requestReason"),
       }),
     });
     const data = await response.json();
@@ -89,14 +92,25 @@ export function CreateUserForm({ creatableRoles }: { creatableRoles: RoleName[] 
         <select
           className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
           name="role"
+          onChange={(event) => setRole(event.target.value as RoleName)}
           required
+          value={role}
         >
-          {creatableRoles.map((role) => (
-            <option key={role} value={role}>
-              {ROLE_LABELS[role]}
+          {creatableRoles.map((item) => (
+            <option key={item} value={item}>
+              {ROLE_LABELS[item]}
             </option>
           ))}
         </select>
+      </label>
+      <label className="block text-sm font-medium">
+        Justificativa {adminRole ? "(obrigatória para perfil administrativo)" : "(opcional)"}
+        <textarea
+          className="mt-1 min-h-24 w-full rounded-lg border border-zinc-300 px-3 py-2"
+          minLength={adminRole ? 10 : undefined}
+          name="requestReason"
+          required={adminRole}
+        />
       </label>
       {error ? (
         <ul className="space-y-1 rounded-lg bg-red-50 p-3 text-sm text-red-700">
