@@ -10,6 +10,10 @@ import { requiresMfa } from "@/app/types/roles";
 function authSecret(): string {
   const secret = process.env.BETTER_AUTH_SECRET;
   if (secret && secret !== "replace-with-a-secure-secret") return secret;
+  // A coleta de páginas durante o build não deve exigir segredos de runtime.
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return "build-time-placeholder-not-used-at-runtime";
+  }
   if (process.env.NODE_ENV === "production") {
     throw new Error("BETTER_AUTH_SECRET não configurada");
   }
