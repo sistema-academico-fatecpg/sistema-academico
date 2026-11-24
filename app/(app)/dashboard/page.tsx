@@ -50,7 +50,7 @@ const cards = [
     href: "/aprovacoes",
     title: "Operações críticas",
     description: "Solicitações e decisões com dupla aprovação.",
-    roles: ["ADMIN_MASTER"],
+    roles: ["ADMIN_MASTER", "AUDITOR"],
     icon: "07",
   },
   {

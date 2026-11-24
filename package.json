@@ -22,7 +22,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "bootstrap:master": "tsx scripts/bootstrap-master.ts",
-    "expire:emergency": "tsx scripts/expire-emergency-masters.ts"
+    "expire:emergency": "tsx scripts/expire-emergency-masters.ts",
+    "close:grades": "tsx scripts/close-grades.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.7.18",

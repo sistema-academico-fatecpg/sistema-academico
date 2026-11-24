@@ -1,6 +1,9 @@
+export { ClassGroupRepository } from "./class-group.repository";
 export { CourseRepository } from "./course.repository";
 export { CriticalOperationRequestRepository } from "./critical-operation-request.repository";
+export { EnrollmentRepository } from "./enrollment.repository";
 export { mapPrismaError, RepositoryError, withRepositoryErrors } from "./errors";
+export { GradeRepository } from "./grade.repository";
 export { LogRepository } from "./log.repository";
 export { MfaRecoveryCodeRepository } from "./mfa-recovery-code.repository";
 export { AcademicPeriodRepository } from "./period.repository";
