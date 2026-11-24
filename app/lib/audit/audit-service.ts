@@ -23,6 +23,8 @@ export const AUDIT_ACTIONS = {
   ACCOUNT_BLOCKED: "ACCOUNT_BLOCKED",
   ACCOUNT_DEACTIVATED: "ACCOUNT_DEACTIVATED",
   ACCOUNT_ACTIVATION_RESENT: "ACCOUNT_ACTIVATION_RESENT",
+  SECOND_FACTOR_CONFIGURED: "SECOND_FACTOR_CONFIGURED",
+  SECOND_FACTOR_RESET: "SECOND_FACTOR_RESET",
   PASSWORD_CHANGED: "PASSWORD_CHANGED",
   PASSWORD_RESET_REQUESTED: "PASSWORD_RESET_REQUESTED",
   PASSWORD_RESET_COMPLETED: "PASSWORD_RESET_COMPLETED",
@@ -83,8 +85,16 @@ export class AuditService {
    * persistência, inclusive em campos aninhados.
    */
   async record(event: AuditEvent) {
+    // Todas as ações de uma conta Master emergencial ficam marcadas (8.8.3).
+    const emergencyCheck = (this.repository as Partial<LogRepository>).isEmergencyUser;
+    const emergency =
+      event.userId && typeof emergencyCheck === "function"
+        ? await emergencyCheck.call(this.repository, event.userId)
+        : false;
+
     const sanitized: AuditEvent = {
       ...event,
+      emergency,
       oldValue: redactSensitiveData(event.oldValue),
       newValue: redactSensitiveData(event.newValue),
     };

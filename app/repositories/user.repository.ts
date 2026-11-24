@@ -171,6 +171,17 @@ export class UserRepository {
     );
   }
 
+  countActiveAuditors() {
+    return withRepositoryErrors(() =>
+      this.client.user.count({
+        where: {
+          status: "ACTIVE",
+          roles: { some: { role: { name: "AUDITOR" } } },
+        },
+      }),
+    );
+  }
+
   listExpiredEmergencyAccounts(now = new Date()) {
     return withRepositoryErrors(() =>
       this.client.user.findMany({

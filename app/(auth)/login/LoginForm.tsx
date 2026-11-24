@@ -11,6 +11,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [needsTotp, setNeedsTotp] = useState(false);
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,9 @@ export function LoginForm() {
     setLoading(true);
 
     if (needsTotp) {
-      const result = await authClient.twoFactor.verifyTotp({ code });
+      const result = useRecoveryCode
+        ? await authClient.twoFactor.verifyBackupCode({ code })
+        : await authClient.twoFactor.verifyTotp({ code });
       setLoading(false);
       if (result.error) {
         setError(result.error.message ?? "Código inválido");
@@ -58,17 +61,36 @@ export function LoginForm() {
       </p>
 
       {needsTotp ? (
-        <label className="block text-sm font-medium">
-          Código do autenticador
-          <input
-            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 tracking-widest"
-            inputMode="numeric"
-            maxLength={6}
-            onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
-            required
-            value={code}
-          />
-        </label>
+        <>
+          <label className="block text-sm font-medium">
+            {useRecoveryCode ? "Código de recuperação" : "Código do autenticador"}
+            <input
+              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 tracking-widest"
+              inputMode={useRecoveryCode ? "text" : "numeric"}
+              maxLength={useRecoveryCode ? 20 : 6}
+              onChange={(event) =>
+                setCode(
+                  useRecoveryCode ? event.target.value : event.target.value.replace(/\D/g, ""),
+                )
+              }
+              required
+              value={code}
+            />
+          </label>
+          <button
+            className="text-sm underline"
+            onClick={() => {
+              setUseRecoveryCode((current) => !current);
+              setCode("");
+              setError(null);
+            }}
+            type="button"
+          >
+            {useRecoveryCode
+              ? "Usar o aplicativo autenticador"
+              : "Perdi o celular: usar código de recuperação"}
+          </button>
+        </>
       ) : (
         <>
           <label className="block text-sm font-medium">

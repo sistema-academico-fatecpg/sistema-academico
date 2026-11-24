@@ -8,7 +8,7 @@ import {
 } from "@/app/repositories/critical-operation-request.repository";
 import { LogRepository } from "@/app/repositories/log.repository";
 import { UserRepository } from "@/app/repositories/user.repository";
-import type { RoleName, UserId } from "@/app/types/common";
+import type { CriticalOperationType, RoleName, UserId } from "@/app/types/common";
 import {
   ApprovalDecisionSchema,
   CriticalOperationPayloadSchemas,
@@ -51,6 +51,16 @@ function actorHas(actor: CriticalOperationActor, permission: Permission): boolea
     ? actor.permissions.has(permission)
     : hasPermission(actor.roles, permission);
 }
+
+/** Operações de 7.5.4 suspensas em modo de conta única (8.8.1). */
+const SUSPENDED_OPERATIONS: readonly CriticalOperationType[] = [
+  "GRANT_REVOKE_ADMIN_PERMISSION",
+  "GRADE_CORRECTION_AFTER_CLOSING",
+  "ENROLLMENT_RULE_EXCEPTION",
+  "ACADEMIC_RECORD_DELETION",
+  "MASS_PERSONAL_DATA_EXPORT",
+  "DATA_RESTORE_AFTER_INCIDENT",
+];
 
 function isMasterInclusion(request: Pick<CriticalOperationRequestWithUsers, "operation">): boolean {
   return request.operation === "INCLUDE_OR_REPLACE_ADMIN_MASTER";
@@ -110,7 +120,7 @@ export class CriticalOperationService {
     }
 
     const status = await this.masterStatus();
-    if (status.singleAccountMode && !isMasterInclusion(parsed)) {
+    if (status.singleAccountMode && SUSPENDED_OPERATIONS.includes(parsed.operation)) {
       throw conflict(
         "Modo de conta única: operações críticas suspensas até que existam dois Admins Master ativos (seção 8.8.1)",
       );
@@ -153,6 +163,81 @@ export class CriticalOperationService {
     return request;
   }
 
+  /**
+   * Contingência com nenhum Master disponível (8.8): a Infraestrutura registra
+   * a solicitação com autorização formal da direção; um Auditor a aprova no
+   * sistema e outro Auditor figura como solicitante nominal, preservando a
+   * separação entre quem registra e quem aprova.
+   */
+  async requestEmergencyMaster(input: {
+    name: string;
+    email: string;
+    authorizationDocument: string;
+    requestedByAuditorId: string;
+    emergencyExpiresAt?: string;
+    ipAddress: string;
+  }): Promise<CriticalOperationRequestWithUsers> {
+    const status = await this.masterStatus();
+    if (status.activeMasters > 0) {
+      throw conflict("A conta emergencial só é admitida quando não há Admin Master ativo");
+    }
+    const auditors = await this.users.countActiveAuditors();
+    if (auditors < 2) {
+      throw conflict(
+        "São necessários dois Auditores ativos: um registra e outro aprova a contingência",
+      );
+    }
+
+    const created = await this.requests.create(input.requestedByAuditorId, {
+      operation: "INCLUDE_OR_REPLACE_ADMIN_MASTER",
+      module: "USERS",
+      recordType: "User",
+      reason: `Conta Master emergencial: ${input.authorizationDocument}`,
+      authorizationDocument: input.authorizationDocument,
+      payload: {
+        action: "CREATE_USER",
+        user: {
+          name: input.name,
+          email: input.email,
+          role: "ADMIN_MASTER",
+        },
+        emergency: true,
+        ...(input.emergencyExpiresAt ? { emergencyExpiresAt: input.emergencyExpiresAt } : {}),
+      },
+    });
+    const request = await this.requests.findById(created.id);
+    if (!request) throw notFound("Solicitação não encontrada após criação");
+
+    await this.audit.record({
+      userId: auditUserId(input.requestedByAuditorId),
+      role: "AUDITOR",
+      ipAddress: input.ipAddress,
+      action: AUDIT_ACTIONS.CRITICAL_OPERATION_REQUESTED,
+      module: "USERS",
+      recordType: "CriticalOperationRequest",
+      recordId: request.id,
+      result: "SUCCESS",
+      newValue: {
+        operation: request.operation,
+        emergency: true,
+        authorizationDocument: input.authorizationDocument,
+      },
+    });
+    await this.audit.record({
+      userId: auditUserId(input.requestedByAuditorId),
+      role: "AUDITOR",
+      ipAddress: input.ipAddress,
+      action: AUDIT_ACTIONS.MASTER_ACCOUNTS_BELOW_MINIMUM,
+      module: "USERS",
+      recordType: "CriticalOperationRequest",
+      recordId: request.id,
+      result: "SUCCESS",
+      newValue: { activeMasters: 0 },
+    });
+
+    return request;
+  }
+
   async decide(
     requestId: string,
     decision: { decision: "APPROVE" | "REJECT"; reason?: string },
@@ -182,14 +267,33 @@ export class CriticalOperationService {
 
     const status = await this.masterStatus();
     const masterInclusion = isMasterInclusion(request);
-    if (status.singleAccountMode && !masterInclusion) {
+    if (status.singleAccountMode && SUSPENDED_OPERATIONS.includes(request.operation)) {
       throw conflict(
         "Modo de conta única: somente a inclusão de Admin Master pode ser aprovada (seção 8.8.1)",
       );
     }
 
-    const auditorApproval =
-      masterInclusion && (status.singleAccountMode || requestIsEmergency(request));
+    // Para Admin Master, a redefinição de segundo fator deve ser aprovada por
+    // outro Admin Master, nunca pelo próprio titular (seção 8.6.2).
+    if (request.operation === "RESET_SECOND_FACTOR") {
+      const payload = request.payload;
+      const targetId =
+        payload && typeof payload === "object" && !Array.isArray(payload)
+          ? (payload as Record<string, unknown>).userId
+          : null;
+      if (typeof targetId === "string" && targetId === actor.id) {
+        throw forbidden(
+          "A redefinição do segundo fator de um Admin Master deve ser aprovada por outro Admin Master",
+        );
+      }
+    }
+
+    const emergencyRequest = requestIsEmergency(request);
+    if (emergencyRequest && (await this.users.countActiveAuditors()) < 2) {
+      throw conflict("A contingência exige dois Auditores ativos para aprovação");
+    }
+
+    const auditorApproval = masterInclusion && (status.singleAccountMode || emergencyRequest);
 
     if (auditorApproval) {
       if (!actor.roles.includes("AUDITOR")) {
@@ -205,6 +309,21 @@ export class CriticalOperationService {
     }
 
     const executed = await this.approveAndExecute(request, actor, parsed.reason);
+
+    if (emergencyRequest) {
+      await this.audit.record({
+        userId: auditUserId(actor.id),
+        role: actor.roles[0] ?? null,
+        ipAddress: actor.ipAddress,
+        action: AUDIT_ACTIONS.EMERGENCY_MASTER_CREATED,
+        module: "USERS",
+        recordType: "CriticalOperationRequest",
+        recordId: request.id,
+        result: "SUCCESS",
+        newValue: { authorizationDocument: request.authorizationDocument },
+      });
+    }
+
     return { request: executed, executed: true };
   }
 

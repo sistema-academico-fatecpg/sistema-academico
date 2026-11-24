@@ -22,6 +22,8 @@ export type LogInput = {
   oldValue?: unknown;
   newValue?: unknown;
   result: z.infer<typeof OperationResultSchema>;
+  /** Preenchido automaticamente para ações de contas Master emergenciais. */
+  emergency?: boolean;
   createdAt?: Date;
 };
 

@@ -6,6 +6,11 @@ class FakeLogRepository {
   appended: Array<Record<string, unknown>> = [];
   alerts: Array<{ type: string; message: string; metadata?: unknown }> = [];
   failures = 0;
+  emergencyUser = false;
+
+  async isEmergencyUser() {
+    return this.emergencyUser;
+  }
 
   async append(input: Record<string, unknown>) {
     this.appended.push(input);
@@ -71,6 +76,20 @@ describe("AuditService", () => {
     });
 
     expect(fake.alerts.map((alert) => alert.type)).toContain("LOGIN_FAILURE_SEQUENCE");
+  });
+
+  it("marca ações de contas Master emergenciais (8.8.3)", async () => {
+    const fake = new FakeLogRepository();
+    fake.emergencyUser = true;
+    await service(fake).record({
+      userId: "00000000-0000-4000-8000-000000000001" as never,
+      ipAddress: "127.0.0.1",
+      action: AUDIT_ACTIONS.ACCOUNT_UPDATED,
+      module: "USERS",
+      result: "SUCCESS",
+    });
+
+    expect(fake.appended[0].emergency).toBe(true);
   });
 
   it("alerta em tentativa de autoaprovação", async () => {
