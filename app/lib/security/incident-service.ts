@@ -1,0 +1,211 @@
+import type { z } from "zod";
+import { createAuditService } from "@/app/lib/audit";
+import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AccountService } from "@/app/lib/auth/account-service";
+import { conflict, forbidden, notFound, validationError } from "@/app/lib/auth/errors";
+import { CriticalOperationService } from "@/app/lib/critical-operations/service";
+import { db } from "@/app/lib/db";
+import type {
+  AnalyzeIncidentSchema,
+  ContainIncidentSchema,
+  NotifyIncidentSchema,
+  ReportIncidentSchema,
+  RequestRestoreSchema,
+} from "@/app/types/incident";
+import { BackupService } from "./backup-service";
+
+export type IncidentActor = {
+  id: string;
+  roles: readonly string[];
+  ipAddress: string;
+  permissions?: ReadonlySet<string>;
+};
+
+type Report = z.infer<typeof ReportIncidentSchema>;
+type Contain = z.infer<typeof ContainIncidentSchema>;
+type Analyze = z.infer<typeof AnalyzeIncidentSchema>;
+type Restore = z.infer<typeof RequestRestoreSchema>;
+type Notify = z.infer<typeof NotifyIncidentSchema>;
+
+/** Prazos e responsabilidades do fluxo de incidentes (seção 13). */
+export const INCIDENT_NOTIFICATION_BUSINESS_DAYS = 3;
+export const INCIDENT_RETENTION_YEARS = 5;
+
+export class IncidentService {
+  constructor(
+    private readonly backups = new BackupService(),
+    private readonly criticalOperations = new CriticalOperationService(),
+    private readonly accounts = new AccountService(),
+    private readonly audit = createAuditService(),
+  ) {}
+
+  private async find(id: string) {
+    const incident = await db.incident.findUnique({ where: { id } });
+    if (!incident) throw notFound("Incidente não encontrado");
+    return incident;
+  }
+
+  private assertAdminOrAuditor(actor: IncidentActor): void {
+    if (!actor.roles.includes("ADMIN_MASTER") && !actor.roles.includes("AUDITOR")) {
+      throw forbidden("Fluxo de incidente restrito ao Admin Master e ao Auditor");
+    }
+  }
+
+  private event(actor: IncidentActor, action: string, id: string, value: unknown) {
+    return this.audit.record({
+      userId: actor.id as never,
+      role: (actor.roles[0] ?? null) as never,
+      ipAddress: actor.ipAddress,
+      action,
+      module: "BACKUPS",
+      recordType: "Incident",
+      recordId: id,
+      result: "SUCCESS",
+      newValue: value,
+    });
+  }
+
+  /** 13.1: comunicação imediata e preservação de evidências. */
+  async report(actor: IncidentActor, input: Report) {
+    this.assertAdminOrAuditor(actor);
+    if (input.involvesMaster && !input.directionAuthorization) {
+      throw validationError("Incidente com Admin Master exige autorização formal da direção");
+    }
+    const incident = await db.incident.create({
+      data: {
+        title: input.title,
+        description: input.description,
+        severity: input.severity,
+        status: "REPORTED",
+        reportedBy: actor.id,
+        directionAuthorization: input.directionAuthorization ?? null,
+        evidence: input.involvesMaster ? { involvesMaster: true } : undefined,
+      },
+    });
+    await this.event(actor, AUDIT_ACTIONS.INCIDENT_REPORTED, incident.id, {
+      severity: input.severity,
+      involvesMaster: input.involvesMaster,
+    });
+    return incident;
+  }
+
+  async contain(actor: IncidentActor, id: string, input: Contain) {
+    this.assertAdminOrAuditor(actor);
+    const incident = await this.find(id);
+    if (incident.status !== "REPORTED") throw conflict("Incidente já em andamento");
+    if (input.accountId) {
+      await this.accounts.block(input.accountId, `Contenção do incidente ${id}`, {
+        actorId: actor.id,
+        actorRoles: actor.roles as never,
+        ipAddress: actor.ipAddress,
+      });
+    }
+    const updated = await db.incident.update({
+      where: { id },
+      data: {
+        status: "CONTAINED",
+        containedBy: actor.id,
+        containedAt: new Date(),
+        evidence: (input.evidence ?? {}) as never,
+      },
+    });
+    await this.event(actor, AUDIT_ACTIONS.INCIDENT_CONTAINED, id, {
+      blockedAccount: input.accountId ?? null,
+    });
+    return updated;
+  }
+
+  /** 13.2: análise técnica e verificação de integridade do backup. */
+  async analyze(actor: IncidentActor, id: string, input: Analyze) {
+    this.assertAdminOrAuditor(actor);
+    await this.find(id);
+    await this.backups.verify(input.backupId);
+    const updated = await db.incident.update({
+      where: { id },
+      data: {
+        status: "ANALYZED",
+        analysisReport: input.analysisReport,
+        backupId: input.backupId,
+        affectedRecordIds: input.affectedRecordIds as never,
+        analyzedAt: new Date(),
+      },
+    });
+    await this.event(actor, AUDIT_ACTIONS.INCIDENT_ANALYZED, id, {
+      backupId: input.backupId,
+      affected: input.affectedRecordIds.length,
+    });
+    return updated;
+  }
+
+  /** 13.2: restauração nunca é automática; gera solicitação de dupla aprovação. */
+  async requestRestore(actor: IncidentActor, id: string, input: Restore) {
+    this.assertAdminOrAuditor(actor);
+    const incident = await this.find(id);
+    if (incident.status !== "ANALYZED") {
+      throw conflict("Restauração exige análise técnica concluída");
+    }
+    const involvesMaster = Boolean(
+      incident.evidence &&
+        typeof incident.evidence === "object" &&
+        (incident.evidence as Record<string, unknown>).involvesMaster,
+    );
+    const request = await this.criticalOperations.request(
+      {
+        id: actor.id,
+        roles: actor.roles as never,
+        ipAddress: actor.ipAddress,
+        permissions: actor.permissions as never,
+      },
+      {
+        operation: "DATA_RESTORE_AFTER_INCIDENT",
+        module: "BACKUPS",
+        recordType: "Incident",
+        recordId: id,
+        reason: `Restauração parcial autorizada no incidente ${id}`,
+        authorizationDocument: incident.directionAuthorization ?? undefined,
+        payload: {
+          backupId: input.backupId,
+          incidentId: id,
+          affectedRecordIds: input.affectedRecordIds,
+          involvesMaster,
+          authorizationDocument: incident.directionAuthorization ?? null,
+        },
+      },
+    );
+    await db.incident.update({ where: { id }, data: { status: "RESTORE_REQUESTED" } });
+    await this.event(actor, AUDIT_ACTIONS.INCIDENT_RESTORE_REQUESTED, id, {
+      requestId: request.id,
+    });
+    return { requestId: request.id };
+  }
+
+  /** 13 / LGPD art. 48: comunicação em até 3 dias úteis, se houver risco. */
+  async notify(actor: IncidentActor, id: string, input: Notify) {
+    this.assertAdminOrAuditor(actor);
+    await this.find(id);
+    const now = new Date();
+    const updated = await db.incident.update({
+      where: { id },
+      data: {
+        status: "NOTIFIED",
+        notifiedAnpdAt: input.anpd ? now : null,
+        notifiedSubjectsAt: input.subjects ? now : null,
+      },
+    });
+    await this.event(actor, AUDIT_ACTIONS.INCIDENT_NOTIFIED, id, input);
+    return updated;
+  }
+
+  async close(actor: IncidentActor, id: string) {
+    this.assertAdminOrAuditor(actor);
+    await this.find(id);
+    const updated = await db.incident.update({
+      where: { id },
+      data: { status: "CLOSED", closedAt: new Date() },
+    });
+    await this.event(actor, AUDIT_ACTIONS.INCIDENT_CLOSED, id, {
+      retentionYears: INCIDENT_RETENTION_YEARS,
+    });
+    return updated;
+  }
+}

@@ -31,7 +31,18 @@ export function assertProductionSecrets(): void {
   }
 
   const key = process.env.DATA_ENCRYPTION_KEY?.trim();
-  if (key && !/^[0-9a-fA-F]{64}$/.test(key)) {
-    throw new Error("DATA_ENCRYPTION_KEY deve ter 32 bytes em hexadecimal (64 caracteres)");
+  if (!key || !/^[0-9a-fA-F]{64}$/.test(key)) {
+    throw new Error(
+      "DATA_ENCRYPTION_KEY ausente ou inválida: exigem-se 32 bytes hexadecimais do cofre de chaves (11.2.3)",
+    );
+  }
+
+  const maintenance = process.env.MAINTENANCE_SECRET?.trim();
+  if (!maintenance || maintenance.length < 16) {
+    throw new Error("MAINTENANCE_SECRET ausente ou fraca em produção");
+  }
+
+  if (!process.env.AUDIT_DATABASE_URL) {
+    throw new Error("AUDIT_DATABASE_URL não configurada: base de logs deve ser separada (10.3)");
   }
 }

@@ -157,6 +157,9 @@ export const AlertTypeSchema = z.enum([
   "MASTER_ACCOUNTS_BELOW_MINIMUM",
   "SUPPORT_ACCESS_USED",
   "EMERGENCY_MASTER_ACCOUNT",
+  "INCIDENT_REPORTED",
+  "DATA_SUBJECT_REQUESTED",
+  "BACKUP_FAILED",
 ]);
 export type AlertType = z.infer<typeof AlertTypeSchema>;
 
@@ -165,3 +168,9 @@ export type EnrollmentStatus = z.infer<typeof EnrollmentStatusSchema>;
 
 export const GradeStatusSchema = z.enum(["DRAFT", "PUBLISHED"]);
 export type GradeStatus = z.infer<typeof GradeStatusSchema>;
+
+export const BackupTypeSchema = z.enum(["FULL", "INCREMENTAL", "SEMESTER_CLOSING"]);
+export type BackupType = z.infer<typeof BackupTypeSchema>;
+
+export const IncidentSeveritySchema = z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
+export type IncidentSeverity = z.infer<typeof IncidentSeveritySchema>;

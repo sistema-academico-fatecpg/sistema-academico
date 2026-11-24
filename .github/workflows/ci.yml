@@ -166,3 +166,41 @@ jobs:
           else
             echo "No test files found; skipping test step."
           fi
+
+      - name: Production build
+        run: pnpm build
+        env:
+          BETTER_AUTH_SECRET: ci-build-placeholder-not-used-at-runtime-000000
+          BETTER_AUTH_URL: http://localhost:3000
+          DATABASE_URL: postgresql://localhost:5432/ci
+
+  ############################################################################
+  # 12.4/12.6: secret scanning e verificação de dependências conhecidas.
+  ############################################################################
+  security:
+    name: Secret and dependency checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.17.0
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Secret scan (12.4)
+        run: pnpm check:secrets
+
+      - name: Dependency vulnerability audit (12.6)
+        run: pnpm audit --prod --audit-level high
+        continue-on-error: true

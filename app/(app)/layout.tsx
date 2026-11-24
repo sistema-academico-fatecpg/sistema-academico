@@ -38,6 +38,7 @@ const navigation = [
   { href: "/aprovacoes", label: "Aprovações", roles: ["ADMIN_MASTER", "AUDITOR"] },
   { href: "/auditoria", label: "Auditoria", roles: ["AUDITOR"] },
   { href: "/suporte", label: "Acesso de suporte", roles: ["AUDITOR", "SUPORTE_TECNICO"] },
+  { href: "/incidentes", label: "Incidentes", roles: ["ADMIN_MASTER", "AUDITOR"] },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
