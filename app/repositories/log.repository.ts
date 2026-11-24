@@ -30,6 +30,7 @@ export class LogRepository {
           oldValue: json(input.oldValue),
           newValue: json(input.newValue),
           result: input.result,
+          isEmergency: input.emergency ?? false,
           ...(input.createdAt ? { createdAt: input.createdAt } : {}),
         },
       }),
@@ -73,6 +74,16 @@ export class LogRepository {
         data: { type, message, metadata: json(metadata), logId: logId ?? null },
       }),
     );
+  }
+
+  async isEmergencyUser(userId: string): Promise<boolean> {
+    const user = await withRepositoryErrors(() =>
+      this.client.user.findUnique({
+        where: { id: userId },
+        select: { isEmergency: true },
+      }),
+    );
+    return user?.isEmergency ?? false;
   }
 
   countRecentFailures(userId: string, since: Date) {

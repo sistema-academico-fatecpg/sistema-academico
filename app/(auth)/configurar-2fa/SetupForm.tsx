@@ -36,6 +36,16 @@ export function SetupForm() {
       setError(result.error.message ?? "Código inválido");
       return;
     }
+
+    const sync = await fetch("/api/auth/mfa/codes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ backupCodes }),
+    });
+    if (!sync.ok) {
+      setError("Não foi possível registrar os códigos de recuperação. Procure a secretaria.");
+      return;
+    }
     setDone(true);
   }
 

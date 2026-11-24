@@ -13,6 +13,7 @@ const h = vi.hoisted(() => {
     },
     log: { create: vi.fn(async () => ({ id: "log-1" })) },
     auditAlert: { create: vi.fn(async () => ({ id: "alert-1" })) },
+    user: { findUnique: vi.fn(async () => ({ isEmergency: false })) },
   };
   return {
     tx,
@@ -62,6 +63,7 @@ function pending(overrides: RequestOverrides = {}): CriticalOperationRequestWith
 function deps(
   options: {
     activeMasters?: number;
+    activeAuditors?: number;
     request?: CriticalOperationRequestWithUsers;
     execute?: ReturnType<typeof vi.fn>;
     create?: ReturnType<typeof vi.fn>;
@@ -74,6 +76,7 @@ function deps(
   };
   const users = {
     countActiveMasters: vi.fn(async () => options.activeMasters ?? 2),
+    countActiveAuditors: vi.fn(async () => options.activeAuditors ?? 2),
   };
   const audit = { record: options.record ?? vi.fn(async () => ({})) };
   const executor = {
@@ -206,5 +209,74 @@ describe("fluxo de dupla aprovação (7.5, 7.6 e 8.8)", () => {
 
     const result = await service.decide(requestId, { decision: "APPROVE" }, actor({ id: masterB }));
     expect(result.executed).toBe(true);
+  });
+
+  it("não suspende a redefinição de segundo fator em modo de conta única", async () => {
+    const create = vi.fn(async () => ({ id: requestId }));
+    const { service } = deps({ activeMasters: 1, create });
+
+    await service.request(actor({ permissions: new Set([PERMISSIONS.USERS_UPDATE]) }), {
+      operation: "RESET_SECOND_FACTOR",
+      module: "USERS",
+      reason: "Identificação presencial registrada pela secretaria",
+      payload: { userId: masterA },
+    });
+
+    expect(create).toHaveBeenCalled();
+  });
+
+  it("impede que o próprio titular aprove a redefinição do seu segundo fator", async () => {
+    const { service } = deps({
+      activeMasters: 2,
+      request: pending({
+        operation: "RESET_SECOND_FACTOR",
+        payload: { userId: masterB },
+      }),
+    });
+
+    await expect(
+      service.decide(requestId, { decision: "APPROVE" }, actor({ id: masterB })),
+    ).rejects.toThrow(/outro Admin Master/);
+  });
+
+  it("cria solicitação de Master emergencial somente sem Masters ativos", async () => {
+    const create = vi.fn(async () => ({ id: requestId }));
+    const { service } = deps({
+      activeMasters: 0,
+      activeAuditors: 2,
+      create,
+      request: pending({ operation: "INCLUDE_OR_REPLACE_ADMIN_MASTER" }),
+    });
+
+    await service.requestEmergencyMaster({
+      name: "Coordenação Emergencial",
+      email: "emergencial@fatecpg.edu.br",
+      authorizationDocument: "Ofício 42/2026 da direção",
+      requestedByAuditorId: auditor,
+      ipAddress: "127.0.0.1",
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      auditor,
+      expect.objectContaining({
+        operation: "INCLUDE_OR_REPLACE_ADMIN_MASTER",
+        authorizationDocument: "Ofício 42/2026 da direção",
+        payload: expect.objectContaining({ emergency: true }),
+      }),
+    );
+  });
+
+  it("recusa conta emergencial quando ainda existe Admin Master ativo", async () => {
+    const { service } = deps({ activeMasters: 1, activeAuditors: 2 });
+
+    await expect(
+      service.requestEmergencyMaster({
+        name: "Coordenação Emergencial",
+        email: "emergencial@fatecpg.edu.br",
+        authorizationDocument: "Ofício 42/2026 da direção",
+        requestedByAuditorId: auditor,
+        ipAddress: "127.0.0.1",
+      }),
+    ).rejects.toThrow(/não há Admin Master ativo/);
   });
 });

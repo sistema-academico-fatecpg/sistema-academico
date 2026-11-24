@@ -342,6 +342,7 @@ model Log {
   oldValue   Json?           @map("old_value")
   newValue   Json?           @map("new_value")
   result     OperationResult
+  isEmergency Boolean        @default(false) @map("is_emergency")
   createdAt  DateTime        @default(now()) @map("created_at")
   user       User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   alerts     AuditAlert[]
