@@ -33,7 +33,10 @@
     "check:env": "tsx scripts/check-env.ts",
     "report:admin-access": "tsx scripts/admin-access-report.ts",
     "data:eliminate": "tsx scripts/eliminate-data.ts",
-    "backup:expire": "tsx scripts/expire-backups.ts"
+    "backup:expire": "tsx scripts/expire-backups.ts",
+    "hooks:install": "sh .github/hooks/install.sh",
+    "hooks:uninstall": "sh .github/hooks/uninstall.sh",
+    "verify": "sh .github/hooks/checks.sh all"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.7.18",

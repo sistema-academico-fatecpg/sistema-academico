@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Regenera o Prisma Client após um merge (schema/migrações podem ter mudado).
+set -eu
+
+HOOK_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "$HOOK_DIR/checks.sh"
+
+[ -d node_modules ] || exit 0
+run_pnpm db:generate

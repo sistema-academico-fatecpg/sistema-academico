@@ -1,0 +1,49 @@
+# Check isolado, reutilizado pelo orquestrador ci.yml.
+# O comando real vive em .github/hooks/checks.sh (fonte única para CI + hooks).
+# O setup é inline: workflows reutilizáveis não resolvem actions locais (./)
+# porque o checkout do repositório acontece depois da preparação do job.
+
+name: Check · Lint
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Ref a checar (vazio = github.ref)."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.17.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Biome lint
+        run: sh .github/hooks/checks.sh lint

@@ -13,11 +13,18 @@ pnpm dev
 Variáveis em `.env.example`. Qualidade local:
 
 ```bash
-pnpm check
+pnpm hooks:install   # instala os git hooks de .github/hooks (uma vez por clone)
+pnpm check           # formatação + lint + imports
 pnpm typecheck
 pnpm test:run
 pnpm build
+pnpm verify          # todos os checks, na mesma ordem do CI
 ```
+
+Os **comandos** vivem em `.github/hooks/checks.sh` e são compartilhados pelos
+git hooks (`pre-commit`, `commit-msg`, `pre-push`, `post-merge`, `post-checkout`)
+e pelos workflows do GitHub Actions (`.github/workflows/check-*.yml`). Cada check
+tem seu próprio status check no PR. Detalhes: `.github/hooks/README.md`.
 
 ## Rotinas operacionais
 
