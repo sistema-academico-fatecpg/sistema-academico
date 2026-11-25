@@ -1,6 +1,5 @@
 import type { Prisma } from "@/app/generated/prisma/client";
 import { type DbExecutor, db } from "@/app/lib/db";
-import type { RoleName } from "@/app/types/common";
 import type { ListUsersQuery, UserInput } from "@/app/types/user";
 import { withRepositoryErrors } from "./errors";
 
@@ -37,10 +36,12 @@ export class UserRepository {
     );
   }
 
-  async list(query: ListUsersQuery, visibleRoles: readonly RoleName[]) {
+  async list(query: ListUsersQuery, visibleRoles: readonly string[] | null) {
     const where: Prisma.UserWhereInput = {
       AND: [
-        { roles: { some: { role: { name: { in: visibleRoles as RoleName[] } } } } },
+        ...(visibleRoles
+          ? [{ roles: { some: { role: { name: { in: [...visibleRoles] } } } } }]
+          : []),
         query.role ? { roles: { some: { role: { name: query.role } } } } : {},
         query.status ? { status: query.status } : {},
         query.search
@@ -70,7 +71,7 @@ export class UserRepository {
     });
   }
 
-  async create(input: UserInput & { createdBy?: string | null }) {
+  async create(input: UserInput & { createdBy?: string | null; replacesUserId?: string | null }) {
     return withRepositoryErrors(() =>
       this.client.$transaction(async (tx) => {
         const role = await tx.role.findUniqueOrThrow({ where: { name: input.role } });
@@ -82,6 +83,7 @@ export class UserRepository {
             personalEmail: input.personalEmail ?? null,
             registrationNumber: input.registrationNumber ?? null,
             status: "PENDING_ACTIVATION",
+            replacesUserId: input.replacesUserId ?? null,
             roles: { create: { roleId: role.id, assignedBy: input.createdBy ?? null } },
           },
           include: userWithRoles,

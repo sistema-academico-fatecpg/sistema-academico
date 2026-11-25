@@ -12,7 +12,7 @@ export const LOGIN_LOCK_MINUTES = 15;
 const GENERIC_CREDENTIALS_MESSAGE = "Credenciais inválidas.";
 
 function rolesOf(user: UserWithRoles): RoleName[] {
-  return user.roles.map((userRole) => userRole.role.name);
+  return user.roles.map((userRole) => userRole.role.name as RoleName);
 }
 
 function copyCookies(from: Response, to: Response): void {

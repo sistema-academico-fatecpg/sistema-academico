@@ -79,6 +79,11 @@ export function validateEnrollmentSelection(
   if (selectedDependencies.length === 0) {
     return { valid: false, reason: "A disciplina em DP deve ser escolhida primeiro" };
   }
+  // 9.1.2: "antes das demais" — a primeira turma confirmada deve ser a DP.
+  const first = byId.get(selected[0]);
+  if (!first?.isDependency) {
+    return { valid: false, reason: "A disciplina em DP deve ser a primeira escolha" };
+  }
 
   for (const dependency of selectedDependencies) {
     const conflicting = chosen.find(

@@ -1,5 +1,5 @@
 import { type DbExecutor, db } from "@/app/lib/db";
-import type { PermissionAction, RoleName, SystemModule } from "@/app/types/common";
+import type { PermissionAction, SystemModule } from "@/app/types/common";
 import { withRepositoryErrors } from "./errors";
 
 export class RoleRepository {
@@ -14,10 +14,29 @@ export class RoleRepository {
     );
   }
 
-  findByName(name: RoleName) {
+  findByName(name: string) {
     return withRepositoryErrors(() =>
       this.client.role.findUnique({
         where: { name },
+        include: { permissions: { include: { permission: true } } },
+      }),
+    );
+  }
+
+  findById(id: string) {
+    return withRepositoryErrors(() =>
+      this.client.role.findUnique({
+        where: { id },
+        include: { permissions: { include: { permission: true } } },
+      }),
+    );
+  }
+
+  /** 7.2: perfil novo nasce sem nenhuma permissão. */
+  createEmpty(name: string, description?: string | null) {
+    return withRepositoryErrors(() =>
+      this.client.role.create({
+        data: { name, description: description ?? null },
         include: { permissions: { include: { permission: true } } },
       }),
     );

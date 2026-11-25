@@ -60,7 +60,7 @@ export async function POST(
         incidentId,
         NotifyIncidentSchema.parse(body),
       );
-      return Response.json({ status: result.status, incident: result });
+      return Response.json({ status: "NOTIFIED", ...result });
     }
     const result = await service.close(incidentActor, incidentId);
     return Response.json({ status: result.status, incident: result });

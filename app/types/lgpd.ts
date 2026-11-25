@@ -24,4 +24,8 @@ export const DataSubjectDecisionSchema = z.object({
 export const GuardianConsentSchema = z.object({
   guardianName: z.string().trim().min(3).max(150),
   studentId: UserIdSchema.optional(),
+  birthDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data de nascimento no formato YYYY-MM-DD")
+    .optional(),
 });

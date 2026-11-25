@@ -82,11 +82,15 @@ function deps(
   const executor = {
     execute: options.execute ?? vi.fn(async () => ({ summary: "executado" })),
   };
+  const logs = {
+    findEarliestUnacknowledgedAlert: vi.fn(async () => null),
+  };
   const service = new CriticalOperationService(
     requests as never,
     users as never,
     audit as never,
     executor as never,
+    logs as never,
   );
   return { service, requests, users, audit, executor };
 }
@@ -139,6 +143,7 @@ describe("fluxo de dupla aprovação (7.5, 7.6 e 8.8)", () => {
     await service.request(actor({ permissions: new Set([PERMISSIONS.ROLES_CREATE]) }), {
       operation: "INCLUDE_OR_REPLACE_ADMIN_MASTER",
       reason: "Substituição de coordenador autorizada pela direção",
+      authorizationDocument: "Ofício 9/2026",
       payload: {
         action: "CREATE_USER",
         user: { name: "Nova Coordenação", email: "nova@fatecpg.edu.br", role: "ADMIN_MASTER" },
@@ -278,5 +283,74 @@ describe("fluxo de dupla aprovação (7.5, 7.6 e 8.8)", () => {
         ipAddress: "127.0.0.1",
       }),
     ).rejects.toThrow(/não há Admin Master ativo/);
+  });
+
+  it("exige autorização da direção para incluir Master em modo de conta única", async () => {
+    const { service, requests } = deps({ activeMasters: 1 });
+    await expect(
+      service.request(actor({ permissions: new Set([PERMISSIONS.ROLES_CREATE]) }), {
+        operation: "INCLUDE_OR_REPLACE_ADMIN_MASTER",
+        reason: "Substituição de coordenador com documento anexo",
+        payload: {
+          action: "CREATE_USER",
+          user: {
+            name: "Nova Coordenação",
+            email: "nova@fatecpg.edu.br",
+            role: "ADMIN_MASTER",
+          },
+        },
+      }),
+    ).rejects.toThrow(/autorização da direção/);
+    expect(requests.create).not.toHaveBeenCalled();
+  });
+
+  it("aceita inclusão de Master em conta única com documento da direção", async () => {
+    const create = vi.fn(async () => ({ id: requestId }));
+    const { service } = deps({ activeMasters: 1, create });
+    await service.request(actor({ permissions: new Set([PERMISSIONS.ROLES_CREATE]) }), {
+      operation: "INCLUDE_OR_REPLACE_ADMIN_MASTER",
+      reason: "Substituição de coordenador com documento anexo",
+      authorizationDocument: "Ofício 12/2026",
+      payload: {
+        action: "CREATE_USER",
+        user: {
+          name: "Nova Coordenação",
+          email: "nova@fatecpg.edu.br",
+          role: "ADMIN_MASTER",
+        },
+      },
+    });
+    expect(create).toHaveBeenCalled();
+  });
+
+  it("recusa aprovar reset de segundo fator sem identificação presencial", async () => {
+    const { service } = deps({
+      activeMasters: 2,
+      request: pending({
+        operation: "RESET_SECOND_FACTOR",
+        payload: { userId: masterA },
+      }),
+    });
+    await expect(
+      service.decide(requestId, { decision: "APPROVE" }, actor({ id: masterB })),
+    ).rejects.toThrow(/identificação presencial/);
+  });
+
+  it("aprova reset de segundo fator com identificação presencial registrada", async () => {
+    const execute = vi.fn(async () => ({ summary: "segundo fator redefinido" }));
+    const { service } = deps({
+      activeMasters: 2,
+      request: pending({
+        operation: "RESET_SECOND_FACTOR",
+        payload: {
+          userId: masterA,
+          identityVerifiedAt: "2026-11-25T10:00:00.000Z",
+        },
+      }),
+      execute,
+    });
+    h.tx.criticalOperationRequest.update.mockResolvedValueOnce({ status: "EXECUTED" } as never);
+    const result = await service.decide(requestId, { decision: "APPROVE" }, actor({ id: masterB }));
+    expect(result.executed).toBe(true);
   });
 });

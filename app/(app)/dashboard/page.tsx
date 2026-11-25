@@ -12,6 +12,13 @@ const cards = [
     icon: "01",
   },
   {
+    href: "/perfis",
+    title: "Perfis e permissões",
+    description: "Perfis novos vazios e alterações com dupla aprovação.",
+    roles: ["ADMIN_MASTER"],
+    icon: "01a",
+  },
+  {
     href: "/cursos",
     title: "Cursos",
     description: "Estrutura e oferta acadêmica.",

@@ -173,7 +173,9 @@ enum BackupStatus {
 
 model Role {
   id          String           @id @default(uuid())
-  name        RoleName         @unique
+  // Perfis novos podem ser criados em runtime (7.2): nascem sem permissões.
+  // Os seis perfis da política continuam representados por RoleName no código.
+  name        String           @unique
   description String?
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
@@ -242,6 +244,8 @@ model User {
   deactivatedBy       String?       @map("deactivated_by")
   isEmergency         Boolean       @default(false) @map("is_emergency")
   emergencyExpiresAt  DateTime?     @map("emergency_expires_at")
+  // Substituição de coordenador (8.8): conta anterior bloqueada após ativação.
+  replacesUserId      String?       @map("replaces_user_id")
   createdAt           DateTime      @default(now()) @map("created_at")
   updatedAt           DateTime      @updatedAt @map("updated_at")
 
@@ -279,6 +283,7 @@ model StudentProfile {
   currentPeriod     Int       @default(1) @map("current_period")
   guardianName      String?   @map("guardian_name")
   guardianConsentAt DateTime? @map("guardian_consent_at")
+  birthDate         DateTime? @map("birth_date")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 

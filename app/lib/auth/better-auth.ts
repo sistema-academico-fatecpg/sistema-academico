@@ -154,6 +154,13 @@ export const auth = betterAuth({
   plugins: [
     twoFactor({
       issuer: "Sistema Acadêmico",
+      // 8.9: limite de tentativas no segundo fator. O desafio de 2FA é
+      // consumido no sucesso e o código TOTP tem janela de 30 segundos.
+      accountLockout: {
+        enabled: true,
+        maxFailedAttempts: 5,
+        durationSeconds: 15 * 60,
+      },
       totpOptions: {
         digits: 6,
         period: 30,

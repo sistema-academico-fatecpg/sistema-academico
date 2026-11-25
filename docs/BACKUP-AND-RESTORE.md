@@ -14,11 +14,13 @@ Metas: **RPO 24h** e **RTO 8h**. O HD é substituído a cada 3 anos ou ao primei
 
 ## Testes e restauração
 
-- `pnpm restore:test <backup-id>` descriptografa, valida checksum e estrutura em ambiente separado, marcando `RESTORE_TESTED` e `restoreTestAt` (teste mensal, 11.3.4).
+- `pnpm restore:test <backup-id>` exige `BACKUP_TEST_DATABASE_URL` distinto de `DATABASE_URL`, descriptografa, valida checksum e estrutura, marcando `RESTORE_TESTED` e `restoreTestAt` (teste mensal em ambiente separado, 11.3.4).
+- `GET /api/backups/status` reporta o último backup, a idade em horas e a conformidade com RPO 24h; RTO 8h é meta de processo (11.3.5).
+- `pnpm backup:expire` / `POST /api/maintenance/expire-backups` marca como `EXPIRED` as cópias fora da retenção, sem ler conteúdo, com trilha de manutenção (10.7/10.9).
 - Restauração **nunca é automática**. O fluxo de incidente (13.2) exige análise técnica, verificação de integridade e uma `DATA_RESTORE_AFTER_INCIDENT` com status `EXECUTED`, aprovada pelo Auditor (ou pela direção, se o incidente envolver Admin Master).
 - `pnpm restore <backup-id> <request-id> <record-id...>`:
   1. exige a solicitação aprovada/executada;
   2. guarda uma cópia do estado atual (`INCREMENTAL` "pre-restore", 13.3);
   3. restaura **apenas os registros afetados** (notas/matrículas), não a base inteira (13.4);
-  4. lançamentos legítimos posteriores são identificados pelos logs e relançados manualmente com supervisão do Auditor.
+  4. devolve `replayCandidates`: alterações de nota/matrícula registradas nos logs depois do ponto de restauração, para relançamento supervisionado pelo Auditor (13.3).
 - `GET /api/backups` e `POST /api/backups/[id]/verify` permitem acompanhamento pelo Admin Master/Auditor.

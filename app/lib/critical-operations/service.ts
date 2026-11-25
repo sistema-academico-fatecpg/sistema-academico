@@ -1,7 +1,8 @@
 import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS, AuditService } from "@/app/lib/audit/audit-service";
-import { conflict, forbidden, notFound } from "@/app/lib/auth/errors";
+import { conflict, forbidden, notFound, validationError } from "@/app/lib/auth/errors";
 import { withTransaction } from "@/app/lib/db";
+import { addBusinessDays, isOverdue } from "@/app/lib/security/business-days";
 import {
   CriticalOperationRequestRepository,
   type CriticalOperationRequestWithUsers,
@@ -35,6 +36,9 @@ export type MasterStatus = {
   activeMasters: number;
   singleAccountMode: boolean;
   masterInclusionOnly: boolean;
+  /** Prazo de 5 dias úteis para a direção indicar novo Master (8.8). */
+  directionDeadline: string | null;
+  directionDeadlineOverdue: boolean;
 };
 
 export type DecideResult = {
@@ -89,14 +93,32 @@ export class CriticalOperationService {
     private readonly users = new UserRepository(),
     private readonly audit = createAuditService(),
     private readonly executor = new CriticalOperationExecutor(),
+    private readonly logs = new LogRepository(),
   ) {}
 
   async masterStatus(): Promise<MasterStatus> {
     const activeMasters = await this.users.countActiveMasters();
+    const singleAccountMode = activeMasters < 2;
+    if (!singleAccountMode) {
+      return {
+        activeMasters,
+        singleAccountMode: false,
+        masterInclusionOnly: false,
+        directionDeadline: null,
+        directionDeadlineOverdue: false,
+      };
+    }
+
+    // O prazo começa no primeiro alerta não reconhecido de "menos de dois
+    // Masters". Reconhecer o alerta encerra a cobrança; novo alerta reinicia.
+    const alert = await this.logs.findEarliestUnacknowledgedAlert("MASTER_ACCOUNTS_BELOW_MINIMUM");
+    const deadline = alert ? addBusinessDays(alert.createdAt, 5) : null;
     return {
       activeMasters,
-      singleAccountMode: activeMasters < 2,
-      masterInclusionOnly: activeMasters < 2,
+      singleAccountMode: true,
+      masterInclusionOnly: true,
+      directionDeadline: deadline?.toISOString() ?? null,
+      directionDeadlineOverdue: isOverdue(deadline),
     };
   }
 
@@ -123,6 +145,13 @@ export class CriticalOperationService {
     if (status.singleAccountMode && SUSPENDED_OPERATIONS.includes(parsed.operation)) {
       throw conflict(
         "Modo de conta única: operações críticas suspensas até que existam dois Admins Master ativos (seção 8.8.1)",
+      );
+    }
+    // 8.8.4 / tabela de contingência: a direção autoriza formalmente a
+    // inclusão de Master em modo de conta única.
+    if (status.singleAccountMode && isMasterInclusion(parsed) && !parsed.authorizationDocument) {
+      throw validationError(
+        "Inclusão de Master em modo de conta única exige documento de autorização da direção (8.8.4)",
       );
     }
 
@@ -278,13 +307,20 @@ export class CriticalOperationService {
     // outro Admin Master, nunca pelo próprio titular (seção 8.6.2).
     if (request.operation === "RESET_SECOND_FACTOR") {
       const payload = request.payload;
-      const targetId =
+      const record =
         payload && typeof payload === "object" && !Array.isArray(payload)
-          ? (payload as Record<string, unknown>).userId
-          : null;
+          ? (payload as Record<string, unknown>)
+          : {};
+      const targetId = record.userId;
       if (typeof targetId === "string" && targetId === actor.id) {
         throw forbidden(
           "A redefinição do segundo fator de um Admin Master deve ser aprovada por outro Admin Master",
+        );
+      }
+      // 8.6.2: identificação presencial é condição da própria aprovação.
+      if (!record.identityVerifiedAt) {
+        throw conflict(
+          "Redefinição de segundo fator exige registro de identificação presencial na secretaria",
         );
       }
     }

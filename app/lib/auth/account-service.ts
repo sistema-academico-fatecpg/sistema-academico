@@ -14,8 +14,8 @@ import { AuthError, forbidden, invalidToken, notFound, validationError } from ".
 import { validatePassword } from "./password-policy";
 import { TokenService } from "./tokens";
 
-const ADMIN_ROLES: readonly RoleName[] = ["ADMIN_MASTER", "ADMIN_SECUNDARIO"];
-const SECONDARY_CREATABLE: readonly RoleName[] = ["PROFESSOR", "ALUNO"];
+const ADMIN_ROLES: readonly string[] = ["ADMIN_MASTER", "ADMIN_SECUNDARIO"];
+const SECONDARY_CREATABLE: readonly string[] = ["PROFESSOR", "ALUNO"];
 
 function auditUserId(value: string | null | undefined): UserId | null {
   return (value ?? null) as UserId | null;
@@ -33,7 +33,7 @@ export type CreateUserResult =
   | { kind: "PENDING_APPROVAL"; requestId: string };
 
 function rolesOf(user: UserWithRoles): RoleName[] {
-  return user.roles.map((userRole) => userRole.role.name);
+  return user.roles.map((userRole) => userRole.role.name as RoleName);
 }
 
 /**
@@ -42,7 +42,7 @@ function rolesOf(user: UserWithRoles): RoleName[] {
  * - Admin Master cadastra os demais perfis;
  * - perfis administrativos exigem dupla aprovação.
  */
-export function assertCanAssignRole(actor: ActorContext, role: RoleName): void {
+export function assertCanAssignRole(actor: ActorContext, role: string): void {
   if (ADMIN_ROLES.includes(role)) {
     if (!actor.actorRoles.includes("ADMIN_MASTER")) {
       throw forbidden("Somente o Admin Master pode atribuir perfis administrativos");
@@ -54,7 +54,7 @@ export function assertCanAssignRole(actor: ActorContext, role: RoleName): void {
   throw forbidden("Seu perfil não pode atribuir este perfil");
 }
 
-export function roleRequiresApproval(role: RoleName): boolean {
+export function roleRequiresApproval(role: string): boolean {
   return ADMIN_ROLES.includes(role);
 }
 
@@ -124,7 +124,7 @@ export class AccountService {
     }
 
     if (existing) {
-      const alreadyHasRole = rolesOf(existing).includes(input.role);
+      const alreadyHasRole = rolesOf(existing).includes(input.role as RoleName);
       if (!alreadyHasRole) {
         const role = await this.roles.findByName(input.role);
         if (!role) throw notFound("Perfil não encontrado");
@@ -248,6 +248,27 @@ export class AccountService {
       recordId: user.id,
       result: "SUCCESS",
     });
+
+    // 8.8 (substituição de coordenador): a conta anterior é bloqueada
+    // imediatamente após a ativação do novo Master, nunca antes.
+    if (user.replacesUserId) {
+      await this.users.block(
+        user.replacesUserId,
+        user.id,
+        "Conta anterior bloqueada após ativação do novo coordenador (8.8)",
+      );
+      await this.audit.record({
+        userId: auditUserId(user.id),
+        role: "ADMIN_MASTER",
+        ipAddress: input.ipAddress,
+        action: AUDIT_ACTIONS.ACCOUNT_BLOCKED,
+        module: "USERS",
+        recordType: "User",
+        recordId: user.replacesUserId,
+        result: "SUCCESS",
+        newValue: { reason: "SUBSTITUICAO_COORDENADOR" },
+      });
+    }
 
     return activated;
   }

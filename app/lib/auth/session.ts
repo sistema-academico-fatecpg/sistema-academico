@@ -30,7 +30,7 @@ export type AuthenticatedUser = {
 };
 
 function rolesOf(user: UserWithRoles): RoleName[] {
-  return user.roles.map((userRole) => userRole.role.name);
+  return user.roles.map((userRole) => userRole.role.name as RoleName);
 }
 
 /**
@@ -52,7 +52,7 @@ function permissionsOf(user: UserWithRoles): ReadonlySet<Permission> {
 
   if (seeded) return fromDatabase;
 
-  return new Set(rolesOf(user).flatMap((role) => ROLE_PERMISSIONS[role]));
+  return new Set(rolesOf(user).flatMap((role) => ROLE_PERMISSIONS[role] ?? []));
 }
 
 async function revokeSession(sessionId: string): Promise<void> {

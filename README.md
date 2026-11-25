@@ -27,9 +27,12 @@ pnpm build
 | `pnpm close:grades` | Fecha períodos de notas e gera snapshot (9.2). |
 | `pnpm expire:emergency` | Bloqueia Masters emergenciais expirados (8.8). |
 | `pnpm audit:retention` | Relatório de retenção de logs (10.7). |
+| `pnpm report:admin-access` | Relatório semestral de acessos administrativos (8.7.3). |
 | `pnpm backup [full\|incremental\|closing]` | Cópia 3-2-1 criptografada (11.3). |
-| `pnpm restore:test <id>` | Teste mensal de restauração (11.3.4). |
+| `pnpm restore:test <id>` | Teste mensal de restauração em ambiente separado (11.3.4). |
 | `pnpm restore <backup> <request> <ids...>` | Restauração parcial autorizada (13.3/13.4). |
+| `pnpm backup:expire` | Arquivamento de cópias fora da retenção (10.7/11.3). |
+| `pnpm data:eliminate <id> "<justificativa>"` | Eliminação ao fim do tratamento (11.1.6). |
 | `pnpm key:rotate` | Rotação anual de chaves AES-256-GCM (11.2.4). |
 | `pnpm check:secrets` | Varredura de segredos versionados (12.4). |
 | `pnpm check:env` | Validação da configuração de produção (12.1/12.4). |

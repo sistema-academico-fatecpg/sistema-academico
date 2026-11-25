@@ -3,9 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function DecisionForm({ requestId }: { requestId: string }) {
+export function DecisionForm({
+  requestId,
+  requiresDirectionAuthorization = false,
+}: {
+  requestId: string;
+  requiresDirectionAuthorization?: boolean;
+}) {
   const router = useRouter();
   const [reason, setReason] = useState("");
+  const [direction, setDirection] = useState("");
   const [loading, setLoading] = useState<"APPROVE" | "REJECT" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,7 +21,10 @@ export function DecisionForm({ requestId }: { requestId: string }) {
     setError(null);
     const response = await fetch(`/api/critical-operations/${requestId}/decision`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(direction ? { "x-direction-authorization": direction } : {}),
+      },
       body: JSON.stringify({ decision, reason: reason || undefined }),
     });
     const data = await response.json().catch(() => ({}));
@@ -28,6 +38,15 @@ export function DecisionForm({ requestId }: { requestId: string }) {
 
   return (
     <div className="mt-3 space-y-2">
+      {requiresDirectionAuthorization ? (
+        <input
+          aria-label="Documento de autorização da direção"
+          className="w-full rounded-lg border border-amber-300 px-3 py-2 text-sm"
+          onChange={(event) => setDirection(event.target.value)}
+          placeholder="Documento de autorização da direção (obrigatório)"
+          value={direction}
+        />
+      ) : null}
       <input
         aria-label="Observação da decisão"
         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"

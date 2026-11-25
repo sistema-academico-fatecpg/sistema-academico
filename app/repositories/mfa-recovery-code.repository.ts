@@ -21,6 +21,21 @@ export class MfaRecoveryCodeRepository {
     );
   }
 
+  /** 8.3.6: localiza e consome um código de recuperação pelo hash (uso único). */
+  async consumeByHash(userId: string, codeHash: string): Promise<boolean> {
+    return withRepositoryErrors(async () => {
+      const record = await this.client.mfaRecoveryCode.findFirst({
+        where: { userId, codeHash, usedAt: null },
+      });
+      if (!record) return false;
+      await this.client.mfaRecoveryCode.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      });
+      return true;
+    });
+  }
+
   consume(id: string) {
     return withRepositoryErrors(() =>
       this.client.mfaRecoveryCode.update({ where: { id }, data: { usedAt: new Date() } }),

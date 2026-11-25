@@ -16,6 +16,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       { id: context.actorId, roles: context.actorRoles, ipAddress: context.ipAddress },
       body.studentId ?? studentId,
       body.guardianName,
+      body.birthDate,
     );
     return Response.json({ status: "CONSENT_RECORDED" });
   } catch (error) {

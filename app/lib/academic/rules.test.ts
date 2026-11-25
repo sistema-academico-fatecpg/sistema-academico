@@ -63,6 +63,10 @@ describe("regras acadêmicas no servidor (seção 9)", () => {
       reason: "A disciplina em DP deve ser escolhida primeiro",
     });
     expect(validateEnrollmentSelection(["dp", "regular-ok"], candidates).valid).toBe(true);
+    expect(validateEnrollmentSelection(["regular-ok", "dp"], candidates)).toEqual({
+      valid: false,
+      reason: "A disciplina em DP deve ser a primeira escolha",
+    });
   });
 
   it("bloqueia turmas com conflito de horário com a DP", () => {

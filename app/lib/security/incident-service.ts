@@ -5,6 +5,7 @@ import { AccountService } from "@/app/lib/auth/account-service";
 import { conflict, forbidden, notFound, validationError } from "@/app/lib/auth/errors";
 import { CriticalOperationService } from "@/app/lib/critical-operations/service";
 import { db } from "@/app/lib/db";
+import { addBusinessDays, isOverdue } from "@/app/lib/security/business-days";
 import type {
   AnalyzeIncidentSchema,
   ContainIncidentSchema,
@@ -118,7 +119,17 @@ export class IncidentService {
   /** 13.2: análise técnica e verificação de integridade do backup. */
   async analyze(actor: IncidentActor, id: string, input: Analyze) {
     this.assertAdminOrAuditor(actor);
-    await this.find(id);
+    const incident = await this.find(id);
+    const backup = await db.backupRecord.findUnique({ where: { id: input.backupId } });
+    if (!backup) throw notFound("Cópia de segurança não encontrada");
+    if (backup.createdAt.getTime() >= incident.reportedAt.getTime()) {
+      throw conflict("A cópia escolhida deve ser anterior ao incidente (13.2)");
+    }
+    if (!backup.restoreTestAt) {
+      throw conflict(
+        "A cópia deve ser testada em ambiente separado antes de ir para produção (13.2)",
+      );
+    }
     await this.backups.verify(input.backupId);
     const updated = await db.incident.update({
       where: { id },
@@ -140,6 +151,10 @@ export class IncidentService {
   /** 13.2: restauração nunca é automática; gera solicitação de dupla aprovação. */
   async requestRestore(actor: IncidentActor, id: string, input: Restore) {
     this.assertAdminOrAuditor(actor);
+    // 13.2: a solicitação é do Admin Master; a aprovação é do Auditor/direção.
+    if (!actor.roles.includes("ADMIN_MASTER")) {
+      throw forbidden("A solicitação de restauração cabe ao Admin Master (13.2)");
+    }
     const incident = await this.find(id);
     if (incident.status !== "ANALYZED") {
       throw conflict("Restauração exige análise técnica concluída");
@@ -182,8 +197,10 @@ export class IncidentService {
   /** 13 / LGPD art. 48: comunicação em até 3 dias úteis, se houver risco. */
   async notify(actor: IncidentActor, id: string, input: Notify) {
     this.assertAdminOrAuditor(actor);
-    await this.find(id);
+    const incident = await this.find(id);
     const now = new Date();
+    const deadline = addBusinessDays(incident.reportedAt, INCIDENT_NOTIFICATION_BUSINESS_DAYS);
+    const late = isOverdue(deadline, now);
     const updated = await db.incident.update({
       where: { id },
       data: {
@@ -192,8 +209,25 @@ export class IncidentService {
         notifiedSubjectsAt: input.subjects ? now : null,
       },
     });
-    await this.event(actor, AUDIT_ACTIONS.INCIDENT_NOTIFIED, id, input);
-    return updated;
+    await this.event(actor, AUDIT_ACTIONS.INCIDENT_NOTIFIED, id, {
+      ...input,
+      deadline: deadline.toISOString(),
+      late,
+    });
+    if (late) {
+      await this.audit.record({
+        userId: actor.id as never,
+        role: (actor.roles[0] ?? null) as never,
+        ipAddress: actor.ipAddress,
+        action: AUDIT_ACTIONS.INCIDENT_NOTIFICATION_LATE,
+        module: "BACKUPS",
+        recordType: "Incident",
+        recordId: id,
+        result: "FAILURE",
+        newValue: { deadline: deadline.toISOString(), notifiedAt: now.toISOString() },
+      });
+    }
+    return { incident: updated, deadline: deadline.toISOString(), late };
   }
 
   async close(actor: IncidentActor, id: string) {

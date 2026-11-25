@@ -30,7 +30,10 @@
     "restore": "tsx scripts/restore.ts",
     "key:rotate": "tsx scripts/rotate-key.ts",
     "check:secrets": "tsx scripts/check-secrets.ts",
-    "check:env": "tsx scripts/check-env.ts"
+    "check:env": "tsx scripts/check-env.ts",
+    "report:admin-access": "tsx scripts/admin-access-report.ts",
+    "data:eliminate": "tsx scripts/eliminate-data.ts",
+    "backup:expire": "tsx scripts/expire-backups.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.7.18",

@@ -29,6 +29,17 @@ export function LoginForm() {
         setError(result.error.message ?? "Código inválido");
         return;
       }
+      if (useRecoveryCode) {
+        const consumed = await fetch("/api/auth/mfa/consume", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ code }),
+        });
+        if (!consumed.ok) {
+          setError("Código de recuperação já utilizado; solicite outro à secretaria.");
+          return;
+        }
+      }
       router.push("/");
       router.refresh();
       return;
