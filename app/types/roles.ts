@@ -148,11 +148,11 @@ export const ROLE_PERMISSIONS: Record<RoleName, readonly Permission[]> = {
 };
 
 export function permissionsForRole(role: RoleName): readonly Permission[] {
-  return ROLE_PERMISSIONS[role];
+  return ROLE_PERMISSIONS[role] ?? [];
 }
 
 export function hasPermission(roles: readonly RoleName[], permission: Permission): boolean {
-  return roles.some((role) => ROLE_PERMISSIONS[role].includes(permission));
+  return roles.some((role) => (ROLE_PERMISSIONS[role] ?? []).includes(permission));
 }
 
 export function hasAnyPermission(

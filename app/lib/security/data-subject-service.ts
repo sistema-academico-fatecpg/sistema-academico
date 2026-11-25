@@ -103,26 +103,7 @@ export class DataSubjectService {
     }
 
     if (record.type === "ELIMINATION") {
-      // 11.1.6: anonimiza dados pessoais, preservando acervo acadêmico e logs.
-      await db.user.update({
-        where: { id: record.userId },
-        data: {
-          name: "Titular anonimizado",
-          socialName: null,
-          email: `anonimo-${record.userId}@invalid.local`,
-          personalEmail: null,
-          registrationNumber: null,
-          status: "INACTIVE",
-          deactivatedAt: new Date(),
-          deactivatedBy: actor.id,
-        },
-      });
-      await db.session.deleteMany({ where: { userId: record.userId } });
-      await db.token.updateMany({
-        where: { userId: record.userId, usedAt: null },
-        data: { usedAt: new Date() },
-      });
-      await db.sensitiveData.deleteMany({ where: { userId: record.userId } });
+      await this.eliminate(record.userId, actor);
     }
 
     const updated = await db.dataSubjectRequest.update({
@@ -143,11 +124,49 @@ export class DataSubjectService {
     return updated;
   }
 
+  /**
+   * 11.1.6: eliminação ao fim do tratamento. Anonimiza dados pessoais, mas
+   * preserva acervo acadêmico, logs e histórico por obrigação legal.
+   */
+  async eliminate(userId: string, actor: SensitiveActor): Promise<void> {
+    await db.user.update({
+      where: { id: userId },
+      data: {
+        name: "Titular anonimizado",
+        socialName: null,
+        email: `anonimo-${userId}@invalid.local`,
+        personalEmail: null,
+        registrationNumber: null,
+        status: "INACTIVE",
+        deactivatedAt: new Date(),
+        deactivatedBy: actor.id,
+      },
+    });
+    await db.session.deleteMany({ where: { userId } });
+    await db.token.updateMany({
+      where: { userId, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    await db.sensitiveData.deleteMany({ where: { userId } });
+    await this.audit.record({
+      userId: actor.id as never,
+      role: (actor.roles[0] ?? null) as never,
+      ipAddress: actor.ipAddress,
+      action: AUDIT_ACTIONS.DATA_SUBJECT_COMPLETED,
+      module: "USERS",
+      recordType: "User",
+      recordId: userId,
+      result: "SUCCESS",
+      newValue: { operation: "ELIMINATION", legalRetentionPreserved: true },
+    });
+  }
+
   /** 11.1.3: consentimento de responsável legal para dados de menores. */
   async recordGuardianConsent(
     actor: SensitiveActor,
     studentId: string,
     guardianName: string,
+    birthDate?: string,
   ): Promise<void> {
     if (!actor.roles.includes("ADMIN_MASTER") && !actor.roles.includes("ADMIN_SECUNDARIO")) {
       throw forbidden("Consentimento registrado pela secretaria/coordenação");
@@ -156,7 +175,11 @@ export class DataSubjectService {
     if (!profile) throw notFound("Perfil de aluno não encontrado");
     await db.studentProfile.update({
       where: { userId: studentId },
-      data: { guardianName, guardianConsentAt: new Date() },
+      data: {
+        guardianName,
+        guardianConsentAt: new Date(),
+        ...(birthDate ? { birthDate: new Date(`${birthDate}T00:00:00Z`) } : {}),
+      },
     });
     await this.audit.record({
       userId: actor.id as never,

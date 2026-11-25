@@ -36,7 +36,8 @@ export async function GET(request: Request) {
     const actor = await requirePermission(PERMISSIONS.USERS_READ);
     const url = new URL(request.url);
     const query = ListUsersQuerySchema.parse(Object.fromEntries(url.searchParams));
-    const visibleRoles = visibleRolesFor(actor.roles);
+    // Admin Master revisa todos os perfis, inclusive os criados em runtime (7.2).
+    const visibleRoles = actor.roles.includes("ADMIN_MASTER") ? null : visibleRolesFor(actor.roles);
     const result = await new UserRepository().list(query, visibleRoles);
 
     return Response.json({

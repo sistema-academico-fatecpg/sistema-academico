@@ -13,7 +13,7 @@ export default async function UsersPage() {
 
   const { items } = await new UserRepository().list(
     { page: 1, pageSize: 100 },
-    visibleRolesFor(actor.roles),
+    actor.roles.includes("ADMIN_MASTER") ? null : visibleRolesFor(actor.roles),
   );
 
   return (

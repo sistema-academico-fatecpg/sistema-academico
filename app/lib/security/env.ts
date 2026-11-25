@@ -45,4 +45,9 @@ export function assertProductionSecrets(): void {
   if (!process.env.AUDIT_DATABASE_URL) {
     throw new Error("AUDIT_DATABASE_URL não configurada: base de logs deve ser separada (10.3)");
   }
+
+  const testDatabase = process.env.BACKUP_TEST_DATABASE_URL?.trim();
+  if (!testDatabase || testDatabase === process.env.DATABASE_URL?.trim()) {
+    throw new Error("BACKUP_TEST_DATABASE_URL deve apontar para ambiente separado (11.3.4)");
+  }
 }

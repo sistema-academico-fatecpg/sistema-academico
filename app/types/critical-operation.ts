@@ -103,10 +103,18 @@ const RemoveRolePayloadSchema = z.object({
   role: RoleNameSchema,
 });
 
+/** 7.5.4: concessão/revogação de permissões administrativas de um perfil. */
+const SetRolePermissionsPayloadSchema = z.object({
+  action: z.literal("SET_ROLE_PERMISSIONS"),
+  roleId: z.string().uuid(),
+  permissionNames: z.array(z.string().regex(/^[A-Z_]+:[A-Z_]+$/, "Permissão inválida")).max(100),
+});
+
 export const AdminAccessPayloadSchema = z.union([
   CreateAdminUserPayloadSchema,
   AssignRolePayloadSchema,
   RemoveRolePayloadSchema,
+  SetRolePermissionsPayloadSchema,
 ]);
 
 export const GradeCorrectionPayloadSchema = z.object({

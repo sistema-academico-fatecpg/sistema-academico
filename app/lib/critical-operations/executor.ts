@@ -1,9 +1,11 @@
 import type { z } from "zod";
+import { AUDIT_ACTIONS, AuditService } from "@/app/lib/audit/audit-service";
 import { deliverActivation } from "@/app/lib/auth/activation";
 import { conflict, notFound, validationError } from "@/app/lib/auth/errors";
 import { TokenService } from "@/app/lib/auth/tokens";
 import type { DbExecutor } from "@/app/lib/db";
 import type { CriticalOperationRequestWithUsers } from "@/app/repositories/critical-operation-request.repository";
+import { LogRepository } from "@/app/repositories/log.repository";
 import { RoleRepository } from "@/app/repositories/role.repository";
 import { TokenRepository } from "@/app/repositories/token.repository";
 import { UserRepository } from "@/app/repositories/user.repository";
@@ -107,7 +109,11 @@ export class CriticalOperationExecutor {
       const existing = await users.findByEmail(userInput.email);
       if (existing) throw conflict("E-mail já cadastrado");
 
-      const created = await users.create({ ...userInput, createdBy: actor.id });
+      const created = await users.create({
+        ...userInput,
+        createdBy: actor.id,
+        replacesUserId: data.replaceUserId ?? null,
+      });
 
       if (data.emergency) {
         const now = new Date();
@@ -140,6 +146,46 @@ export class CriticalOperationExecutor {
       };
     }
 
+    // 7.5.4: concessão/revogação de permissões administrativas de um perfil,
+    // com log e alerta automático ao Auditor (10.2 e 10.6).
+    if (data.action === "SET_ROLE_PERMISSIONS") {
+      const role = await roles.findById(data.roleId);
+      if (!role) throw notFound("Perfil não encontrado");
+      const before = role.permissions.map((item) => item.permission.name).sort();
+      const permissions = await client.permission.findMany({
+        where: { name: { in: data.permissionNames } },
+      });
+      const found = new Set(permissions.map((item) => item.name));
+      const missing = data.permissionNames.filter((name) => !found.has(name));
+      if (missing.length > 0) {
+        throw validationError("Permissões inexistentes", missing);
+      }
+      await client.rolePermission.deleteMany({ where: { roleId: role.id } });
+      if (permissions.length > 0) {
+        await client.rolePermission.createMany({
+          data: permissions.map((item) => ({ roleId: role.id, permissionId: item.id })),
+        });
+      }
+      const after = [...data.permissionNames].sort();
+      const txAudit = new AuditService(new LogRepository(client));
+      await txAudit.record({
+        userId: actor.id as never,
+        role: null,
+        ipAddress: actor.ipAddress,
+        action: AUDIT_ACTIONS.PERMISSIONS_CHANGED,
+        module: "ROLES",
+        recordType: "Role",
+        recordId: role.id,
+        result: "SUCCESS",
+        oldValue: { permissions: before },
+        newValue: { permissions: after },
+      });
+      return {
+        summary: "Permissões do perfil alteradas",
+        details: { roleId: role.id, role: role.name, before, after },
+      };
+    }
+
     const target = await users.findById(data.userId);
     if (!target) throw notFound("Usuário não encontrado");
 
@@ -153,8 +199,24 @@ export class CriticalOperationExecutor {
     const role = await roles.findByName(data.role);
     if (!role) throw notFound("Perfil não encontrado");
 
+    const txAudit = new AuditService(new LogRepository(client));
+    const baseEvent = {
+      userId: actor.id as never,
+      role: null,
+      ipAddress: actor.ipAddress,
+      module: "ROLES" as const,
+      recordType: "User",
+      recordId: target.id,
+      result: "SUCCESS" as const,
+    };
+
     if (data.action === "ADD_ROLE" || data.action === "ASSIGN_ROLE") {
       await roles.assignRole(target.id, role.id, actor.id);
+      await txAudit.record({
+        ...baseEvent,
+        action: AUDIT_ACTIONS.ROLE_ASSIGNED,
+        newValue: { role: data.role },
+      });
       return {
         summary: `Perfil ${data.role} atribuído`,
         details: { userId: target.id, role: data.role },
@@ -168,6 +230,11 @@ export class CriticalOperationExecutor {
     }
 
     await roles.removeRole(target.id, role.id);
+    await txAudit.record({
+      ...baseEvent,
+      action: AUDIT_ACTIONS.ROLE_REMOVED,
+      oldValue: { role: data.role },
+    });
     return {
       summary: `Perfil ${data.role} revogado`,
       details: { userId: target.id, role: data.role },
@@ -250,6 +317,18 @@ export class CriticalOperationExecutor {
     await client.enrollment.update({
       where: { id: data.enrollmentId },
       data: { status: "CANCELLED" },
+    });
+    await new AuditService(new LogRepository(client)).record({
+      userId: null,
+      role: null,
+      ipAddress: "system:critical-operation",
+      action: AUDIT_ACTIONS.ACADEMIC_RECORD_DELETED,
+      module: "ENROLLMENTS",
+      recordType: "Enrollment",
+      recordId: data.enrollmentId,
+      result: "SUCCESS",
+      oldValue: { status: enrollment.status },
+      newValue: { status: "CANCELLED", reason: data.reason, logical: true },
     });
 
     return {

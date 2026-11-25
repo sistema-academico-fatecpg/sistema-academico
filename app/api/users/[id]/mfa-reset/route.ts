@@ -9,7 +9,8 @@ import { PERMISSIONS } from "@/app/types/roles";
 
 const BodySchema = z.object({
   reason: z.string().trim().min(10).max(2000),
-  identityVerifiedAt: z.string().datetime().optional(),
+  // 8.6.2: identificação presencial na secretaria é obrigatória.
+  identityVerifiedAt: z.string().datetime(),
 });
 
 /**

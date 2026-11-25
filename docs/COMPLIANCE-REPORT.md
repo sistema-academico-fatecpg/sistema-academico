@@ -1,6 +1,6 @@
 # Relatório de desenvolvimento — Política de Segurança da Informação
 
-> Escopo: exclusivamente `Politica de Seguranca.md`. Cada requisito abaixo foi entregue por PRs #49–#54 e precisa de validação técnica em ambiente com banco real antes de declaração formal de conformidade.
+> Escopo: exclusivamente `Politica de Seguranca.md`. Cada requisito abaixo foi entregue pelos PRs #49–#54 e pelo PR de fechamento de lacunas da segunda auditoria (documento × código). A validação técnica em ambiente com banco real continua necessária antes de declaração formal de conformidade.
 
 | Seção     | Requisito                                                                                                                | Onde está implementado                                                                                               |
 | --------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
@@ -29,6 +29,11 @@
 ## Pendências de validação técnica (não bloqueiam o código)
 
 1. Aplicar todas as migrações em banco PostgreSQL real e executar `prisma/audit-database.sql` na instância isolada.
-2. Configurar `AUDIT_DATABASE_URL`, `DATA_ENCRYPTION_KEY`, `MAINTENANCE_SECRET`, `BACKUP_LOCAL_DIR` e `BACKUP_CLOUD_DIR` no cofre.
-3. Agendar `pnpm backup`, `pnpm restore:test`, `pnpm close:grades`, `pnpm expire:emergency` e `pnpm audit:retention`.
-4. Revisar anualmente a matriz e reabrir issues a cada mudança legal ou incidente relevante.
+2. Configurar `AUDIT_DATABASE_URL`, `DATA_ENCRYPTION_KEY`, `MAINTENANCE_SECRET`, `BACKUP_LOCAL_DIR`, `BACKUP_CLOUD_DIR` e `BACKUP_TEST_DATABASE_URL` no cofre.
+3. Agendar `pnpm backup`, `pnpm restore:test`, `pnpm close:grades`, `pnpm expire:emergency`, `pnpm audit:retention`, `pnpm report:admin-access` e `pnpm backup:expire`.
+4. Configurar TLS 1.2+, HD desconectado e nuvem imutável com MFA na Infraestrutura (11.2.1/11.3.2/11.3.3).
+5. Revisar anualmente a matriz e reabrir issues a cada mudança legal ou incidente relevante.
+
+## Segunda auditoria (PR de fechamento de lacunas)
+
+`docs/IMPLEMENTATION-STATUS.md` registra, requisito a requisito, as lacunas encontradas após os PRs #49–#54 e suas correções: criação de perfis e gestão de permissões com dupla aprovação, autorização por vínculo em `/api/users/[id]`, relatório semestral, substituição de coordenador, prazo de 5 dias úteis e revisão de ações emergenciais, consentimento de menores, mascaramento real, cabeçalhos de segurança, condições de restauração (cópia anterior e testada), prazo de notificação e candidatos a relançamento. Permanecem apenas itens de infraestrutura/processo listados explicitamente na matriz.

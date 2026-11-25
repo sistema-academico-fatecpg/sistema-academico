@@ -99,6 +99,16 @@ export class LogRepository {
     );
   }
 
+  /** Primeiro alerta ainda não reconhecido de um tipo (prazos de 8.8). */
+  findEarliestUnacknowledgedAlert(type: AlertType) {
+    return withRepositoryErrors(() =>
+      this.client.auditAlert.findFirst({
+        where: { type, acknowledgedAt: null },
+        orderBy: { createdAt: "asc" },
+      }),
+    );
+  }
+
   listAlerts(filter: AlertFilter) {
     const where: Prisma.AuditAlertWhereInput = {
       ...(filter.type ? { type: filter.type } : {}),

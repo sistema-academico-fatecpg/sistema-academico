@@ -13,10 +13,17 @@ export function EnrollmentForm({ items }: { items: ClassGroupDto[] }) {
   async function submit() {
     setError(null);
     setMessage(null);
+    // 9.1.2: a DP é sempre enviada antes das demais, independentemente da
+    // ordem em que o aluno marcou as caixas na tela.
+    const ordered = [...selected].sort((a, b) => {
+      const aDp = items.find((item) => item.id === a)?.isDependency ? 0 : 1;
+      const bDp = items.find((item) => item.id === b)?.isDependency ? 0 : 1;
+      return aDp - bDp;
+    });
     const response = await fetch("/api/enrollments", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ classGroupIds: selected }),
+      body: JSON.stringify({ classGroupIds: ordered }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {

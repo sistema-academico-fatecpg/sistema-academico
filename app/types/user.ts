@@ -20,8 +20,16 @@ export type UserInput = {
   email: InstitucionalEmail;
   personalEmail?: Email | null;
   registrationNumber?: string | null;
-  role: RoleName;
+  role: string;
 };
+
+/** Nome de perfil: aceita os seis perfis fixos e perfis novos criados em runtime (7.2). */
+export const RoleAssignmentSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(60)
+  .regex(/^[A-Z][A-Z0-9_]*$/, "Use maiúsculas, números e underscore");
 
 export const UserInputSchema = z.object({
   name: z.string().trim().min(3, "Nome deve ter ao menos 3 caracteres").max(150),
@@ -29,7 +37,7 @@ export const UserInputSchema = z.object({
   email: InstitucionalEmailSchema,
   personalEmail: EmailSchema.nullable().optional(),
   registrationNumber: z.string().trim().min(1).max(30).nullable().optional(),
-  role: RoleNameSchema,
+  role: RoleAssignmentSchema,
 });
 
 export type UserDto = {

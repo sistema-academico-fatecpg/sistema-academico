@@ -185,6 +185,12 @@ export class BackupService {
 
   /** 11.3.4: teste mensal de restauração em ambiente separado. */
   async restoreTest(id: string, ipAddress = "maintenance") {
+    const testDatabase = process.env.BACKUP_TEST_DATABASE_URL?.trim();
+    if (!testDatabase || testDatabase === process.env.DATABASE_URL?.trim()) {
+      throw conflict(
+        "O teste de restauração exige BACKUP_TEST_DATABASE_URL distinto da produção (11.3.4)",
+      );
+    }
     const verified = await this.verify(id);
     const dump = await this.read(verified);
     const required = ["users", "enrollments", "grades"];
@@ -228,7 +234,26 @@ export class BackupService {
     if (!record) throw notFound("Backup não encontrado");
     const verified = await this.verify(id);
     const dump = await this.read(verified);
-    void record;
+
+    // 13.3: lançamentos legítimos posteriores ao ponto de restauração são
+    // identificados pelos logs e devolvidos para relançamento supervisionado.
+    const replayCandidates = await db.log.findMany({
+      where: {
+        action: {
+          in: ["GRADE_CHANGED", "ENROLLMENT_CREATED", "GRADE_CORRECTION_REQUESTED"],
+        },
+        createdAt: { gt: record.createdAt },
+        recordId: { in: affectedRecordIds },
+      },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        action: true,
+        recordId: true,
+        newValue: true,
+        createdAt: true,
+      },
+    });
 
     let restored = 0;
     for (const targetId of affectedRecordIds) {
@@ -271,6 +296,42 @@ export class BackupService {
         restored += 1;
       }
     }
-    return { restored };
+    return { restored, replayCandidates };
+  }
+
+  /** 11.3.1/10.7: expira cópias fora da retenção sem ler seu conteúdo. */
+  async expireRetention(now = new Date(), ipAddress = "maintenance") {
+    const result = await db.backupRecord.updateMany({
+      where: { status: { not: "EXPIRED" }, retentionUntil: { lt: now } },
+      data: { status: "EXPIRED" },
+    });
+    await this.audit.record({
+      userId: null,
+      role: null,
+      ipAddress,
+      action: AUDIT_ACTIONS.MAINTENANCE_INTERVENTION,
+      module: "BACKUPS",
+      recordType: "BackupRecord",
+      result: "SUCCESS",
+      newValue: { operation: "EXPIRE_RETENTION", count: result.count },
+    });
+    return result.count;
+  }
+
+  /** 11.3.5: acompanhamento de RPO (24h) e RTO (8h). */
+  async status(now = new Date()) {
+    const latest = await db.backupRecord.findFirst({
+      where: { status: { not: "EXPIRED" } },
+      orderBy: { createdAt: "desc" },
+    });
+    const ageHours = latest ? (now.getTime() - latest.createdAt.getTime()) / 3_600_000 : null;
+    return {
+      rpoHours: 24,
+      rtoHours: 8,
+      lastBackupAt: latest?.createdAt.toISOString() ?? null,
+      ageHours,
+      rpoCompliant: ageHours !== null && ageHours <= 24,
+      latestType: latest?.type ?? null,
+    };
   }
 }

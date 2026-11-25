@@ -35,14 +35,17 @@ const INCIDENT_ACTIONS = ["INCIDENT_REPORTED", "INCIDENT_CONTAINED", "INCIDENT_C
  */
 export async function auditRetentionReport(now = new Date()) {
   const accessCutoff = new Date(now.getTime() - AUDIT_RETENTION.accessLogDays * 86_400_000);
-  const [accessExpired, accessTotal, academicTotal, incidentTotal] = await Promise.all([
-    db.log.count({
-      where: { action: { in: ACCESS_ACTIONS }, createdAt: { lt: accessCutoff } },
-    }),
-    db.log.count({ where: { action: { in: ACCESS_ACTIONS } } }),
-    db.log.count({ where: { action: { in: ACADEMIC_ACTIONS } } }),
-    db.log.count({ where: { action: { in: INCIDENT_ACTIONS } } }),
-  ]);
+  const incidentCutoff = new Date(now.getTime() - AUDIT_RETENTION.incidentYears * 365 * 86_400_000);
+  const [accessExpired, accessTotal, academicTotal, incidentTotal, incidentsPastRetention] =
+    await Promise.all([
+      db.log.count({
+        where: { action: { in: ACCESS_ACTIONS }, createdAt: { lt: accessCutoff } },
+      }),
+      db.log.count({ where: { action: { in: ACCESS_ACTIONS } } }),
+      db.log.count({ where: { action: { in: ACADEMIC_ACTIONS } } }),
+      db.log.count({ where: { action: { in: INCIDENT_ACTIONS } } }),
+      db.incident.count({ where: { closedAt: { lt: incidentCutoff } } }),
+    ]);
 
   return {
     generatedAt: now.toISOString(),
@@ -53,5 +56,6 @@ export async function auditRetentionReport(now = new Date()) {
     academicTotal,
     incidentYears: AUDIT_RETENTION.incidentYears,
     incidentTotal,
+    incidentsPastRetention,
   };
 }

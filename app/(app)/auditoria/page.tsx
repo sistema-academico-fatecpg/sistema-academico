@@ -24,11 +24,10 @@ export default async function Page({
   }
 
   const raw = Object.fromEntries(
-    Object.entries(await searchParams).map(([key, value]) => [
-      key,
-      Array.isArray(value) ? value[0] : value,
-    ]),
-  );
+    Object.entries(await searchParams)
+      .map(([key, value]) => [key, Array.isArray(value) ? value[0] : value] as const)
+      .filter(([, value]) => typeof value === "string" && value.trim() !== ""),
+  ) as Record<string, string>;
   const filter = LogFilterSchema.parse(raw);
   const alertFilter = AlertFilterSchema.parse({ acknowledged: "false", pageSize: "10", ...raw });
 
@@ -66,7 +65,7 @@ export default async function Page({
       </div>
 
       <form
-        className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-5"
+        className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-6"
         method="get"
       >
         <label className="text-xs font-semibold text-slate-500">
@@ -83,6 +82,13 @@ export default async function Page({
             className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5"
             name="to"
             type="date"
+          />
+        </label>
+        <label className="text-xs font-semibold text-slate-500">
+          Usuário (id)
+          <input
+            className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5"
+            name="userId"
           />
         </label>
         <label className="text-xs font-semibold text-slate-500">

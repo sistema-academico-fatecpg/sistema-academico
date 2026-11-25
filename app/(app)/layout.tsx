@@ -10,6 +10,7 @@ const navigation = [
     roles: ["ADMIN_MASTER", "ADMIN_SECUNDARIO", "PROFESSOR", "ALUNO", "AUDITOR", "SUPORTE_TECNICO"],
   },
   { href: "/usuarios", label: "Usuários", roles: ["ADMIN_MASTER", "ADMIN_SECUNDARIO"] },
+  { href: "/perfis", label: "Perfis e permissões", roles: ["ADMIN_MASTER"] },
   {
     href: "/cursos",
     label: "Cursos",
@@ -39,6 +40,7 @@ const navigation = [
   { href: "/auditoria", label: "Auditoria", roles: ["AUDITOR"] },
   { href: "/suporte", label: "Acesso de suporte", roles: ["AUDITOR", "SUPORTE_TECNICO"] },
   { href: "/incidentes", label: "Incidentes", roles: ["ADMIN_MASTER", "AUDITOR"] },
+  { href: "/relatorios", label: "Relatório semestral", roles: ["ADMIN_MASTER", "AUDITOR"] },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

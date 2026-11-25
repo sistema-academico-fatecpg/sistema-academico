@@ -16,10 +16,13 @@ export default async function Page() {
   const academicActor = { id: actor.id, roles: actor.roles, ipAddress: "server" };
 
   if (actor.roles.includes("ALUNO")) {
-    const [available, history] = await Promise.all([
+    const [availableRaw, history] = await Promise.all([
       service.available(academicActor),
       service.ownHistory(academicActor),
     ]);
+    const available = [...availableRaw].sort(
+      (a, b) => Number(b.isDependency) - Number(a.isDependency),
+    );
     return (
       <section className="space-y-6">
         <div>

@@ -26,6 +26,14 @@ function isEmergency(payload: unknown): boolean {
   return (payload as Record<string, unknown>).emergency === true;
 }
 
+function requiresDirectionAuthorization(request: { operation: string; payload: unknown }): boolean {
+  if (request.operation !== "DATA_RESTORE_AFTER_INCIDENT") return false;
+  if (!request.payload || typeof request.payload !== "object" || Array.isArray(request.payload)) {
+    return false;
+  }
+  return (request.payload as Record<string, unknown>).involvesMaster === true;
+}
+
 export default async function Page() {
   const actor = await getAuthenticatedUser();
   if (!actor) redirect("/login");
@@ -62,6 +70,13 @@ export default async function Page() {
             suspensas, exceto a inclusão de um novo Master, que deve ser aprovada pelo Auditor
             (seção 8.8).
           </p>
+          {masterStatus.directionDeadline ? (
+            <p className="mt-1 text-sm font-semibold text-amber-900">
+              Prazo da direção (5 dias úteis):{" "}
+              {new Date(masterStatus.directionDeadline).toLocaleString("pt-BR")}
+              {masterStatus.directionDeadlineOverdue ? " — ATRASADO" : ""}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -117,7 +132,10 @@ export default async function Page() {
                   solicitação.
                 </p>
               ) : canDecide ? (
-                <DecisionForm requestId={request.id} />
+                <DecisionForm
+                  requestId={request.id}
+                  requiresDirectionAuthorization={requiresDirectionAuthorization(request)}
+                />
               ) : (
                 <p className="mt-3 text-sm font-medium text-slate-500">
                   {auditorApproval
