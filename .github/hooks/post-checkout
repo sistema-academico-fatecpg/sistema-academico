@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# Regenera o Prisma Client após checkout/branch switch.
+# $1 = ref anterior, $2 = nova ref, $3 = flag de branch (não usados aqui).
+set -eu
+
+HOOK_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "$HOOK_DIR/checks.sh"
+
+[ -d node_modules ] || exit 0
+run_pnpm db:generate

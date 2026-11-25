@@ -26,6 +26,9 @@ Describe how you tested this change (commands run and results).
 
 - [ ] Code follows project conventions
 - [ ] Relevant tests were added or updated
+- [ ] Git hooks installed (`pnpm hooks:install`) or equivalent local checks run
 - [ ] TypeScript typecheck passes (`pnpm typecheck`)
 - [ ] Biome checks pass (`pnpm check`)
+- [ ] All checks pass (`pnpm verify`) — same commands as the CI workflows
+- [ ] Conventional Commit messages (`commit-msg` hook)
 - [ ] Documentation was updated when necessary

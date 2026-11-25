@@ -1,0 +1,59 @@
+# Check isolado, reutilizado pelo orquestrador ci.yml.
+# O comando real vive em .github/hooks/checks.sh (fonte única para CI + hooks).
+
+name: Check · Conventional Commits
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Ref a checar (vazio = github.ref)."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  conventional-commits:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (histórico completo)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Determine commit range
+        id: range
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            before="${{ github.event.before }}"
+            after="${{ github.event.after }}"
+            if [ "$before" = "0000000000000000000000000000000000000000" ]; then
+              # Branch nova: sem intervalo confiável, valida o commit do topo.
+              range="LATEST"
+            else
+              range="$before..$after"
+            fi
+          else
+            # schedule / workflow_dispatch: valida apenas o commit do topo.
+            range="LATEST"
+          fi
+          echo "range=$range" >> "$GITHUB_OUTPUT"
+          echo "Validating commit range: $range"
+
+      - name: Validate Conventional Commits
+        run: sh .github/hooks/checks.sh conventional-commits
+        env:
+          COMMIT_RANGE: ${{ steps.range.outputs.range }}

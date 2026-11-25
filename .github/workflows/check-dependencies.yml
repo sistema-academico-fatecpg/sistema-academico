@@ -1,0 +1,28 @@
+# Check isolado, reutilizado pelo orquestrador ci.yml.
+# O comando real vive em .github/hooks/checks.sh (fonte única para CI + hooks).
+
+name: Check · Dependency audit
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Ref a checar (vazio = github.ref)."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup (Node + pnpm + Prisma)
+        uses: ./.github/actions/setup
+        with:
+          ref: ${{ inputs.ref }}
+      - name: pnpm audit (12.6)
+        run: sh .github/hooks/checks.sh dependencies

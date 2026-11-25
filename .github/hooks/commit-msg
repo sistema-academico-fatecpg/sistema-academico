@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+# Valida a mensagem do commit (Conventional Commits).
+# $1 = caminho do arquivo de mensagem fornecido pelo Git.
+set -eu
+
+HOOK_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "$HOOK_DIR/checks.sh"
+
+[ "$#" -ge 1 ] || {
+  echo "erro [commit-msg]: arquivo de mensagem não informado." >&2
+  exit 1
+}
+
+export COMMIT_MSG_FILE="$1"
+run_check conventional-commits

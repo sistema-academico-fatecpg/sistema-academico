@@ -1,0 +1,28 @@
+# Check isolado, reutilizado pelo orquestrador ci.yml.
+# O comando real vive em .github/hooks/checks.sh (fonte única para CI + hooks).
+
+name: Check · Prisma schema
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Ref a checar (vazio = github.ref)."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  database:
+    name: Prisma schema
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup (Node + pnpm + Prisma)
+        uses: ./.github/actions/setup
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Prisma validate + generate + migrations
+        run: sh .github/hooks/checks.sh database

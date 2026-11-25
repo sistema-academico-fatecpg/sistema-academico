@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+# Roda antes de cada commit. Comandos em: .github/hooks/checks.sh
+set -eu
+
+HOOK_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "$HOOK_DIR/checks.sh"
+
+echo "==> [pre-commit] Biome (format + lint + imports)"
+run_check biome
+
+echo "==> [pre-commit] Varredura de segredos versionados"
+run_check secrets
+
+echo "==> [pre-commit] TypeScript typecheck"
+run_check typecheck
+
+echo "==> [pre-commit] OK"

@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# Roda antes de cada push. Use HOOK_SKIP_BUILD=1 para pular o build.
+# Ex.: HOOK_SKIP_BUILD=1 git push
+set -eu
+
+HOOK_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "$HOOK_DIR/checks.sh"
+
+echo "==> [pre-push] Testes"
+run_check test
+
+if [ "${HOOK_SKIP_BUILD:-0}" != "1" ]; then
+  echo "==> [pre-push] Build de produção"
+  run_check build
+else
+  echo "==> [pre-push] Build pulado (HOOK_SKIP_BUILD=1)"
+fi
+
+echo "==> [pre-push] OK"
