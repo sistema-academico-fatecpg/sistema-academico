@@ -160,6 +160,11 @@ export const AlertTypeSchema = z.enum([
   "INCIDENT_REPORTED",
   "DATA_SUBJECT_REQUESTED",
   "BACKUP_FAILED",
+  "DPO_NOTIFICATION_DUE",
+  "CLOCK_DRIFT",
+  "KEY_ROTATION_OVERDUE",
+  "BACKUP_MEDIA_OVERDUE",
+  "POLICY_REVIEW_OVERDUE",
 ]);
 export type AlertType = z.infer<typeof AlertTypeSchema>;
 

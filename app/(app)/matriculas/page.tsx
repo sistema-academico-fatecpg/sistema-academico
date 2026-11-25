@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { EnrollmentService } from "@/app/lib/academic/enrollment-service";
 import { getAuthenticatedUser } from "@/app/lib/auth/session";
+import { PERMISSIONS } from "@/app/types/roles";
 import { EnrollmentForm } from "./EnrollmentForm";
 
 export const metadata: Metadata = { title: "Matrículas" };
@@ -11,6 +12,8 @@ export const metadata: Metadata = { title: "Matrículas" };
 export default async function Page() {
   const actor = await getAuthenticatedUser();
   if (!actor) redirect("/login");
+  // 7.3/9.1.1: permissão efetiva do banco antes de tocar no serviço.
+  if (!actor.permissions.has(PERMISSIONS.ENROLLMENTS_READ)) redirect("/dashboard");
 
   const service = new EnrollmentService();
   const academicActor = { id: actor.id, roles: actor.roles, ipAddress: "server" };

@@ -1,0 +1,28 @@
+# 12.6: verificação e atualização das dependências contra vulnerabilidades
+# conhecidas. O CI também executa `pnpm audit --prod --audit-level high`.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "ci"

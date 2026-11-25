@@ -34,6 +34,17 @@
 4. Configurar TLS 1.2+, HD desconectado e nuvem imutável com MFA na Infraestrutura (11.2.1/11.3.2/11.3.3).
 5. Revisar anualmente a matriz e reabrir issues a cada mudança legal ou incidente relevante.
 
+## Terceira auditoria (conclusão)
+
+Todos os itens antes listados como "operacionais" passaram a ter mecanismo
+verificável: `check:clock` (NTP), `check:env` (TLS/cofre/nuvem/ambientes),
+`check:media` (HD 3 anos), `check:rotation` (rotação anual + 2 custodiantes),
+`check:restore` (teste mensal), `policy:archive` (arquivamento sem leitura),
+`check-fixtures` (dados fictícios), `CODEOWNERS` + `check-branch-protection`
+(code review), `dependabot.yml` (atualização de dependências), `policy_reviews`
+e `policy_violations` (16/15), tela `/responsabilidades` (14). Detalhes em
+`docs/IMPLEMENTATION-STATUS.md`.
+
 ## Segunda auditoria (PR de fechamento de lacunas)
 
 `docs/IMPLEMENTATION-STATUS.md` registra, requisito a requisito, as lacunas encontradas após os PRs #49–#54 e suas correções: criação de perfis e gestão de permissões com dupla aprovação, autorização por vínculo em `/api/users/[id]`, relatório semestral, substituição de coordenador, prazo de 5 dias úteis e revisão de ações emergenciais, consentimento de menores, mascaramento real, cabeçalhos de segurança, condições de restauração (cópia anterior e testada), prazo de notificação e candidatos a relançamento. Permanecem apenas itens de infraestrutura/processo listados explicitamente na matriz.

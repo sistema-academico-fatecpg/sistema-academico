@@ -36,7 +36,13 @@
     "backup:expire": "tsx scripts/expire-backups.ts",
     "hooks:install": "sh .github/hooks/install.sh",
     "hooks:uninstall": "sh .github/hooks/uninstall.sh",
-    "verify": "sh .github/hooks/checks.sh all"
+    "verify": "sh .github/hooks/checks.sh all",
+    "check:clock": "tsx scripts/check-clock.ts",
+    "check:rotation": "tsx scripts/key-rotation-status.ts",
+    "check:media": "tsx scripts/backup-media-check.ts",
+    "check:restore": "tsx scripts/restore-status.ts",
+    "policy:review": "tsx scripts/policy-review-status.ts",
+    "policy:archive": "tsx scripts/archive-audit-logs.ts"
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "^1.7.18",

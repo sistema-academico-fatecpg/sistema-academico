@@ -1,6 +1,7 @@
 import { actorFrom, jsonError } from "@/app/lib/api/responses";
 import { requireUser } from "@/app/lib/auth/session";
 import { db } from "@/app/lib/db";
+import { addBusinessDays } from "@/app/lib/security/business-days";
 import { IncidentService } from "@/app/lib/security/incident-service";
 import { ReportIncidentSchema } from "@/app/types/incident";
 
@@ -10,7 +11,11 @@ export async function GET() {
     if (!actor.roles.includes("ADMIN_MASTER") && !actor.roles.includes("AUDITOR")) {
       return Response.json({ error: "Acesso restrito" }, { status: 403 });
     }
-    const items = await db.incident.findMany({ orderBy: { reportedAt: "desc" } });
+    const incidents = await db.incident.findMany({ orderBy: { reportedAt: "desc" } });
+    const items = incidents.map((incident) => ({
+      ...incident,
+      dpoDeadline: addBusinessDays(incident.reportedAt, 3).toISOString(),
+    }));
     return Response.json({ items });
   } catch (error) {
     return jsonError(error);

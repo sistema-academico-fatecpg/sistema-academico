@@ -4,15 +4,15 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { adminAccessReport } from "@/app/lib/audit/admin-access-report";
 import { getAuthenticatedUser } from "@/app/lib/auth/session";
+import { PERMISSIONS } from "@/app/types/roles";
 
 export const metadata: Metadata = { title: "Relatório semestral de acessos" };
 
 export default async function Page() {
   const actor = await getAuthenticatedUser();
   if (!actor) redirect("/login");
-  if (!actor.roles.includes("ADMIN_MASTER") && !actor.roles.includes("AUDITOR")) {
-    redirect("/dashboard");
-  }
+  // 7.3: Admin Master e Auditor têm REPORTS_READ na matriz do banco.
+  if (!actor.permissions.has(PERMISSIONS.REPORTS_READ)) redirect("/dashboard");
   const report = await adminAccessReport();
 
   return (

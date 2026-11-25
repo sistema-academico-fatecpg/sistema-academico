@@ -1,0 +1,5 @@
+# 12.5: todo código precisa de revisão de outro desenvolvedor antes da
+# publicação. Combinar com proteção da branch main (PR obrigatório, 1
+# aprovação e os status checks do CI). Ver scripts/check-branch-protection.ts.
+
+* @ShiMigui

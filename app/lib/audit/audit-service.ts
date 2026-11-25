@@ -79,6 +79,12 @@ export const AUDIT_ACTIONS = {
   MASTER_ACCOUNTS_BELOW_MINIMUM: "MASTER_ACCOUNTS_BELOW_MINIMUM",
   EMERGENCY_MASTER_CREATED: "EMERGENCY_MASTER_CREATED",
   EMERGENCY_MASTER_EXPIRED: "EMERGENCY_MASTER_EXPIRED",
+  CLOCK_DRIFT_DETECTED: "CLOCK_DRIFT_DETECTED",
+  KEY_ROTATION_CHECKED: "KEY_ROTATION_CHECKED",
+  BACKUP_MEDIA_CHECKED: "BACKUP_MEDIA_CHECKED",
+  POLICY_REVIEW_RECORDED: "POLICY_REVIEW_RECORDED",
+  POLICY_VIOLATION_RECORDED: "POLICY_VIOLATION_RECORDED",
+  DPO_NOTIFICATION_DUE: "DPO_NOTIFICATION_DUE",
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
@@ -94,6 +100,8 @@ const ALERT_BY_ACTION: Partial<Record<string, AlertType>> = {
   INCIDENT_REPORTED: "INCIDENT_REPORTED",
   DATA_SUBJECT_REQUESTED: "DATA_SUBJECT_REQUESTED",
   BACKUP_FAILED: "BACKUP_FAILED",
+  CLOCK_DRIFT_DETECTED: "CLOCK_DRIFT",
+  DPO_NOTIFICATION_DUE: "DPO_NOTIFICATION_DUE",
 };
 
 const LOGIN_FAILURE_ALERT_THRESHOLD = 3;
@@ -204,6 +212,16 @@ function alertMessage(type: AlertType, event: AuditEvent): string {
       return "Titular solicitou exercício de direito LGPD (art. 18).";
     case "BACKUP_FAILED":
       return "Falha na rotina de cópia de segurança.";
+    case "DPO_NOTIFICATION_DUE":
+      return "Incidente com risco relevante: DPO deve notificar ANPD e titulares em até 3 dias úteis.";
+    case "CLOCK_DRIFT":
+      return "Deriva entre relógio da aplicação e do banco; verificar NTP (10.1).";
+    case "KEY_ROTATION_OVERDUE":
+      return "Rotação anual da chave de criptografia vencida (11.2.4).";
+    case "BACKUP_MEDIA_OVERDUE":
+      return "Mídia física de backup com mais de 3 anos ou sem desconexão registrada (11.3.2).";
+    case "POLICY_REVIEW_OVERDUE":
+      return "Revisão anual da Política de Segurança vencida (16).";
     default:
       return `Evento de auditoria: ${event.action}`;
   }

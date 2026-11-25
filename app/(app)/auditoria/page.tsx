@@ -8,6 +8,7 @@ import { auditReader } from "@/app/lib/audit/reader";
 import { SupportAccessService } from "@/app/lib/audit/support-access-service";
 import { getAuthenticatedUser } from "@/app/lib/auth/session";
 import { AlertFilterSchema, LogFilterSchema } from "@/app/types/log";
+import { PERMISSIONS } from "@/app/types/roles";
 import { AcknowledgeButton } from "./AcknowledgeButton";
 
 export const metadata: Metadata = { title: "Auditoria" };
@@ -19,7 +20,12 @@ export default async function Page({
 }) {
   const actor = await getAuthenticatedUser();
   if (!actor) redirect("/login");
-  if (!actor.roles.includes("AUDITOR") && !actor.roles.includes("SUPORTE_TECNICO")) {
+  // 10.4: somente Auditor; Suporte Técnico entra apenas por concessão (10.8),
+  // validada abaixo por assertCanRead. 7.3: permissão efetiva do banco.
+  const isAuditor = actor.roles.includes("AUDITOR");
+  const isSupport = actor.roles.includes("SUPORTE_TECNICO");
+  if (!isAuditor && !isSupport) redirect("/dashboard");
+  if (isAuditor && !actor.permissions.has(PERMISSIONS.AUDIT_LOGS_READ)) {
     redirect("/dashboard");
   }
 

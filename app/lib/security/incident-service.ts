@@ -87,6 +87,23 @@ export class IncidentService {
       severity: input.severity,
       involvesMaster: input.involvesMaster,
     });
+    // 13 / LGPD art. 48: risco relevante dispara alerta ao DPO e ao Auditor.
+    if (input.severity === "HIGH" || input.severity === "CRITICAL") {
+      await this.audit.record({
+        userId: actor.id as never,
+        role: (actor.roles[0] ?? null) as never,
+        ipAddress: actor.ipAddress,
+        action: AUDIT_ACTIONS.DPO_NOTIFICATION_DUE,
+        module: "BACKUPS",
+        recordType: "Incident",
+        recordId: incident.id,
+        result: "SUCCESS",
+        newValue: {
+          severity: input.severity,
+          deadline: addBusinessDays(incident.reportedAt, 3).toISOString(),
+        },
+      });
+    }
     return incident;
   }
 

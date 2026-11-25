@@ -32,10 +32,15 @@ export type CriticalOperationActor = {
   permissions?: ReadonlySet<Permission>;
 };
 
+/** 8.1.2: recomenda-se três contas Master. */
+export const RECOMMENDED_MASTERS = 3;
+
 export type MasterStatus = {
   activeMasters: number;
   singleAccountMode: boolean;
   masterInclusionOnly: boolean;
+  recommendedMasters: number;
+  belowRecommendation: boolean;
   /** Prazo de 5 dias úteis para a direção indicar novo Master (8.8). */
   directionDeadline: string | null;
   directionDeadlineOverdue: boolean;
@@ -104,6 +109,8 @@ export class CriticalOperationService {
         activeMasters,
         singleAccountMode: false,
         masterInclusionOnly: false,
+        recommendedMasters: RECOMMENDED_MASTERS,
+        belowRecommendation: activeMasters < RECOMMENDED_MASTERS,
         directionDeadline: null,
         directionDeadlineOverdue: false,
       };
@@ -117,6 +124,8 @@ export class CriticalOperationService {
       activeMasters,
       singleAccountMode: true,
       masterInclusionOnly: true,
+      recommendedMasters: RECOMMENDED_MASTERS,
+      belowRecommendation: true,
       directionDeadline: deadline?.toISOString() ?? null,
       directionDeadlineOverdue: isOverdue(deadline),
     };

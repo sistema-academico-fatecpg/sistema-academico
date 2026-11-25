@@ -110,6 +110,11 @@ enum AlertType {
   INCIDENT_REPORTED
   DATA_SUBJECT_REQUESTED
   BACKUP_FAILED
+  DPO_NOTIFICATION_DUE
+  CLOCK_DRIFT
+  KEY_ROTATION_OVERDUE
+  BACKUP_MEDIA_OVERDUE
+  POLICY_REVIEW_OVERDUE
 }
 
 enum EnrollmentStatus {
@@ -717,4 +722,57 @@ model BackupRecord {
 
   @@index([type, createdAt])
   @@map("backup_records")
+}
+
+/** 8.4.2: cada código TOTP é aceito uma única vez por desafio de login. */
+model TotpUsedCode {
+  id     String   @id @default(uuid())
+  key    String   @unique
+  usedAt DateTime @default(now()) @map("used_at")
+
+  @@index([usedAt])
+  @@map("totp_used_codes")
+}
+
+/** 11.3.2: mídia física de backup, com validade de 3 anos. */
+model BackupMedia {
+  id                String    @id @default(uuid())
+  label             String
+  lockerLocation    String    @map("locker_location")
+  installedAt       DateTime  @map("installed_at")
+  lastInspectionAt  DateTime? @map("last_inspection_at")
+  disconnectedAt    DateTime? @map("disconnected_at")
+  retiredAt         DateTime? @map("retired_at")
+  status            String    @default("ACTIVE")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([status, installedAt])
+  @@map("backup_media")
+}
+
+/** 15: registro de descumprimento e sanção aplicada. */
+model PolicyViolation {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  rule        String
+  description String
+  sanction    String
+  decidedBy   String   @map("decided_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("policy_violations")
+}
+
+/** 16: revisão anual da política (ou após incidente relevante). */
+model PolicyReview {
+  id           String   @id @default(uuid())
+  reviewedAt   DateTime @default(now()) @map("reviewed_at")
+  reviewedBy   String   @map("reviewed_by")
+  reason       String
+  nextReviewAt DateTime @map("next_review_at")
+  notes        String?
+
+  @@index([reviewedAt])
+  @@map("policy_reviews")
 }

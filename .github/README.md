@@ -18,7 +18,7 @@ Estrutura:
 │   └── validate-conventional-commits.js   # 2 modos: COMMIT_MSG_FILE / COMMIT_RANGE
 └── workflows/
     ├── ci.yml                   # orquestrador: 1 job reutilizável por check
-    └── check-*.yml              # 12 workflows reutilizáveis, 1 por check
+    └── check-*.yml              # 14 workflows reutilizáveis, 1 por check
 ```
 
 ## Checks
@@ -37,6 +37,8 @@ Estrutura:
 | Dependency audit     | `pnpm audit --prod --audit-level high`                  |
 | Production env       | `pnpm check:env`                                        |
 | Prisma schema        | `prisma validate` + `pnpm db:generate` + migrações      |
+| Fixtures (12.2)      | `tsx scripts/check-fixtures.ts`                         |
+| Governance (12.5)    | `tsx scripts/check-branch-protection.ts`                |
 
 ## Uso
 

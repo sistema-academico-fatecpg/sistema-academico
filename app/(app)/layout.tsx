@@ -41,6 +41,11 @@ const navigation = [
   { href: "/suporte", label: "Acesso de suporte", roles: ["AUDITOR", "SUPORTE_TECNICO"] },
   { href: "/incidentes", label: "Incidentes", roles: ["ADMIN_MASTER", "AUDITOR"] },
   { href: "/relatorios", label: "Relatório semestral", roles: ["ADMIN_MASTER", "AUDITOR"] },
+  {
+    href: "/responsabilidades",
+    label: "Responsabilidades",
+    roles: ["ADMIN_MASTER", "ADMIN_SECUNDARIO", "PROFESSOR", "ALUNO", "AUDITOR", "SUPORTE_TECNICO"],
+  },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

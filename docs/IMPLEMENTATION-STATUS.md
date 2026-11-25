@@ -52,9 +52,27 @@ A matriz acima foi revisitada contra o código, não apenas contra ela mesma. La
 
 ### Itens que permanecem operacionais (fora do código da aplicação)
 
-- 10.1 sincronização NTP, 10.7 arquivamento físico de partições de log e 10.9 manutenção de disco: Infraestrutura.
-- 11.2.1 TLS 1.2+ efetivo, 11.3.2 HD desconectado/trancado e substituição trienal, 11.3.3 nuvem imutável com MFA e transferência internacional: configuração de infraestrutura/contrato.
-- 11.3.5 RTO 8h: meta de processo; o sistema reporta RPO e último backup em `/api/backups/status`.
-- 12.1/12.2/12.5/12.6 atualização de dependências e code review: processo de time, com CI e `pnpm audit` como evidência.
-- 13 "relançamentos legítimos": o sistema identifica os candidatos nos logs; o relançamento é supervisionado pelo Auditor.
-- 14/15/16: responsabilidades, regime disciplinar e revisão anual são atos institucionais; registrados em `docs/RESPONSIBILITIES.md`.
+- 10.1 NTP, 11.2.1 TLS efetivo, 11.3.2 guarda física do HD e 11.3.3 contrato de nuvem continuam sendo **execução** da Infraestrutura — mas deixaram de ser apenas texto: há `pnpm check:clock`, `check:env` (HTTPS/TLS/cofre/nuvem), `check:media`, `check:rotation` e `check:restore`, alertas automáticos e trilha de manutenção que verificam cada configuração.
+- 11.3.5 RTO 8h é meta de processo; `/api/backups/status` reporta RPO, último teste e atraso.
+- 12.1/12.2/12.5/12.6: `check:env`, `check-fixtures`, `CODEOWNERS` + `check-branch-protection`, `pnpm audit` e `dependabot.yml`.
+- 13: candidatos a relançamento identificados nos logs; relançamento supervisionado pelo Auditor.
+- 14/15/16: tela `/responsabilidades`, `policy_reviews`, `policy_violations` e alertas de revisão vencida.
+
+## Terceira auditoria (conclusão)
+
+| Item antes pendente              | Mecanismo agora presente                                                                                              |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 7.3 em páginas `(app)`           | `requirePermission`/`actor.permissions` em todas as telas com dados; `/suporte` filtra por solicitante                |
+| 8.1.2 três Masters recomendados  | `recommendedMasters`/`belowRecommendation` em `masterStatus` + aviso na tela                                          |
+| 8.4.2 código TOTP aceito uma vez | `app/lib/auth/totp-single-use.ts`: hook `before` com reserva atômica em `totp_used_codes`                             |
+| 8.9 justificativas NIST          | `docs/PASSWORD-POLICY.md`                                                                                             |
+| 10.1 NTP                         | `clockDriftReport` + `/api/maintenance/clock-check` + `pnpm check:clock`                                              |
+| 10.2 exceções de matrícula       | `ENROLLMENT_EXCEPTION_REQUESTED` emitido na rota de exceção                                                           |
+| 10.7/10.9 arquivamento           | `pnpm policy:archive` gera plano de `DETACH PARTITION` sem ler conteúdo                                               |
+| 11.2.1/11.2.4/11.3.3             | `check:env` exige HTTPS/TLS, rotação anual, 2 custodiantes, MFA/imutabilidade da nuvem e autorização de transferência |
+| 11.3.2/11.3.4                    | `backup_media` + `check:media`; `restoreTestOverdue` em `/api/backups/status` + `check:restore`                       |
+| 12.1/12.2/12.5/12.6              | `APP_ENV`/`DEV_TEAM_PRODUCTION_ACCESS`, `check-fixtures`, `CODEOWNERS`, `check-branch-protection`, `dependabot.yml`   |
+| 13 risco relevante               | alerta `DPO_NOTIFICATION_DUE` + `dpoDeadline` em `/api/incidents`                                                     |
+| 15 descumprimento                | `policy_violations` + `/api/compliance/violations` + bloqueio de conta                                                |
+| 16 revisão anual                 | `policy_reviews` + `/api/compliance/policy-review` + alerta `POLICY_REVIEW_OVERDUE`                                   |
+| 14 responsabilidades             | tela `/responsabilidades`                                                                                             |

@@ -4,6 +4,7 @@
 - Chave ativa: `DATA_ENCRYPTION_KEY` (32 bytes em hexadecimal, 64 caracteres). Chave anterior: `DATA_ENCRYPTION_KEY_PREVIOUS`, usada apenas durante rotação.
 - Cofre: a chave vive em gerenciador de segredos da Infraestrutura, nunca no código, no banco acadêmico ou junto aos backups. A Equipe de Desenvolvimento implementa o uso, mas não tem acesso à chave de produção (7.4).
 - Acesso ao cofre restrito a **duas pessoas nominais** da Infraestrutura.
-- Rotação **anual** ou imediata em suspeita de vazamento: `DATA_ENCRYPTION_KEY` recebe a chave nova, `DATA_ENCRYPTION_KEY_PREVIOUS` a antiga, executa-se `pnpm key:rotate` e, em seguida, recriptografam-se os backups antes de descartar a chave antiga.
+- Rotação **anual** ou imediata em suspeita de vazamento: `DATA_ENCRYPTION_KEY` recebe a chave nova, `DATA_ENCRYPTION_KEY_PREVIOUS` a antiga, executa-se `pnpm key:rotate` e, em seguida, recriptografam-se os backups antes de descartar a chave antiga. A data fica em `DATA_ENCRYPTION_KEY_ROTATED_AT`; `pnpm check:rotation` / `/api/maintenance/key-rotation` alertam (`KEY_ROTATION_OVERDUE`) se passarem 365 dias. Os dois custodiantes nominais são `KEY_CUSTODIAN_1`/`KEY_CUSTODIAN_2`, validados por `pnpm check:env`.
+- `pnpm check:env` também exige HTTPS em `BETTER_AUTH_URL` e `TLS_MIN_VERSION` 1.2 ou 1.3 (11.2.1). O HSTS é enviado em `next.config.ts`.
 - `pnpm check:env` valida em produção: `BETTER_AUTH_SECRET`, `DATABASE_URL`, `DATA_ENCRYPTION_KEY`, `MAINTENANCE_SECRET`, `AUDIT_DATABASE_URL` e `BACKUP_TEST_DATABASE_URL` (ambiente separado obrigatório para o teste de restauração).
 - HTTPS/TLS 1.2+ é responsabilidade do proxy/servidor em produção; os cookies de sessão usam `Secure`, `HttpOnly` e `SameSite=lax`.
