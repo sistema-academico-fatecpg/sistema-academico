@@ -18,7 +18,9 @@ Recomenda-se conceder à aplicação apenas `INSERT` e `SELECT` nas tabelas de a
 | Logs de notas e matrículas | Mesmo prazo do registro acadêmico | `ACADEMIC_*`, `GRADE_*`, `GRADES_*`, `ENROLLMENT_*` |
 | Registro de incidentes     | 5 anos                            | `INCIDENT_*`                                        |
 
-`pnpm audit:retention` (ou `POST /api/maintenance/audit-retention` com `x-maintenance-secret`) emite um relatório de contagens por classe, sem ler o conteúdo dos registros; inclui também incidentes fechados há mais de 5 anos. O arquivamento após o prazo é operação de infraestrutura sobre a base/partição, fora da aplicação. Cada intervenção (`audit-retention`, `expire-support`, `expire-backups`) grava `MAINTENANCE_INTERVENTION` em trilha própria (10.9).
+`pnpm audit:retention` (ou `POST /api/maintenance/audit-retention` com `x-maintenance-secret`) emite um relatório de contagens por classe, sem ler o conteúdo dos registros; inclui também incidentes fechados há mais de 5 anos.
+
+`pnpm policy:archive` gera o **plano de arquivamento** (10.7/10.9): comandos `ALTER TABLE ... DETACH PARTITION` por mês expirado, para a Infraestrutura mover partições para armazenamento frio. A rotina usa apenas o calendário — **nenhuma linha de log é lida ou alterada** — e grava `MAINTENANCE_INTERVENTION`. Cada intervenção (`audit-retention`, `expire-support`, `expire-backups`, `clock-check`, `archive`) grava trilha própria (10.9).
 
 ## Acesso excepcional
 

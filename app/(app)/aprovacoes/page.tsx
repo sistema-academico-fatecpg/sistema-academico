@@ -6,6 +6,7 @@ import { getAuthenticatedUser } from "@/app/lib/auth/session";
 import { CriticalOperationService } from "@/app/lib/critical-operations/service";
 import { CriticalOperationRequestRepository } from "@/app/repositories/critical-operation-request.repository";
 import type { CriticalOperationType } from "@/app/types/common";
+import { PERMISSIONS } from "@/app/types/roles";
 import { DecisionForm } from "./DecisionForm";
 
 export const metadata: Metadata = { title: "Operações críticas" };
@@ -37,9 +38,8 @@ function requiresDirectionAuthorization(request: { operation: string; payload: u
 export default async function Page() {
   const actor = await getAuthenticatedUser();
   if (!actor) redirect("/login");
-  if (!actor.roles.includes("ADMIN_MASTER") && !actor.roles.includes("AUDITOR")) {
-    redirect("/dashboard");
-  }
+  // 7.3: a tela de aprovações exige a permissão efetiva do banco.
+  if (!actor.permissions.has(PERMISSIONS.ROLES_APPROVE)) redirect("/dashboard");
 
   const service = new CriticalOperationService();
   const [pending, masterStatus] = await Promise.all([
@@ -61,6 +61,14 @@ export default async function Page() {
           executada. O solicitante nunca aprova a própria solicitação.
         </p>
       </div>
+
+      {masterStatus.belowRecommendation && !masterStatus.singleAccountMode ? (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          Recomenda-se manter {masterStatus.recommendedMasters} contas Admin Master (8.1.2);
+          atualmente há {masterStatus.activeMasters}. Isso mantém a dupla aprovação possível em
+          férias e afastamentos.
+        </div>
+      ) : null}
 
       {masterStatus.singleAccountMode ? (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5">

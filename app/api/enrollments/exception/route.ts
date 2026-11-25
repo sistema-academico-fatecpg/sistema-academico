@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { jsonError } from "@/app/lib/api/responses";
+import { createAuditService } from "@/app/lib/audit";
+import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
 import { requirePermission } from "@/app/lib/auth/session";
 import { CriticalOperationService } from "@/app/lib/critical-operations/service";
 import { getClientIp } from "@/app/lib/request-context";
@@ -38,6 +40,18 @@ export async function POST(request: Request) {
         },
       },
     );
+    // 10.2: matrículas e exceções são eventos registrados explicitamente.
+    await createAuditService().record({
+      userId: actor.id as never,
+      role: actor.roles[0] ?? null,
+      ipAddress: getClientIp(request),
+      action: AUDIT_ACTIONS.ENROLLMENT_EXCEPTION_REQUESTED,
+      module: "ENROLLMENTS",
+      recordType: "CriticalOperationRequest",
+      recordId: created.id,
+      result: "SUCCESS",
+      newValue: { studentId: body.studentId, classGroupId: body.classGroupId },
+    });
     return Response.json({ status: "PENDING_APPROVAL", requestId: created.id }, { status: 202 });
   } catch (error) {
     return jsonError(error);

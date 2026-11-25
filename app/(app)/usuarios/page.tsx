@@ -4,12 +4,13 @@ import { redirect } from "next/navigation";
 import { visibleRolesFor } from "@/app/lib/auth/account-service";
 import { getAuthenticatedUser } from "@/app/lib/auth/session";
 import { UserRepository } from "@/app/repositories/user.repository";
-import { hasPermission, PERMISSIONS } from "@/app/types/roles";
+import { PERMISSIONS } from "@/app/types/roles";
 
 export default async function UsersPage() {
   const actor = await getAuthenticatedUser();
   if (!actor) redirect("/login");
-  if (!hasPermission(actor.roles, PERMISSIONS.USERS_READ)) redirect("/");
+  // 7.3: permissões efetivas do banco, não a matriz estática.
+  if (!actor.permissions.has(PERMISSIONS.USERS_READ)) redirect("/");
 
   const { items } = await new UserRepository().list(
     { page: 1, pageSize: 100 },

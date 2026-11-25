@@ -41,6 +41,9 @@ sh .github/hooks/checks.sh database
 | `dependencies`         | `pnpm audit --prod --audit-level high`                  | `check-dependencies.yml`         | —                              |
 | `env`                  | `pnpm check:env`                                        | `check-env.yml`                  | —                              |
 | `database`             | `prisma validate` + `pnpm db:generate` + migrações      | `check-database.yml`             | `post-merge` / `post-checkout` |
+| `fixtures`             | `tsx scripts/check-fixtures.ts` (12.2)                  | `check-fixtures.yml`             | —                              |
+| `governance`           | `tsx scripts/check-branch-protection.ts` (12.5)         | `check-governance.yml`           | —                              |
+| `all`                  | todos os checks acima, em sequência                     | —                                | `pnpm verify`                  |
 
 ## Hooks
 

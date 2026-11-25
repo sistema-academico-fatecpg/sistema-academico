@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "@/app/lib/auth/session";
 import { db } from "@/app/lib/db";
+import { PERMISSIONS } from "@/app/types/roles";
 import { IncidentPanel } from "./IncidentPanel";
 
 export const metadata: Metadata = { title: "Incidentes de segurança" };
@@ -11,9 +12,8 @@ export const metadata: Metadata = { title: "Incidentes de segurança" };
 export default async function Page() {
   const actor = await getAuthenticatedUser();
   if (!actor) redirect("/login");
-  if (!actor.roles.includes("ADMIN_MASTER") && !actor.roles.includes("AUDITOR")) {
-    redirect("/dashboard");
-  }
+  // 7.3: permissão efetiva do banco (Admin Master e Auditor têm BACKUPS_READ).
+  if (!actor.permissions.has(PERMISSIONS.BACKUPS_READ)) redirect("/dashboard");
   const items = await db.incident.findMany({ orderBy: { reportedAt: "desc" } });
 
   return (

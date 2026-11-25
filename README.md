@@ -42,7 +42,13 @@ tem seu próprio status check no PR. Detalhes: `.github/hooks/README.md`.
 | `pnpm data:eliminate <id> "<justificativa>"` | Eliminação ao fim do tratamento (11.1.6). |
 | `pnpm key:rotate` | Rotação anual de chaves AES-256-GCM (11.2.4). |
 | `pnpm check:secrets` | Varredura de segredos versionados (12.4). |
-| `pnpm check:env` | Validação da configuração de produção (12.1/12.4). |
+| `pnpm check:env` | Validação da configuração de produção (12.1/12.4/11.2/11.3). |
+| `pnpm check:clock` | Deriva de relógio aplicação × banco / NTP (10.1). |
+| `pnpm check:rotation` | Rotação anual da chave e custodiantes (11.2.4). |
+| `pnpm check:media` | Mídia física de backup, 3 anos e desconexão (11.3.2). |
+| `pnpm check:restore` | Teste mensal de restauração e RPO/RTO (11.3.4/11.3.5). |
+| `pnpm policy:review` | Revisão anual da política (16). |
+| `pnpm policy:archive` | Plano de arquivamento de logs sem ler conteúdo (10.7/10.9). |
 
 ## Documentação de conformidade
 

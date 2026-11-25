@@ -64,3 +64,9 @@ jobs:
 
   database:
     uses: ./.github/workflows/check-database.yml
+
+  fixtures:
+    uses: ./.github/workflows/check-fixtures.yml
+
+  governance:
+    uses: ./.github/workflows/check-governance.yml

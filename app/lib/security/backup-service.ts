@@ -318,19 +318,33 @@ export class BackupService {
     return result.count;
   }
 
-  /** 11.3.5: acompanhamento de RPO (24h) e RTO (8h). */
+  /** 11.3.4/11.3.5: RPO (24h), RTO (8h) e teste mensal de restauração. */
   async status(now = new Date()) {
-    const latest = await db.backupRecord.findFirst({
-      where: { status: { not: "EXPIRED" } },
-      orderBy: { createdAt: "desc" },
-    });
+    const [latest, lastTest] = await Promise.all([
+      db.backupRecord.findFirst({
+        where: { status: { not: "EXPIRED" } },
+        orderBy: { createdAt: "desc" },
+      }),
+      db.backupRecord.findFirst({
+        where: { restoreTestAt: { not: null } },
+        orderBy: { restoreTestAt: "desc" },
+        select: { restoreTestAt: true },
+      }),
+    ]);
     const ageHours = latest ? (now.getTime() - latest.createdAt.getTime()) / 3_600_000 : null;
+    const daysSinceTest = lastTest?.restoreTestAt
+      ? (now.getTime() - lastTest.restoreTestAt.getTime()) / 86_400_000
+      : null;
     return {
       rpoHours: 24,
       rtoHours: 8,
+      restoreTestIntervalDays: 30,
       lastBackupAt: latest?.createdAt.toISOString() ?? null,
       ageHours,
       rpoCompliant: ageHours !== null && ageHours <= 24,
+      lastRestoreTestAt: lastTest?.restoreTestAt?.toISOString() ?? null,
+      daysSinceRestoreTest: daysSinceTest === null ? null : Number(daysSinceTest.toFixed(2)),
+      restoreTestOverdue: daysSinceTest === null || daysSinceTest > 30,
       latestType: latest?.type ?? null,
     };
   }

@@ -7,6 +7,7 @@ import { EnrollmentService } from "@/app/lib/academic/enrollment-service";
 import { GradeService } from "@/app/lib/academic/grade-service";
 import { getAuthenticatedUser } from "@/app/lib/auth/session";
 import { ClassGroupRepository } from "@/app/repositories/class-group.repository";
+import { PERMISSIONS } from "@/app/types/roles";
 import { GradeForm } from "./GradeForm";
 
 export const metadata: Metadata = { title: "Notas" };
@@ -18,6 +19,8 @@ export default async function Page({
 }) {
   const actor = await getAuthenticatedUser();
   if (!actor) redirect("/login");
+  // 7.3/9.2.3: permissão efetiva do banco antes de listar notas.
+  if (!actor.permissions.has(PERMISSIONS.GRADES_READ)) redirect("/dashboard");
   const academicActor = { id: actor.id, roles: actor.roles, ipAddress: "server" };
 
   if (actor.roles.includes("ALUNO")) {

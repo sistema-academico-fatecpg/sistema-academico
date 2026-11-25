@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "@/app/lib/auth/session";
 import { SupportAccessGrantRepository } from "@/app/repositories/support-access-grant.repository";
+import { PERMISSIONS } from "@/app/types/roles";
 import { SupportDecisionForm, SupportRequestForm } from "./SupportForms";
 
 export const metadata: Metadata = { title: "Acesso de suporte" };
@@ -11,11 +12,17 @@ export const metadata: Metadata = { title: "Acesso de suporte" };
 export default async function Page() {
   const actor = await getAuthenticatedUser();
   if (!actor) redirect("/login");
-  if (!actor.roles.includes("AUDITOR") && !actor.roles.includes("SUPORTE_TECNICO")) {
+  const isAuditor = actor.roles.includes("AUDITOR");
+  if (!isAuditor && !actor.roles.includes("SUPORTE_TECNICO")) redirect("/dashboard");
+  if (isAuditor && !actor.permissions.has(PERMISSIONS.AUDIT_LOGS_READ)) {
     redirect("/dashboard");
   }
 
-  const grants = await new SupportAccessGrantRepository().list();
+  // 7.3: Suporte Técnico só vê as próprias solicitações; Auditor vê todas.
+  const allGrants = await new SupportAccessGrantRepository().list();
+  const grants = isAuditor
+    ? allGrants
+    : allGrants.filter((grant) => grant.requestedBy === actor.id);
   const pending = grants.filter((grant) => grant.status === "PENDING");
 
   return (

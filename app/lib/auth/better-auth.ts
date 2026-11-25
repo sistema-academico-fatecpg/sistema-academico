@@ -1,6 +1,7 @@
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { betterAuth } from "better-auth";
 import { twoFactor } from "better-auth/plugins";
+import { withSingleUseTotp } from "@/app/lib/auth/totp-single-use";
 import { db } from "@/app/lib/db";
 import { sendEmail } from "@/app/lib/email";
 import { passwordResetEmail } from "@/app/lib/email/templates";
@@ -152,25 +153,26 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    twoFactor({
-      issuer: "Sistema Acadêmico",
-      // 8.9: limite de tentativas no segundo fator. O desafio de 2FA é
-      // consumido no sucesso e o código TOTP tem janela de 30 segundos.
-      accountLockout: {
-        enabled: true,
-        maxFailedAttempts: 5,
-        durationSeconds: 15 * 60,
-      },
-      totpOptions: {
-        digits: 6,
-        period: 30,
-      },
-      backupCodeOptions: {
-        amount: 10,
-        length: 10,
-        storeBackupCodes: "encrypted",
-      },
-    }),
+    withSingleUseTotp(
+      twoFactor({
+        issuer: "Sistema Acadêmico",
+        // 8.9: limite de tentativas no segundo fator.
+        accountLockout: {
+          enabled: true,
+          maxFailedAttempts: 5,
+          durationSeconds: 15 * 60,
+        },
+        totpOptions: {
+          digits: 6,
+          period: 30,
+        },
+        backupCodeOptions: {
+          amount: 10,
+          length: 10,
+          storeBackupCodes: "encrypted",
+        },
+      }),
+    ),
   ],
 });
 

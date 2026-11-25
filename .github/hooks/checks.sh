@@ -12,7 +12,8 @@
 #
 # Checks disponíveis:
 #   conventional-commits | format | lint | biome | typecheck | test
-#   coverage | build | secrets | dependencies | env | database | all
+#   coverage | build | secrets | dependencies | env | database
+#   fixtures | governance | all
 #
 set -eu
 
@@ -36,14 +37,30 @@ run_pnpm() {
 # `pnpm check:env` com variáveis reais é a validação de deploy.
 placeholder_env() {
   if [ -z "${BETTER_AUTH_SECRET:-}" ]; then
+    export APP_ENV="production"
+    export DEV_TEAM_PRODUCTION_ACCESS="false"
     export BETTER_AUTH_SECRET="hooks-placeholder-not-used-at-runtime-000000"
-    export BETTER_AUTH_URL="http://localhost:3000"
+    export BETTER_AUTH_URL="https://localhost:3000"
+    export TLS_MIN_VERSION="1.2"
     export DATABASE_URL="postgresql://localhost:5432/ci"
     export DATA_ENCRYPTION_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    export DATA_ENCRYPTION_KEY_ROTATED_AT="$(date -u +%Y-%m-%d)"
+    export KEY_CUSTODIAN_1="Custodiante A (CI)"
+    export KEY_CUSTODIAN_2="Custodiante B (CI)"
     export MAINTENANCE_SECRET="hooks-maintenance-secret-000000"
     export AUDIT_DATABASE_URL="postgresql://localhost:5432/audit"
+    export BACKUP_LOCAL_DIR="/tmp/opencode/backups/local"
+    export BACKUP_CLOUD_DIR="/tmp/opencode/backups/cloud"
+    export BACKUP_CLOUD_REGION="br-sudeste"
+    export BACKUP_CLOUD_MFA="true"
+    export BACKUP_CLOUD_IMMUTABLE="true"
     export BACKUP_TEST_DATABASE_URL="postgresql://localhost:5432/audit_test"
     echo "[checks] variáveis ausentes: usando placeholders (não usar em produção)" >&2
+  fi
+  # A data de rotação é sempre "hoje" no CI/hooks locais, para não expirar
+  # com o passar do tempo. Em produção, use a data real do cofre.
+  if [ -z "${DATA_ENCRYPTION_KEY_ROTATED_AT:-}" ]; then
+    export DATA_ENCRYPTION_KEY_ROTATED_AT="$(date -u +%Y-%m-%d)"
   fi
 }
 
@@ -51,7 +68,7 @@ run_check() {
   check="$1"
   case "$check" in
     all)
-      for c in format lint biome typecheck test build secrets dependencies env database; do
+      for c in format lint biome typecheck test build secrets dependencies env database fixtures governance; do
         echo "==> [checks] ${c}"
         run_check "$c"
       done
@@ -106,9 +123,15 @@ run_check() {
       done
       echo "[checks] schema Prisma e migrações OK"
       ;;
+    fixtures)
+      run_pnpm exec tsx scripts/check-fixtures.ts
+      ;;
+    governance)
+      run_pnpm exec tsx scripts/check-branch-protection.ts
+      ;;
     *)
       echo "erro: check desconhecido '${check}'." >&2
-      echo "Checks: conventional-commits format lint biome typecheck test coverage build secrets dependencies env database all" >&2
+      echo "Checks: conventional-commits format lint biome typecheck test coverage build secrets dependencies env database fixtures governance all" >&2
       exit 2
       ;;
   esac

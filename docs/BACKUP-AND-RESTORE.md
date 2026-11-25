@@ -15,7 +15,10 @@ Metas: **RPO 24h** e **RTO 8h**. O HD é substituído a cada 3 anos ou ao primei
 ## Testes e restauração
 
 - `pnpm restore:test <backup-id>` exige `BACKUP_TEST_DATABASE_URL` distinto de `DATABASE_URL`, descriptografa, valida checksum e estrutura, marcando `RESTORE_TESTED` e `restoreTestAt` (teste mensal em ambiente separado, 11.3.4).
-- `GET /api/backups/status` reporta o último backup, a idade em horas e a conformidade com RPO 24h; RTO 8h é meta de processo (11.3.5).
+- `GET /api/backups/status` reporta o último backup, a idade em horas, conformidade com RPO 24h, último teste de restauração e `restoreTestOverdue` (11.3.4/11.3.5). `pnpm check:restore` / `/api/maintenance/restore-status` registram a verificação. Meta de RTO: 8h.
+- **11.3.2**: `backup_media` registra HD (`label`, `lockerLocation`, `installedAt`, `disconnectedAt`, `lastInspectionAt`). `POST /api/maintenance/backup-media` cadastra; `pnpm check:media` e `GET /api/maintenance/backup-media` alertam `BACKUP_MEDIA_OVERDUE` se a mídia ativa tiver >3 anos ou não estiver desconectada da rede.
+- **11.3.3**: `pnpm check:env` exige `BACKUP_CLOUD_REGION`, `BACKUP_CLOUD_MFA=true` e `BACKUP_CLOUD_IMMUTABLE=true`; fora do Brasil exige `INTERNATIONAL_TRANSFER_AUTHORIZATION` (LGPD art. 33).
+- **10.1**: `pnpm check:clock` / `/api/maintenance/clock-check` comparam o relógio da aplicação com `now()` do banco e reprovam deriva >5s (NTP).
 - `pnpm backup:expire` / `POST /api/maintenance/expire-backups` marca como `EXPIRED` as cópias fora da retenção, sem ler conteúdo, com trilha de manutenção (10.7/10.9).
 - Restauração **nunca é automática**. O fluxo de incidente (13.2) exige análise técnica, verificação de integridade e uma `DATA_RESTORE_AFTER_INCIDENT` com status `EXECUTED`, aprovada pelo Auditor (ou pela direção, se o incidente envolver Admin Master).
 - `pnpm restore <backup-id> <request-id> <record-id...>`:
