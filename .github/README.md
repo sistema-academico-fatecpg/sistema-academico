@@ -4,7 +4,6 @@ Estrutura:
 
 ```
 .github/
-├── actions/setup/action.yml     # composite: checkout + Node 22 + pnpm 12 + deps + Prisma
 ├── hooks/
 │   ├── checks.sh                # ⬅ FONTE ÚNICA dos comandos de todos os checks
 │   ├── pre-commit               # biome, secrets, typecheck
@@ -48,6 +47,11 @@ sh .github/hooks/checks.sh format    # um check isolado
 ```
 
 Os workflows `check-*.yml` e os hooks chamam **o mesmo** `checks.sh`; alterar um
-comando ali altera CI e hooks juntos. O CI roda em PRs/pushes, semanalmente
-(`schedule`) e manualmente (`workflow_dispatch`). Todos os checks do CI são
-somente-leitura — a formatação é garantida pelo `pre-commit`.
+comando ali altera CI e hooks juntos. O setup (checkout + Node 22 + pnpm 12 +
+deps + Prisma) fica inline em cada `check-*.yml`: workflows reutilizáveis não
+conseguem resolver actions locais (`./`), pois o checkout do repositório só
+acontece na execução dos passos, depois da preparação do job.
+
+O CI roda em PRs/pushes, semanalmente (`schedule`) e manualmente
+(`workflow_dispatch`). Todos os checks do CI são somente-leitura — a formatação
+é garantida pelo `pre-commit`.

@@ -2,7 +2,7 @@
 #
 # Cada check é um workflow reutilizável em check-*.yml e aparece como um status
 # check independente no PR. Todos compartilham:
-#   - .github/actions/setup        (checkout + Node + pnpm + Prisma)
+#   - setup inline (checkout + Node + pnpm + Prisma) em cada check-*.yml
 #   - .github/hooks/checks.sh      (os comandos, usados também pelos git hooks)
 #
 # Antes havia um job que fazia `pnpm check:fix` e dava push automático de
