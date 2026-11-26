@@ -55,7 +55,7 @@
     "@react-email/render": "^2.2.0",
     "better-auth": "^1.7.18",
     "dotenv": "^18.0.9",
-    "next": "16.4.5",
+    "next": "16.4.6",
     "pg": "^8.23.1",
     "qrcode.react": "^4.2.0",
     "react": "19.3.0",
