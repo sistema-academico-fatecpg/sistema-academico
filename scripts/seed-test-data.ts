@@ -10,6 +10,7 @@ import {
   hashToken,
   TOKEN_TTL_MS,
 } from "../app/lib/auth/tokens";
+import { accountActivationEmail, sendEmail } from "../app/lib/email";
 import { encryptText } from "../app/lib/security/crypto";
 import { syncRolesAndPermissions } from "../prisma/seed-roles";
 
@@ -21,6 +22,8 @@ if (!databaseUrl) {
 const db = new PrismaClient({ adapter: new PrismaPg(databaseUrl) });
 
 const TEST_EMAIL = process.env.TEST_EMAIL?.trim().toLowerCase();
+/** Opt-in: envia os links de ativação por e-mail (exige RESEND_API_KEY). */
+const SEND_EMAIL = process.env.TEST_DATA_SEND_EMAIL === "1";
 const DOMAIN = "fatecpg.edu.br";
 const mail = (local: string) => `${local}@${DOMAIN}`;
 
@@ -33,6 +36,12 @@ type Activation = {
 };
 
 const activations: Activation[] = [];
+const emailResults: Array<{
+  email: string;
+  skipped: boolean;
+  failed?: boolean;
+  reason?: string;
+}> = [];
 
 function daysAgo(days: number): Date {
   return new Date(Date.now() - days * 86_400_000);
@@ -102,11 +111,35 @@ async function upsertUser(input: {
     },
   });
 
+  const url = activationUrl(token);
+
+  if (SEND_EMAIL) {
+    try {
+      const result = await sendEmail(
+        accountActivationEmail({
+          to: user.email,
+          name: input.name,
+          activationUrl: url,
+          code,
+          validHours: 24,
+        }),
+      );
+      emailResults.push({ email: user.email, skipped: result.skipped });
+    } catch (error) {
+      emailResults.push({
+        email: user.email,
+        skipped: true,
+        failed: true,
+        reason: error instanceof Error ? error.name : "unknown",
+      });
+    }
+  }
+
   activations.push({
     email: user.email,
     name: input.name,
     role: input.role,
-    url: activationUrl(token),
+    url,
     code,
   });
   return user;
@@ -544,6 +577,20 @@ async function main() {
   );
   console.log(`Usuários de teste (sem senha): ${activations.map((item) => item.email).join(", ")}`);
   console.log(`Links de ativação e códigos (SECRETOS, uso único): ${outputFile}`);
+  if (SEND_EMAIL) {
+    const sent = emailResults.filter((item) => !item.skipped).length;
+    const failed = emailResults.filter((item) => item.failed).length;
+    console.log(
+      `E-mails de ativação: ${sent} enviado(s), ${emailResults.length - sent} não enviado(s), ${failed} falha(s).`,
+    );
+    if (failed > 0) {
+      console.warn(
+        "Revise RESEND_API_KEY/EMAIL_FROM; os links continuam disponíveis no arquivo local.",
+      );
+    }
+  } else {
+    console.log("E-mails não enviados (TEST_DATA_SEND_EMAIL≠1). Use o arquivo acima para ativar.");
+  }
   console.log("Nenhuma senha foi definida pelo seed (8.2). Configure o TOTP após ativar (8.4.2).");
 }
 
