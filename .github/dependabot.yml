@@ -14,6 +14,11 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    # Agrupa todas as atualizações de versão em um único PR/commit por ecossistema.
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "security"
@@ -26,5 +31,9 @@ updates:
       time: "04:00"
     commit-message:
       prefix: "chore(ci)"
+    groups:
+      all-actions:
+        patterns:
+          - "*"
     labels:
       - "ci"
