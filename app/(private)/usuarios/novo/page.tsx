@@ -9,8 +9,9 @@ import { CreateUserForm } from "./CreateUserForm";
 export default async function NewUserPage() {
   const actor = await requirePagePermission(PERMISSIONS.USERS_CREATE);
 
+  // 7.5.4/8.8: Admin Master também pode incluir outro Master (dupla aprovação).
   const creatableRoles: RoleName[] = actor.roles.includes("ADMIN_MASTER")
-    ? ["ADMIN_SECUNDARIO", "PROFESSOR", "ALUNO", "AUDITOR", "SUPORTE_TECNICO"]
+    ? ["ADMIN_MASTER", "ADMIN_SECUNDARIO", "PROFESSOR", "ALUNO", "AUDITOR", "SUPORTE_TECNICO"]
     : ["PROFESSOR", "ALUNO"];
 
   return (

@@ -85,6 +85,7 @@ export class AccountService {
     input: UserInput,
     actor: ActorContext,
     requestReason?: string,
+    authorizationDocument?: string,
   ): Promise<CreateUserResult> {
     assertCanAssignRole(actor, input.role);
     if (!actor.actorId) throw forbidden("Sessão sem usuário identificado");
@@ -114,6 +115,7 @@ export class AccountService {
           recordType: "User",
           recordId: existing?.id,
           reason,
+          ...(authorizationDocument ? { authorizationDocument } : {}),
           payload: existing
             ? { action: "ADD_ROLE", userId: existing.id, role: input.role }
             : { action: "CREATE_USER", user: input },

@@ -38,6 +38,7 @@ export function CreateUserForm({ creatableRoles }: { creatableRoles: RoleName[] 
         registrationNumber: form.get("registrationNumber") || null,
         role: form.get("role"),
         requestReason: form.get("requestReason"),
+        authorizationDocument: form.get("authorizationDocument") || undefined,
       }),
     });
     const data = await response.json();
@@ -103,6 +104,12 @@ export function CreateUserForm({ creatableRoles }: { creatableRoles: RoleName[] 
           required={adminRole}
         />
       </Label>
+      {adminRole ? (
+        <Label>
+          Documento de autorização da direção (8.8.4)
+          <Input name="authorizationDocument" placeholder="Ofício nº ..." />
+        </Label>
+      ) : null}
       <FormFeedback errors={errors} message={message} />
       <Button disabled={loading} type="submit">
         {loading ? "Cadastrando..." : "Cadastrar e enviar ativação"}

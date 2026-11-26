@@ -78,6 +78,32 @@ arquivo local protegido — útil se o provedor falhar. Nenhum segredo é impres
 no console (10.5). Os fluxos normais da aplicação (recuperação de senha e
 alertas de segurança) também usam o mesmo transporte.
 
+## Fluxo de cadastro (quem pode criar quem)
+
+| Perfil logado      | Pode cadastrar                                  | Como                                                                                 |
+| ------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `ADMIN_MASTER`     | qualquer perfil, inclusive outro `ADMIN_MASTER` | perfis administrativos geram **solicitação pendente**; os demais são criados na hora |
+| `ADMIN_SECUNDARIO` | somente `PROFESSOR` e `ALUNO`                   | criação direta, sem aprovação                                                        |
+| demais perfis      | nada (sem `USERS_CREATE`)                       | —                                                                                    |
+
+Cadastro de perfil administrativo exige justificativa (mín. 10 caracteres) e
+dupla aprovação: **outro** Admin Master decide; em modo de conta única ou
+contingência, a aprovação é do Auditor. O documento de autorização da direção
+(8.8.4) pode ser informado no formulário. Nenhuma senha é definida por quem
+cadastra — o titular ativa pelo link.
+
+Para testar: entre com seu `TEST_EMAIL` (Master), cadastre um
+`ADMIN_SECUNDARIO` e, em outra sessão, entre com `coord2@fatecpg.edu.br`
+(outro Master, também sem senha — use o arquivo de ativação) e aprove em
+`/aprovacoes`. Depois, com o secundário ativo, cadastre professor e aluno.
+
+**Importante:** apenas contas `ACTIVE` contam como Master (8.8). O seed cria os
+três Masters como `PENDING_ACTIVATION`; enquanto só um estiver ativo, o sistema
+fica em **modo de conta única** e as operações críticas ficam suspensas. Ative
+um segundo Master (por exemplo, `coord2@fatecpg.edu.br`) com o link do arquivo
+de ativação **antes** de testar aprovações. Até lá, a tela mostra o aviso de
+conta única e a API recusa cadastros de perfil administrativo.
+
 ## TOTP — onde informar o código
 
 - **Login**: após entrar com senha, um perfil com 2º fator ativo recebe

@@ -53,6 +53,8 @@ export async function GET(request: Request) {
 
 const CreateUserBodySchema = UserInputSchema.extend({
   requestReason: z.string().trim().min(10).max(2000).optional(),
+  // 8.8.4: necessário em modo de conta única / contingência.
+  authorizationDocument: z.string().trim().max(255).optional(),
 }).superRefine((value, ctx) => {
   if (isGenericAccount(value.email)) {
     ctx.addIssue({
@@ -73,11 +75,14 @@ const CreateUserBodySchema = UserInputSchema.extend({
 export async function POST(request: Request) {
   try {
     const actor = await requirePermission(PERMISSIONS.USERS_CREATE);
-    const { requestReason, ...body } = CreateUserBodySchema.parse(await request.json());
+    const { requestReason, authorizationDocument, ...body } = CreateUserBodySchema.parse(
+      await request.json(),
+    );
     const result = await new AccountService().createUser(
       body,
       actorFrom(actor, request),
       requestReason,
+      authorizationDocument,
     );
 
     if (result.kind === "PENDING_APPROVAL") {
