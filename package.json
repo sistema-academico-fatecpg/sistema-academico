@@ -20,6 +20,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:test": "tsx scripts/seed-test-data.ts",
     "db:studio": "prisma studio",
     "bootstrap:master": "tsx scripts/bootstrap-master.ts",
     "expire:emergency": "tsx scripts/expire-emergency-masters.ts",
