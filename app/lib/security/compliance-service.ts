@@ -1,5 +1,5 @@
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { conflict, validationError } from "@/app/lib/auth/errors";
 import { db } from "@/app/lib/db";
 import {
@@ -199,9 +199,7 @@ export async function recordPolicyReview(actor: Actor, input: { reason: string; 
     },
   });
   await createAuditService().record({
-    userId: actor.id as never,
-    role: (actor.roles[0] ?? null) as never,
-    ipAddress: actor.ipAddress,
+    ...auditActor(actor),
     action: AUDIT_ACTIONS.POLICY_REVIEW_RECORDED,
     module: "REPORTS",
     recordType: "PolicyReview",
@@ -256,9 +254,7 @@ export async function recordPolicyViolation(
     },
   });
   await createAuditService().record({
-    userId: actor.id as never,
-    role: (actor.roles[0] ?? null) as never,
-    ipAddress: actor.ipAddress,
+    ...auditActor(actor),
     action: AUDIT_ACTIONS.POLICY_VIOLATION_RECORDED,
     module: "USERS",
     recordType: "PolicyViolation",

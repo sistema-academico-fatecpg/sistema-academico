@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { jsonError } from "@/app/lib/api/responses";
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { requirePermission } from "@/app/lib/auth/session";
 import { getClientIp } from "@/app/lib/request-context";
 import { SubjectRepository } from "@/app/repositories/subject.repository";
@@ -41,9 +41,7 @@ export async function POST(request: Request) {
     });
 
     await createAuditService().record({
-      userId: actor.id as never,
-      role: actor.roles[0] ?? null,
-      ipAddress: getClientIp(request),
+      ...auditActor({ ...actor, ipAddress: getClientIp(request) }),
       action: AUDIT_ACTIONS.ACADEMIC_RECORD_CREATED,
       module: "SUBJECTS",
       recordType: "Subject",

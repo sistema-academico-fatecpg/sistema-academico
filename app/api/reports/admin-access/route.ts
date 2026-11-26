@@ -2,7 +2,7 @@ import { z } from "zod";
 import { actorFrom, jsonError } from "@/app/lib/api/responses";
 import { createAuditService } from "@/app/lib/audit";
 import { adminAccessReport } from "@/app/lib/audit/admin-access-report";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { forbidden } from "@/app/lib/auth/errors";
 import { requireUser } from "@/app/lib/auth/session";
 
@@ -23,9 +23,7 @@ export async function GET(request: Request) {
     const report = await adminAccessReport();
     const ctx = actorFrom(actor, request);
     await createAuditService().record({
-      userId: actor.id as never,
-      role: actor.roles[0] ?? null,
-      ipAddress: ctx.ipAddress,
+      ...auditActor({ ...actor, ipAddress: ctx.ipAddress }),
       action: AUDIT_ACTIONS.ADMIN_ACCESS_REPORT_VIEWED,
       module: "REPORTS",
       recordType: "AdminAccessReport",

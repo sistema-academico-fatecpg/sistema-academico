@@ -1,5 +1,5 @@
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { conflict, forbidden, notFound } from "@/app/lib/auth/errors";
 import { db } from "@/app/lib/db";
 import { SensitiveDataService } from "@/app/lib/security/sensitive-data-service";
@@ -58,9 +58,7 @@ export class DataSubjectService {
       },
     });
     await this.audit.record({
-      userId: actor.id as never,
-      role: (actor.roles[0] ?? null) as never,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.DATA_SUBJECT_REQUESTED,
       module: "USERS",
       recordType: "DataSubjectRequest",
@@ -111,9 +109,7 @@ export class DataSubjectService {
       data: { status: "COMPLETED", decidedBy: actor.id, decidedAt: new Date() },
     });
     await this.audit.record({
-      userId: actor.id as never,
-      role: (actor.roles[0] ?? null) as never,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.DATA_SUBJECT_COMPLETED,
       module: "USERS",
       recordType: "DataSubjectRequest",
@@ -149,9 +145,7 @@ export class DataSubjectService {
     });
     await db.sensitiveData.deleteMany({ where: { userId } });
     await this.audit.record({
-      userId: actor.id as never,
-      role: (actor.roles[0] ?? null) as never,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.DATA_SUBJECT_COMPLETED,
       module: "USERS",
       recordType: "User",
@@ -182,9 +176,7 @@ export class DataSubjectService {
       },
     });
     await this.audit.record({
-      userId: actor.id as never,
-      role: (actor.roles[0] ?? null) as never,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.GUARDIAN_CONSENT_RECORDED,
       module: "USERS",
       recordType: "StudentProfile",

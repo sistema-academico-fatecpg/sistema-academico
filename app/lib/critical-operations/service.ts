@@ -1,5 +1,5 @@
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS, AuditService } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, AuditService, auditActor } from "@/app/lib/audit/audit-service";
 import { conflict, forbidden, notFound, validationError } from "@/app/lib/auth/errors";
 import { withTransaction } from "@/app/lib/db";
 import { addBusinessDays, isOverdue } from "@/app/lib/security/business-days";
@@ -169,9 +169,7 @@ export class CriticalOperationService {
     if (!request) throw notFound("Solicitação não encontrada após criação");
 
     await this.audit.record({
-      userId: auditUserId(actor.id),
-      role: actor.roles[0] ?? null,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.CRITICAL_OPERATION_REQUESTED,
       module: parsed.module ?? "USERS",
       recordType: parsed.recordType ?? "CriticalOperationRequest",
@@ -186,9 +184,7 @@ export class CriticalOperationService {
 
     if (status.singleAccountMode && isMasterInclusion(parsed)) {
       await this.audit.record({
-        userId: auditUserId(actor.id),
-        role: actor.roles[0] ?? null,
-        ipAddress: actor.ipAddress,
+        ...auditActor(actor),
         action: AUDIT_ACTIONS.MASTER_ACCOUNTS_BELOW_MINIMUM,
         module: "USERS",
         recordType: "CriticalOperationRequest",
@@ -291,9 +287,7 @@ export class CriticalOperationService {
 
     if (request.requestedBy === actor.id) {
       await this.audit.record({
-        userId: auditUserId(actor.id),
-        role: actor.roles[0] ?? null,
-        ipAddress: actor.ipAddress,
+        ...auditActor(actor),
         action: AUDIT_ACTIONS.SELF_APPROVAL_ATTEMPT,
         module: request.module ?? "USERS",
         recordType: "CriticalOperationRequest",
@@ -377,9 +371,7 @@ export class CriticalOperationService {
 
     if (emergencyRequest) {
       await this.audit.record({
-        userId: auditUserId(actor.id),
-        role: actor.roles[0] ?? null,
-        ipAddress: actor.ipAddress,
+        ...auditActor(actor),
         action: AUDIT_ACTIONS.EMERGENCY_MASTER_CREATED,
         module: "USERS",
         recordType: "CriticalOperationRequest",
@@ -414,9 +406,7 @@ export class CriticalOperationService {
 
       const txAudit = new AuditService(new LogRepository(tx));
       await txAudit.record({
-        userId: auditUserId(actor.id),
-        role: actor.roles[0] ?? null,
-        ipAddress: actor.ipAddress,
+        ...auditActor(actor),
         action: AUDIT_ACTIONS.CRITICAL_OPERATION_REJECTED,
         module: request.module ?? "USERS",
         recordType: "CriticalOperationRequest",
@@ -464,9 +454,7 @@ export class CriticalOperationService {
 
       const txAudit = new AuditService(new LogRepository(tx));
       const baseEvent = {
-        userId: auditUserId(actor.id),
-        role: actor.roles[0] ?? null,
-        ipAddress: actor.ipAddress,
+        ...auditActor(actor),
         module: request.module ?? "USERS",
         recordType: "CriticalOperationRequest",
         recordId: request.id,

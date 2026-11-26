@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { jsonError } from "@/app/lib/api/responses";
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { visibleRolesFor } from "@/app/lib/auth/account-service";
 import { forbidden } from "@/app/lib/auth/errors";
 import { requirePermission } from "@/app/lib/auth/session";
@@ -89,9 +89,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     });
 
     await createAuditService().record({
-      userId: actor.id as never,
-      role: actor.roles[0] ?? null,
-      ipAddress: getClientIp(request),
+      ...auditActor({ ...actor, ipAddress: getClientIp(request) }),
       action: AUDIT_ACTIONS.ACCOUNT_UPDATED,
       module: "USERS",
       recordType: "User",

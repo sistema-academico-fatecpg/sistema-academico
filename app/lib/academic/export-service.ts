@@ -1,5 +1,5 @@
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { conflict, forbidden, notFound } from "@/app/lib/auth/errors";
 import { db } from "@/app/lib/db";
 import { CriticalOperationRequestRepository } from "@/app/repositories/critical-operation-request.repository";
@@ -106,9 +106,7 @@ export class ExportService {
   ): Promise<Record<string, unknown>[]> {
     const data = await this.rows(scope, filters);
     await this.audit.record({
-      userId: actor.id as never,
-      role: (actor.roles[0] ?? null) as never,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.EXPORT,
       module: "REPORTS",
       recordType: scope,
@@ -132,9 +130,7 @@ export class ExportService {
     const payload = MassExportPayloadSchema.parse(request.payload ?? {});
     const data = await this.rows(payload.scope, filtersOf(payload.filters));
     await this.audit.record({
-      userId: actor.id as never,
-      role: (actor.roles[0] ?? null) as never,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.MASS_EXPORT,
       module: "REPORTS",
       recordType: "CriticalOperationRequest",

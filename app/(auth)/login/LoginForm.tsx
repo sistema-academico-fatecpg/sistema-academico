@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/app/lib/auth/client";
+import { Button, FormFeedback } from "@/components/ui";
+import { CredentialsStep } from "./CredentialsStep";
+import { PrivacyNote } from "./PrivacyNote";
+import { TotpStep } from "./TotpStep";
 
 export function LoginForm() {
   const router = useRouter();
@@ -72,72 +76,30 @@ export function LoginForm() {
       </p>
 
       {needsTotp ? (
-        <>
-          <label className="block text-sm font-medium">
-            {useRecoveryCode ? "Código de recuperação" : "Código do autenticador"}
-            <input
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 tracking-widest"
-              inputMode={useRecoveryCode ? "text" : "numeric"}
-              maxLength={useRecoveryCode ? 20 : 6}
-              onChange={(event) =>
-                setCode(
-                  useRecoveryCode ? event.target.value : event.target.value.replace(/\D/g, ""),
-                )
-              }
-              required
-              value={code}
-            />
-          </label>
-          <button
-            className="text-sm underline"
-            onClick={() => {
-              setUseRecoveryCode((current) => !current);
-              setCode("");
-              setError(null);
-            }}
-            type="button"
-          >
-            {useRecoveryCode
-              ? "Usar o aplicativo autenticador"
-              : "Perdi o celular: usar código de recuperação"}
-          </button>
-        </>
+        <TotpStep
+          code={code}
+          onCode={setCode}
+          onToggleMode={() => {
+            setUseRecoveryCode((current) => !current);
+            setCode("");
+            setError(null);
+          }}
+          useRecoveryCode={useRecoveryCode}
+        />
       ) : (
-        <>
-          <label className="block text-sm font-medium">
-            E-mail institucional
-            <input
-              autoComplete="email"
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              type="email"
-              value={email}
-            />
-          </label>
-          <label className="block text-sm font-medium">
-            Senha
-            <input
-              autoComplete="current-password"
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
-          </label>
-        </>
+        <CredentialsStep
+          email={email}
+          onEmail={setEmail}
+          onPassword={setPassword}
+          password={password}
+        />
       )}
 
-      {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      <FormFeedback error={error} />
 
-      <button
-        className="w-full rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-50"
-        disabled={loading}
-        type="submit"
-      >
+      <Button className="w-full" disabled={loading} type="submit">
         {loading ? "Verificando..." : needsTotp ? "Confirmar código" : "Entrar"}
-      </button>
+      </Button>
 
       <div className="flex justify-between text-sm">
         <Link className="underline" href="/esqueci-senha">
@@ -147,17 +109,7 @@ export function LoginForm() {
           Configurar 2FA
         </Link>
       </div>
-      <p className="border-t border-zinc-200 pt-4 text-xs leading-5 text-zinc-500">
-        Ao entrar, você declara ciência do{" "}
-        <Link className="underline" href="/privacidade">
-          Aviso de Privacidade
-        </Link>
-        . Encarregado de Dados:{" "}
-        <a className="underline" href="mailto:dpo@fatecpg.edu.br">
-          dpo@fatecpg.edu.br
-        </a>
-        .
-      </p>
+      <PrivacyNote />
     </form>
   );
 }

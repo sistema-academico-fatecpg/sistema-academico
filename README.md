@@ -50,8 +50,15 @@ tem seu próprio status check no PR. Detalhes: `.github/hooks/README.md`.
 | `pnpm policy:review` | Revisão anual da política (16). |
 | `pnpm policy:archive` | Plano de arquivamento de logs sem ler conteúdo (10.7/10.9). |
 
+## Estrutura de rotas
+
+`app/(private)` = área autenticada (sidebar + guard), `app/(auth)` = login/ativação
+(cartão centralizado), raiz = layout HTML e páginas públicas. Os parênteses são
+*route groups*: não aparecem na URL. Detalhes em `docs/APP-STRUCTURE.md`.
+
 ## Documentação de conformidade
 
+- `docs/APP-STRUCTURE.md` — por que `(private)`/`(auth)` existem e onde ficam os componentes.
 - `docs/IMPLEMENTATION-STATUS.md` — matriz por seção da política.
 - `docs/COMPLIANCE-REPORT.md` — relatório de desenvolvimento por requisito.
 - `docs/RESPONSIBILITIES.md` — responsabilidades e revisão anual.

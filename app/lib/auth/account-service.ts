@@ -1,5 +1,5 @@
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { CriticalOperationService } from "@/app/lib/critical-operations/service";
 import { db } from "@/app/lib/db";
 import { sendEmail } from "@/app/lib/email";
@@ -130,9 +130,7 @@ export class AccountService {
         if (!role) throw notFound("Perfil não encontrado");
         await this.roles.assignRole(existing.id, role.id, actor.actorId);
         await this.audit.record({
-          userId: auditUserId(actor.actorId),
-          role: actor.actorRoles[0] ?? null,
-          ipAddress: actor.ipAddress,
+          ...auditActor(actor),
           action: AUDIT_ACTIONS.ROLE_ASSIGNED,
           module: "USERS",
           recordType: "User",
@@ -158,9 +156,7 @@ export class AccountService {
     }
 
     await this.audit.record({
-      userId: auditUserId(actor.actorId),
-      role: actor.actorRoles[0] ?? null,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.ACCOUNT_CREATED,
       module: "USERS",
       recordType: "User",
@@ -346,9 +342,7 @@ export class AccountService {
     await assertNotLastMaster(target);
     await this.users.block(userId, actor.actorId ?? "system", reason);
     await this.audit.record({
-      userId: auditUserId(actor.actorId),
-      role: actor.actorRoles[0] ?? null,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.ACCOUNT_BLOCKED,
       module: "USERS",
       recordType: "User",
@@ -367,9 +361,7 @@ export class AccountService {
     await this.users.revokeSessions(userId);
     await this.tokens.invalidateForUser(userId);
     await this.audit.record({
-      userId: auditUserId(actor.actorId),
-      role: actor.actorRoles[0] ?? null,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.ACCOUNT_DEACTIVATED,
       module: "USERS",
       recordType: "User",
@@ -387,9 +379,7 @@ export class AccountService {
     const activeMasters = await this.users.countActiveMasters();
     if (activeMasters >= 2) return;
     await this.audit.record({
-      userId: auditUserId(actor.actorId),
-      role: actor.actorRoles[0] ?? null,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.MASTER_ACCOUNTS_BELOW_MINIMUM,
       module: "USERS",
       recordType: "User",

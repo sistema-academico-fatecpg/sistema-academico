@@ -62,7 +62,7 @@ A matriz acima foi revisitada contra o código, não apenas contra ela mesma. La
 
 | Item antes pendente              | Mecanismo agora presente                                                                                              |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| 7.3 em páginas `(app)`           | `requirePermission`/`actor.permissions` em todas as telas com dados; `/suporte` filtra por solicitante                |
+| 7.3 em páginas `(private)`       | `requirePagePermission`/`actor.permissions` em todas as telas com dados; `/suporte` filtra por solicitante            |
 | 8.1.2 três Masters recomendados  | `recommendedMasters`/`belowRecommendation` em `masterStatus` + aviso na tela                                          |
 | 8.4.2 código TOTP aceito uma vez | `app/lib/auth/totp-single-use.ts`: hook `before` com reserva atômica em `totp_used_codes`                             |
 | 8.9 justificativas NIST          | `docs/PASSWORD-POLICY.md`                                                                                             |
