@@ -3,13 +3,15 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { enable, verifyTotp } = vi.hoisted(() => ({
+const { enable, verifyTotp, push, refresh } = vi.hoisted(() => ({
   enable: vi.fn(),
   verifyTotp: vi.fn(),
+  push: vi.fn(),
+  refresh: vi.fn(),
 }));
 
-vi.mock("next/link", () => ({
-  default: ({ children, ...props }: { children: React.ReactNode }) => <a {...props}>{children}</a>,
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, refresh }),
 }));
 
 vi.mock("qrcode.react", () => ({
@@ -38,14 +40,48 @@ function seedPendingSetup() {
   );
 }
 
+async function confirmSetup() {
+  verifyTotp.mockResolvedValue({ data: { token: "token-de-teste" } });
+  render(<SetupForm />);
+  await screen.findByTestId("qr");
+  fireEvent.change(screen.getByLabelText("Código de 6 dígitos do aplicativo"), {
+    target: { value: "123456" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar código" }));
+  return screen.findByText("Segundo fator ativado");
+}
+
 beforeEach(() => {
   window.sessionStorage.clear();
   seedPendingSetup();
   enable.mockReset();
   verifyTotp.mockReset();
+  push.mockReset();
+  refresh.mockReset();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: "CONFIGURED" }) }),
+  );
+  Object.defineProperty(navigator, "clipboard", {
+    value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    configurable: true,
+  });
+  Object.defineProperty(URL, "createObjectURL", {
+    value: vi.fn().mockReturnValue("blob:codigos"),
+    configurable: true,
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    value: vi.fn(),
+    configurable: true,
+  });
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe("SetupForm", () => {
   it("mantém a regeneração da chave em um formulário separado da confirmação", async () => {
@@ -86,5 +122,29 @@ describe("SetupForm", () => {
 
     expect(await screen.findByText("Senha incorreta.")).toBeDefined();
     expect(screen.getByTestId("qr").getAttribute("data-value")).toBe(OLD_URI);
+  });
+
+  it("copia os códigos de recuperação e volta ao início", async () => {
+    await confirmSetup();
+    expect(screen.getAllByText(/^CODE-/)).toHaveLength(10);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copiar códigos" }));
+
+    await waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(BACKUP_CODES.join("\n")),
+    );
+    expect(push).toHaveBeenCalledWith("/");
+    expect(refresh).toHaveBeenCalled();
+    expect(window.sessionStorage.getItem("sistema-academico:totp-setup")).toBeNull();
+  });
+
+  it("baixa os códigos de recuperação e volta ao início", async () => {
+    await confirmSetup();
+
+    fireEvent.click(screen.getByRole("button", { name: "Baixar arquivo .txt" }));
+
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/");
   });
 });

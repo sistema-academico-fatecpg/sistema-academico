@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { authClient } from "@/app/lib/auth/client";
@@ -20,12 +20,13 @@ function manualSecret(uri: string): string {
 }
 
 export function SetupForm() {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [totpURI, setTotpURI] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [code, setCode] = useState("");
   const [error, setError] = useState<{
-    scope: "setup" | "confirm" | "enable";
+    scope: "setup" | "confirm" | "enable" | "done";
     message: string;
   } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -42,8 +43,41 @@ export function SetupForm() {
     }
   }, []);
 
-  function showError(scope: "setup" | "confirm" | "enable", message: string) {
+  function showError(scope: "setup" | "confirm" | "enable" | "done", message: string) {
     setError({ scope, message });
+  }
+
+  function goHome() {
+    router.push("/");
+    router.refresh();
+  }
+
+  async function copyCodes() {
+    try {
+      await navigator.clipboard.writeText(backupCodes.join("\n"));
+      goHome();
+    } catch {
+      showError("done", "Não foi possível copiar. Use o botão Baixar ou anote os códigos abaixo.");
+    }
+  }
+
+  function downloadCodes() {
+    const content = [
+      "Sistema Acadêmico — códigos de recuperação do segundo fator",
+      "Guarde em local seguro. Cada código pode ser usado uma única vez.",
+      "",
+      ...backupCodes,
+      "",
+    ].join("\n");
+    const url = URL.createObjectURL(new Blob([content], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "codigos-recuperacao-sistema-academico.txt";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    goHome();
   }
 
   async function enable(event: React.FormEvent, scope: "setup" | "enable" = "enable") {
@@ -136,16 +170,26 @@ export function SetupForm() {
       <div>
         <h1 className="text-xl font-semibold">Segundo fator ativado</h1>
         <p className="mt-3 text-sm text-zinc-600">
-          Guarde os códigos de recuperação em local seguro. Cada código pode ser usado uma vez.
+          Guarde os códigos abaixo em local seguro. Cada código pode ser usado uma única vez. Depois
+          de copiar ou baixar, você será levado ao início.
         </p>
         <ul className="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-zinc-100 p-4 font-mono text-sm">
           {backupCodes.map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
-        <Link className="mt-6 inline-block font-medium underline" href="/">
-          Voltar ao início
-        </Link>
+        <FormFeedback error={error?.scope === "done" ? error.message : null} />
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <Button onClick={() => void copyCodes()} type="button">
+            Copiar códigos
+          </Button>
+          <Button onClick={downloadCodes} type="button" variant="outline">
+            Baixar arquivo .txt
+          </Button>
+          <button className="text-sm font-medium underline" onClick={goHome} type="button">
+            Já guardei, ir para o início
+          </button>
+        </div>
       </div>
     );
   }
