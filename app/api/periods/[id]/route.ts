@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { jsonError } from "@/app/lib/api/responses";
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { requirePermission } from "@/app/lib/auth/session";
 import { getClientIp } from "@/app/lib/request-context";
 import { AcademicPeriodRepository } from "@/app/repositories/period.repository";
@@ -73,9 +73,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     }
 
     await createAuditService().record({
-      userId: actor.id as never,
-      role: actor.roles[0] ?? null,
-      ipAddress: getClientIp(request),
+      ...auditActor({ ...actor, ipAddress: getClientIp(request) }),
       action: input.closeGradesNow
         ? AUDIT_ACTIONS.GRADES_PERIOD_CLOSED
         : AUDIT_ACTIONS.GRADES_PERIOD_UPDATED,

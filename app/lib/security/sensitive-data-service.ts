@@ -1,5 +1,5 @@
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { forbidden, notFound, validationError } from "@/app/lib/auth/errors";
 import { db } from "@/app/lib/db";
 import { decryptText, encryptText, maskValue } from "./crypto";
@@ -44,9 +44,7 @@ export class SensitiveDataService {
       },
     });
     await this.audit.record({
-      userId: actor.id as never,
-      role: (actor.roles[0] ?? null) as never,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.SENSITIVE_DATA_STORED,
       module: "USERS",
       recordType: "SensitiveData",
@@ -107,9 +105,7 @@ export class SensitiveDataService {
     });
     await db.sensitiveData.update({ where: { id }, data: { revealedAt: new Date() } });
     await this.audit.record({
-      userId: actor.id as never,
-      role: (actor.roles[0] ?? null) as never,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.SENSITIVE_DATA_REVEALED,
       module: "USERS",
       recordType: "SensitiveData",

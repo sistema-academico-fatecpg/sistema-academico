@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { jsonError } from "@/app/lib/api/responses";
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { requireUser } from "@/app/lib/auth/session";
 import { hashToken } from "@/app/lib/auth/tokens";
 import { db } from "@/app/lib/db";
@@ -41,9 +41,7 @@ export async function POST(request: Request) {
     await new UserRepository().update(actor.id, { twoFactorEnabled: true });
 
     await createAuditService().record({
-      userId: actor.id as never,
-      role: actor.roles[0] ?? null,
-      ipAddress: getClientIp(request),
+      ...auditActor({ ...actor, ipAddress: getClientIp(request) }),
       action: AUDIT_ACTIONS.SECOND_FACTOR_CONFIGURED,
       module: "USERS",
       recordType: "User",

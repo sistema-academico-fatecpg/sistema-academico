@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { authClient } from "@/app/lib/auth/client";
+import { Button, FormFeedback, Input, Label } from "@/components/ui";
 
 export function SetupForm() {
   const [password, setPassword] = useState("");
@@ -76,24 +77,21 @@ export function SetupForm() {
           Cadastre a chave abaixo no aplicativo autenticador e informe o código gerado.
         </p>
         <code className="block break-all rounded-lg bg-zinc-100 p-3 text-xs">{totpURI}</code>
-        <label className="block text-sm font-medium">
+        <Label>
           Código de 6 dígitos
-          <input
-            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 tracking-widest"
+          <Input
+            className="tracking-widest"
             inputMode="numeric"
             maxLength={6}
             onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
             required
             value={code}
           />
-        </label>
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
-        <button
-          className="w-full rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white"
-          type="submit"
-        >
+        </Label>
+        <FormFeedback error={error} />
+        <Button className="w-full" type="submit">
           Confirmar código
-        </button>
+        </Button>
       </form>
     );
   }
@@ -105,23 +103,19 @@ export function SetupForm() {
         Perfis administrativos, professores, auditores e suporte técnico exigem TOTP. Confirme sua
         senha para gerar a chave.
       </p>
-      <label className="block text-sm font-medium">
+      <Label>
         Senha atual
-        <input
-          className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+        <Input
           onChange={(event) => setPassword(event.target.value)}
           required
           type="password"
           value={password}
         />
-      </label>
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
-      <button
-        className="w-full rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white"
-        type="submit"
-      >
+      </Label>
+      <FormFeedback error={error} />
+      <Button className="w-full" type="submit">
         Gerar chave TOTP
-      </button>
+      </Button>
     </form>
   );
 }

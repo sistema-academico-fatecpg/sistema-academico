@@ -239,6 +239,27 @@ export function auditContext(input: {
   };
 }
 
+/**
+ * Extrai os três campos de identificação repetidos em dezenas de chamadas a
+ * `audit.record`. Aceita tanto o `AuthenticatedUser` (id/roles) quanto o
+ * `ActorContext` legado (actorId/actorRoles).
+ */
+export function auditActor(actor: {
+  id?: string | null;
+  actorId?: string | null;
+  roles?: readonly string[];
+  actorRoles?: readonly string[];
+  ipAddress: string;
+}): Pick<AuditEvent, "userId" | "role" | "ipAddress"> {
+  const userId = actor.id ?? actor.actorId ?? null;
+  const roles = actor.roles ?? actor.actorRoles ?? [];
+  return {
+    userId: (userId ?? null) as AuditEvent["userId"],
+    role: (roles[0] ?? null) as AuditEvent["role"],
+    ipAddress: actor.ipAddress,
+  };
+}
+
 export function auditModule(module: SystemModule): SystemModule {
   return module;
 }

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { actorFrom, jsonError } from "@/app/lib/api/responses";
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { conflict } from "@/app/lib/auth/errors";
 import { requireUser } from "@/app/lib/auth/session";
 import { hashToken } from "@/app/lib/auth/tokens";
@@ -22,9 +22,7 @@ export async function POST(request: Request) {
     if (!consumed) throw conflict("Código de recuperação inválido ou já utilizado");
     const ctx = actorFrom(actor, request);
     await createAuditService().record({
-      userId: actor.id as never,
-      role: actor.roles[0] ?? null,
-      ipAddress: ctx.ipAddress,
+      ...auditActor({ ...actor, ipAddress: ctx.ipAddress }),
       action: AUDIT_ACTIONS.SECOND_FACTOR_RECOVERY_USED,
       module: "USERS",
       recordType: "User",

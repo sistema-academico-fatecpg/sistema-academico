@@ -1,5 +1,5 @@
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { conflict, forbidden, notFound, validationError } from "@/app/lib/auth/errors";
 import { SupportAccessGrantRepository } from "@/app/repositories/support-access-grant.repository";
 import type { SystemModule } from "@/app/types/common";
@@ -57,9 +57,7 @@ export class SupportAccessService {
     });
 
     await this.audit.record({
-      userId: actor.id as never,
-      role: (actor.roles[0] ?? null) as never,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.SUPPORT_ACCESS_REQUESTED,
       module: "AUDIT_LOGS",
       recordType: "SupportAccessGrant",

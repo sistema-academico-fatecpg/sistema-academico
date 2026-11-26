@@ -1,5 +1,5 @@
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { auth } from "@/app/lib/auth/better-auth";
 import { getAuthenticatedUser } from "@/app/lib/auth/session";
 import { getClientIp } from "@/app/lib/request-context";
@@ -15,9 +15,7 @@ export async function POST(request: Request) {
 
   if (actor) {
     await createAuditService().record({
-      userId: actor.id as never,
-      role: actor.roles[0] ?? null,
-      ipAddress: getClientIp(request),
+      ...auditActor({ ...actor, ipAddress: getClientIp(request) }),
       action: AUDIT_ACTIONS.LOGOUT,
       module: "USERS",
       recordType: "User",

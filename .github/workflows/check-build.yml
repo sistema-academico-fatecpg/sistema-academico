@@ -47,21 +47,3 @@ jobs:
 
       - name: Production build
         run: sh .github/hooks/checks.sh build
-        env:
-          APP_ENV: production
-          DEV_TEAM_PRODUCTION_ACCESS: "false"
-          BETTER_AUTH_SECRET: ci-placeholder-not-used-at-runtime-000000
-          BETTER_AUTH_URL: https://localhost:3000
-          TLS_MIN_VERSION: "1.2"
-          DATABASE_URL: postgresql://localhost:5432/ci
-          DATA_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-          KEY_CUSTODIAN_1: Custodiante A (CI)
-          KEY_CUSTODIAN_2: Custodiante B (CI)
-          MAINTENANCE_SECRET: ci-maintenance-secret-000000
-          AUDIT_DATABASE_URL: postgresql://localhost:5432/audit
-          BACKUP_LOCAL_DIR: /tmp/opencode/backups/local
-          BACKUP_CLOUD_DIR: /tmp/opencode/backups/cloud
-          BACKUP_CLOUD_REGION: br-sudeste
-          BACKUP_CLOUD_MFA: "true"
-          BACKUP_CLOUD_IMMUTABLE: "true"
-          BACKUP_TEST_DATABASE_URL: postgresql://localhost:5432/audit_test

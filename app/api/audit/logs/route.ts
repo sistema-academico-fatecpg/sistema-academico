@@ -1,6 +1,6 @@
 import { actorFrom, jsonError } from "@/app/lib/api/responses";
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { auditReader } from "@/app/lib/audit/reader";
 import { SupportAccessService } from "@/app/lib/audit/support-access-service";
 import { requireAuditReader } from "@/app/lib/auth/session";
@@ -17,9 +17,7 @@ export async function GET(request: Request) {
       "AUDIT_LOGS",
     );
     await createAuditService().record({
-      userId: actor.id as never,
-      role: actor.roles[0] ?? null,
-      ipAddress: ctx.ipAddress,
+      ...auditActor({ ...actor, ipAddress: ctx.ipAddress }),
       action: AUDIT_ACTIONS.AUDIT_LOG_VIEWED,
       module: "AUDIT_LOGS",
       recordType: "Log",

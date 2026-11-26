@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { AccountService } from "@/app/lib/auth/account-service";
 import { conflict, forbidden, notFound, validationError } from "@/app/lib/auth/errors";
 import { CriticalOperationService } from "@/app/lib/critical-operations/service";
@@ -54,9 +54,7 @@ export class IncidentService {
 
   private event(actor: IncidentActor, action: string, id: string, value: unknown) {
     return this.audit.record({
-      userId: actor.id as never,
-      role: (actor.roles[0] ?? null) as never,
-      ipAddress: actor.ipAddress,
+      ...auditActor(actor),
       action,
       module: "BACKUPS",
       recordType: "Incident",
@@ -90,9 +88,7 @@ export class IncidentService {
     // 13 / LGPD art. 48: risco relevante dispara alerta ao DPO e ao Auditor.
     if (input.severity === "HIGH" || input.severity === "CRITICAL") {
       await this.audit.record({
-        userId: actor.id as never,
-        role: (actor.roles[0] ?? null) as never,
-        ipAddress: actor.ipAddress,
+        ...auditActor(actor),
         action: AUDIT_ACTIONS.DPO_NOTIFICATION_DUE,
         module: "BACKUPS",
         recordType: "Incident",
@@ -233,9 +229,7 @@ export class IncidentService {
     });
     if (late) {
       await this.audit.record({
-        userId: actor.id as never,
-        role: (actor.roles[0] ?? null) as never,
-        ipAddress: actor.ipAddress,
+        ...auditActor(actor),
         action: AUDIT_ACTIONS.INCIDENT_NOTIFICATION_LATE,
         module: "BACKUPS",
         recordType: "Incident",

@@ -3,21 +3,21 @@
 import { cn } from "@/app/lib/utils";
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "default" | "secondary" | "destructive" | "outline";
+  variant?: "default" | "success" | "neutral" | "danger";
 }
 
 export function Badge({ className, variant = "default", ...props }: BadgeProps) {
   const variants = {
-    default: "bg-primary text-primary-foreground hover:bg-primary/80",
-    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/80",
-    outline: "text-foreground border border-border",
+    default: "bg-amber-50 text-amber-800",
+    success: "bg-emerald-50 text-emerald-800",
+    neutral: "bg-slate-100 text-slate-700",
+    danger: "bg-rose-50 text-rose-800",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
         variants[variant],
         className,
       )}
