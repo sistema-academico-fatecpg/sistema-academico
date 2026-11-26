@@ -54,10 +54,29 @@ número e especial). Cada link é de uso único e expira em 24 h.
 
 ## E-mails
 
-Em desenvolvimento, sem `RESEND_API_KEY`, o transporte é `ConsoleEmailTransport`:
-**nenhum e-mail é enviado** e o console registra apenas o tipo e o e-mail
-mascarado. Para envio real, configure `RESEND_API_KEY` e `EMAIL_FROM` no `.env`.
-Em produção, a ausência da chave gera erro (exceto com `ALLOW_LOG_EMAILS`).
+O seed **não envia e-mail por padrão**. Para enviar os links de ativação para
+cada usuário criado (inclusive seu `TEST_EMAIL`):
+
+```bash
+# .env
+RESEND_API_KEY=...
+EMAIL_FROM="Sistema Acadêmico <nao-responda@seu-dominio>"
+TEST_DATA_SEND_EMAIL=1
+TEST_EMAIL=seu@email.com
+
+pnpm db:seed:test
+```
+
+Com `TEST_DATA_SEND_EMAIL=1`, o seed usa o mesmo transporte da aplicação. Sem
+`RESEND_API_KEY`, o transporte é `ConsoleEmailTransport`: **nenhum e-mail é
+enviado**, o console registra só o tipo e o e-mail mascarado, e o seed avisa
+quantos deixaram de ser enviados. Em produção, a ausência da chave gera erro
+(excepto com `ALLOW_LOG_EMAILS`).
+
+Mesmo com envio habilitado, os links/códigos continuam sendo gravados no
+arquivo local protegido — útil se o provedor falhar. Nenhum segredo é impresso
+no console (10.5). Os fluxos normais da aplicação (recuperação de senha e
+alertas de segurança) também usam o mesmo transporte.
 
 ## TOTP — onde informar o código
 
