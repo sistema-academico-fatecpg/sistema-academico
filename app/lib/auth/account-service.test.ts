@@ -16,7 +16,17 @@ describe("regras de atribuição de perfil", () => {
 
   it("somente Admin Master atribui perfis administrativos", () => {
     expect(() => assertCanAssignRole(actor(["ADMIN_MASTER"]), "ADMIN_SECUNDARIO")).not.toThrow();
+    // 7.5.4/8.8: inclusão de outro Master também é feita pelo Admin Master.
+    expect(() => assertCanAssignRole(actor(["ADMIN_MASTER"]), "ADMIN_MASTER")).not.toThrow();
+    expect(() => assertCanAssignRole(actor(["ADMIN_SECUNDARIO"]), "ADMIN_MASTER")).toThrow();
     expect(() => assertCanAssignRole(actor(["PROFESSOR"]), "ALUNO")).toThrow();
+  });
+
+  it("Admin Master também cadastra perfis não administrativos", () => {
+    for (const role of ["PROFESSOR", "ALUNO", "AUDITOR", "SUPORTE_TECNICO"]) {
+      expect(() => assertCanAssignRole(actor(["ADMIN_MASTER"]), role)).not.toThrow();
+      expect(roleRequiresApproval(role)).toBe(false);
+    }
   });
 
   it("perfis administrativos exigem dupla aprovação", () => {
