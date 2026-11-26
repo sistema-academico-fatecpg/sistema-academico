@@ -11,6 +11,14 @@ import {
 } from "@/app/lib/auth/totp-setup";
 import { Button, FormFeedback, Input, Label } from "@/components/ui";
 
+function manualSecret(uri: string): string {
+  try {
+    return new URL(uri).searchParams.get("secret") ?? uri;
+  } catch {
+    return uri;
+  }
+}
+
 export function SetupForm() {
   const [password, setPassword] = useState("");
   const [totpURI, setTotpURI] = useState<string | null>(null);
@@ -104,8 +112,15 @@ export function SetupForm() {
           <summary className="cursor-pointer">
             Não consigo ler o QR code: usar a chave manual
           </summary>
+          <p className="mt-2">
+            Chave: <code className="break-all font-mono text-xs">{manualSecret(totpURI)}</code>
+          </p>
           <code className="mt-2 block break-all rounded-lg bg-zinc-100 p-3 text-xs">{totpURI}</code>
         </details>
+        <p className="text-xs text-zinc-500">
+          Se o código não for aceito, verifique se a data e a hora do aparelho estão ajustadas
+          automaticamente.
+        </p>
         <Label>
           Código de 6 dígitos
           <Input
