@@ -2,6 +2,7 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { betterAuth } from "better-auth";
 import { twoFactor } from "better-auth/plugins";
 import { withTotpClockSkew } from "@/app/lib/auth/totp-clock-skew";
+import { withTotpDiagnostics } from "@/app/lib/auth/totp-diagnostics";
 import { withSingleUseTotp } from "@/app/lib/auth/totp-single-use";
 import { db } from "@/app/lib/db";
 import { sendEmail } from "@/app/lib/email";
@@ -154,26 +155,28 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    withSingleUseTotp(
-      withTotpClockSkew(
-        twoFactor({
-          issuer: "Sistema Acadêmico",
-          // 8.9: limite de tentativas no segundo fator.
-          accountLockout: {
-            enabled: true,
-            maxFailedAttempts: 5,
-            durationSeconds: 15 * 60,
-          },
-          totpOptions: {
-            digits: 6,
-            period: 30,
-          },
-          backupCodeOptions: {
-            amount: 10,
-            length: 10,
-            storeBackupCodes: "encrypted",
-          },
-        }),
+    withTotpDiagnostics(
+      withSingleUseTotp(
+        withTotpClockSkew(
+          twoFactor({
+            issuer: "Sistema Acadêmico",
+            // 8.9: limite de tentativas no segundo fator.
+            accountLockout: {
+              enabled: true,
+              maxFailedAttempts: 5,
+              durationSeconds: 15 * 60,
+            },
+            totpOptions: {
+              digits: 6,
+              period: 30,
+            },
+            backupCodeOptions: {
+              amount: 10,
+              length: 10,
+              storeBackupCodes: "encrypted",
+            },
+          }),
+        ),
       ),
     ),
   ],

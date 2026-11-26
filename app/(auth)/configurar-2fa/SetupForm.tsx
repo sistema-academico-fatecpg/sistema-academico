@@ -26,11 +26,10 @@ export function SetupForm() {
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [code, setCode] = useState("");
   const [error, setError] = useState<{
-    scope: "setup" | "confirm" | "enable" | "done";
+    scope: "setup" | "confirm" | "done";
     message: string;
   } | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"confirm" | "enable" | null>(null);
+  const [busy, setBusy] = useState<"confirm" | "setup" | null>(null);
   const [done, setDone] = useState(false);
 
   // Quando a configuração começa durante a ativação, a chave já vem preparada
@@ -43,7 +42,7 @@ export function SetupForm() {
     }
   }, []);
 
-  function showError(scope: "setup" | "confirm" | "enable" | "done", message: string) {
+  function showError(scope: "setup" | "confirm" | "done", message: string) {
     setError({ scope, message });
   }
 
@@ -80,20 +79,19 @@ export function SetupForm() {
     goHome();
   }
 
-  async function enable(event: React.FormEvent, scope: "setup" | "enable" = "enable") {
+  async function enable(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    setNotice(null);
     if (!password) {
-      showError(scope, "Informe sua senha para gerar a chave.");
+      showError("setup", "Informe sua senha para gerar a chave.");
       return;
     }
-    setBusy("enable");
+    setBusy("setup");
     try {
       const result = await authClient.twoFactor.enable({ password });
       if (result.error) {
         showError(
-          scope,
+          "setup",
           result.error.code === "INVALID_PASSWORD" || result.error.message === "Invalid password"
             ? "Senha incorreta."
             : (result.error.message ?? "Não foi possível iniciar a configuração"),
@@ -101,7 +99,7 @@ export function SetupForm() {
         return;
       }
       if (result.data?.method !== "totp") {
-        showError(scope, "Método de segundo fator não suportado");
+        showError("setup", "Método de segundo fator não suportado");
         return;
       }
       setTotpURI(result.data.totpURI);
@@ -112,13 +110,11 @@ export function SetupForm() {
         totpURI: result.data.totpURI,
         backupCodes: result.data.backupCodes,
       });
-      if (scope === "enable") {
-        setNotice(
-          "Nova chave gerada. Exclua a entrada antiga do autenticador e adicione esta chave antes de confirmar.",
-        );
-      }
     } catch {
-      showError(scope, "Não foi possível gerar a chave. Verifique sua conexão e tente novamente.");
+      showError(
+        "setup",
+        "Não foi possível gerar a chave. Verifique sua conexão e tente novamente.",
+      );
     } finally {
       setBusy(null);
     }
@@ -127,7 +123,6 @@ export function SetupForm() {
   async function confirm(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    setNotice(null);
     setBusy("confirm");
     try {
       const result = await authClient.twoFactor.verifyTotp({ code });
@@ -135,7 +130,7 @@ export function SetupForm() {
         showError(
           "confirm",
           result.error.code === "INVALID_CODE"
-            ? "Esse não é o código da chave exibida nesta tela. Digite apenas os 6 dígitos do autenticador. Se o autenticador estiver com uma chave antiga (por exemplo, após recriar o banco), apague-a, adicione a chave atual e tente de novo."
+            ? "Código inválido. Use os 6 dígitos do autenticador para a chave exibida acima."
             : (result.error.message ?? "Código inválido"),
         );
         return;
@@ -222,7 +217,6 @@ export function SetupForm() {
             Digite o código assim que ele aparecer. Se não for aceito, confira a data/hora do
             aparelho.
           </p>
-          <FormFeedback message={notice} />
           <Label>
             Código de 6 dígitos do aplicativo
             <Input
@@ -243,11 +237,11 @@ export function SetupForm() {
         </form>
 
         <details className="border-t border-zinc-200 pt-4 text-sm text-zinc-600">
-          <summary className="cursor-pointer">O código continua inválido: gerar nova chave</summary>
+          <summary className="cursor-pointer">Gerar outra chave</summary>
           <form className="mt-3 space-y-3" onSubmit={enable}>
             <p>
-              A chave pode ter mudado após uma reativação. Informe sua senha, gere outra chave,
-              exclua a entrada antiga do autenticador e leia o novo QR code.
+              Informe sua senha para gerar outra chave. Depois, exclua a entrada antiga do
+              autenticador e leia o novo QR code.
             </p>
             <Label>
               Senha atual
@@ -259,9 +253,9 @@ export function SetupForm() {
                 value={password}
               />
             </Label>
-            <FormFeedback error={error?.scope === "enable" ? error.message : null} />
+            <FormFeedback error={error?.scope === "setup" ? error.message : null} />
             <Button disabled={busy !== null} type="submit">
-              {busy === "enable" ? "Gerando chave..." : "Gerar nova chave"}
+              {busy === "setup" ? "Gerando chave..." : "Gerar nova chave"}
             </Button>
           </form>
         </details>
@@ -288,7 +282,7 @@ export function SetupForm() {
       </Label>
       <FormFeedback error={error?.scope === "setup" ? error.message : null} />
       <Button className="w-full" disabled={busy !== null} type="submit">
-        {busy === "enable" ? "Gerando chave..." : "Gerar chave TOTP"}
+        {busy === "setup" ? "Gerando chave..." : "Gerar chave TOTP"}
       </Button>
     </form>
   );

@@ -103,8 +103,7 @@ describe("SetupForm", () => {
     fireEvent.click(regenerateButton);
 
     await waitFor(() => expect(enable).toHaveBeenCalledWith({ password: "Senha@123456" }));
-    expect(await screen.findByText(/Nova chave gerada/)).toBeDefined();
-    expect(screen.getByTestId("qr").getAttribute("data-value")).toBe(NEW_URI);
+    await waitFor(() => expect(screen.getByTestId("qr").getAttribute("data-value")).toBe(NEW_URI));
     expect(verifyTotp).not.toHaveBeenCalled();
   });
 
