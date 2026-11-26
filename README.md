@@ -10,10 +10,13 @@ pnpm db:generate
 pnpm dev
 ```
 
-`docker compose up -d --build` sobe o Postgres e a aplicação e dispara o serviço
-`activation-mailer`: aplica migrações, cria a massa de teste (4 Masters) e envia
-o link/código de ativação para `TEST_EMAIL` pela Resend. Detalhes em
-`docs/TEST-DATA.md`.
+`docker compose up -d --build` sobe o Postgres, cria os bancos isolados de
+auditoria/backup (`prepare-databases`) e dispara o serviço `activation-mailer`:
+aplica migrações, cria a massa de teste (4 Masters) e envia o link/código de
+ativação para `TEST_EMAIL` pela Resend. Detalhes em `docs/TEST-DATA.md`.
+
+Erros inesperados nas APIs são registrados no servidor com mensagem e stack
+(sem segredos) e respondidos ao cliente apenas como `Erro interno`/`INTERNAL`.
 
 Variáveis em `.env.example`. Qualidade local:
 

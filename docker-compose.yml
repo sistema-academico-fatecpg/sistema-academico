@@ -18,6 +18,21 @@ services:
       retries: 5
       start_period: 10s
 
+  # Garante os bancos isolados mesmo em volumes criados antes deste recurso.
+  prepare-databases:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+      target: builder
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}
+    command: ["pnpm", "tsx", "scripts/ensure-aux-databases.ts"]
+
   # Dispara na subida: aplica migrações, cria a massa de teste com 4 Masters e
   # envia o link/código de ativação para TEST_EMAIL pela Resend.
   activation-mailer:
@@ -27,8 +42,8 @@ services:
       target: builder
     restart: "no"
     depends_on:
-      postgres:
-        condition: service_healthy
+      prepare-databases:
+        condition: service_completed_successfully
     env_file: [.env]
     environment:
       DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}
@@ -51,6 +66,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      prepare-databases:
+        condition: service_completed_successfully
       activation-mailer:
         condition: service_started
     env_file: [.env]
