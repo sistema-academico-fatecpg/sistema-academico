@@ -163,5 +163,6 @@ autenticador voluntariamente.
 > **nova chave TOTP**. Se o banco foi recriado ou a conta foi reativada, apague
 > a entrada antiga do aplicativo autenticador e escaneie o QR atual da tela de
 > configuração; códigos da chave antiga sempre retornarão `Código inválido`.
-> O servidor aceita desvios de até 60 s, mas a data/hora do aparelho também
-> deve estar ajustada automaticamente.
+> O servidor aceita desvios de até 120 s e também códigos gerados com
+> SHA-256/512 ou janela de 60 s, mas o código deve ser digitado logo após
+> aparecer no aplicativo.

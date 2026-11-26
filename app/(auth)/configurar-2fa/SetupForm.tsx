@@ -128,8 +128,8 @@ export function SetupForm() {
           <code className="mt-2 block break-all rounded-lg bg-zinc-100 p-3 text-xs">{totpURI}</code>
         </details>
         <p className="text-xs text-zinc-500">
-          Se o código não for aceito, verifique se a data e a hora do aparelho estão ajustadas
-          automaticamente.
+          Digite o código assim que ele aparecer no aplicativo. Se não for aceito, confira a
+          data/hora do aparelho e use a chave mostrada nesta tela.
         </p>
         <Label>
           Código de 6 dígitos

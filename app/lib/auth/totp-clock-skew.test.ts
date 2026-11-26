@@ -13,11 +13,21 @@ describe("normalizeSkewedTotpCode", () => {
   it("converte códigos de janelas vizinhas para a janela atual", () => {
     const current = totpCodeAt(SECRET, COUNTER);
     expect(normalizeSkewedTotpCode(SECRET, totpCodeAt(SECRET, COUNTER + 1), NOW)).toBe(current);
-    expect(normalizeSkewedTotpCode(SECRET, totpCodeAt(SECRET, COUNTER - 2), NOW)).toBe(current);
+    expect(normalizeSkewedTotpCode(SECRET, totpCodeAt(SECRET, COUNTER - 4), NOW)).toBe(current);
+  });
+
+  it("aceita códigos de outros algoritmos e períodos", () => {
+    const current = totpCodeAt(SECRET, COUNTER);
+    expect(normalizeSkewedTotpCode(SECRET, totpCodeAt(SECRET, COUNTER, "sha256"), NOW)).toBe(
+      current,
+    );
+    expect(
+      normalizeSkewedTotpCode(SECRET, totpCodeAt(SECRET, Math.floor(NOW / 60_000), "sha1"), NOW),
+    ).toBe(current);
   });
 
   it("rejeita códigos fora da tolerância e valores inválidos", () => {
-    expect(normalizeSkewedTotpCode(SECRET, totpCodeAt(SECRET, COUNTER + 3), NOW)).toBeNull();
+    expect(normalizeSkewedTotpCode(SECRET, totpCodeAt(SECRET, COUNTER + 5), NOW)).toBeNull();
     expect(normalizeSkewedTotpCode(SECRET, "12345", NOW)).toBeNull();
     expect(normalizeSkewedTotpCode(SECRET, "abcdef", NOW)).toBeNull();
   });
