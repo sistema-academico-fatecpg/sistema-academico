@@ -9,7 +9,7 @@ import { CredentialsStep } from "./CredentialsStep";
 import { PrivacyNote } from "./PrivacyNote";
 import { TotpStep } from "./TotpStep";
 
-export function LoginForm() {
+export function LoginForm({ dpoEmail }: { dpoEmail: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -109,7 +109,7 @@ export function LoginForm() {
           Configurar 2FA
         </Link>
       </div>
-      <PrivacyNote />
+      <PrivacyNote email={dpoEmail} />
     </form>
   );
 }

@@ -5,8 +5,8 @@ import { AtivarForm } from "./AtivarForm";
 export default async function AtivarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; code?: string }>;
 }) {
-  const { token } = await searchParams;
-  return <AtivarForm token={token ?? ""} />;
+  const { token, code } = await searchParams;
+  return <AtivarForm token={token ?? ""} code={code ?? ""} />;
 }

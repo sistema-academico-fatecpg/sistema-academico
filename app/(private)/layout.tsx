@@ -87,7 +87,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="min-w-0">
         <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
           <span className="text-sm text-slate-500">Portal acadêmico</span>
-          <span className="text-xs font-semibold tracking-wide text-slate-500">FATECPG</span>
+          <span className="text-xs font-semibold tracking-wide text-slate-500">ACADÊMICO</span>
         </header>
         <main className="mx-auto w-full max-w-[1440px] p-5 md:p-8">{children}</main>
         <footer className="border-t border-slate-200 px-8 py-5 text-center text-xs text-slate-400">

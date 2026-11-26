@@ -1,15 +1,11 @@
 import { z } from "zod";
 import { actorFrom, jsonError } from "@/app/lib/api/responses";
 import { AccountService, visibleRolesFor } from "@/app/lib/auth/account-service";
+import { generateInstitutionalEmail } from "@/app/lib/auth/institutional-email";
 import { requirePermission } from "@/app/lib/auth/session";
 import { UserRepository, type UserWithRoles } from "@/app/repositories/user.repository";
 import { PERMISSIONS } from "@/app/types/roles";
-import {
-  isGenericAccount,
-  isInstitutionalEmailAllowed,
-  ListUsersQuerySchema,
-  UserInputSchema,
-} from "@/app/types/user";
+import { CreateUserRequestSchema, ListUsersQuerySchema, type UserInput } from "@/app/types/user";
 
 function toDto(user: UserWithRoles) {
   const roles = user.roles.map((userRole) => userRole.role.name);
@@ -51,25 +47,10 @@ export async function GET(request: Request) {
   }
 }
 
-const CreateUserBodySchema = UserInputSchema.extend({
+const CreateUserBodySchema = CreateUserRequestSchema.extend({
   requestReason: z.string().trim().min(10).max(2000).optional(),
   // 8.8.4: necessário em modo de conta única / contingência.
   authorizationDocument: z.string().trim().max(255).optional(),
-}).superRefine((value, ctx) => {
-  if (isGenericAccount(value.email)) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["email"],
-      message: "Contas genéricas não são permitidas",
-    });
-  }
-  if (!isInstitutionalEmailAllowed(value.email)) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["email"],
-      message: "Use o e-mail institucional da faculdade",
-    });
-  }
 });
 
 export async function POST(request: Request) {
@@ -78,8 +59,20 @@ export async function POST(request: Request) {
     const { requestReason, authorizationDocument, ...body } = CreateUserBodySchema.parse(
       await request.json(),
     );
+    const users = new UserRepository();
+    const email = await generateInstitutionalEmail(body.name, async (candidate) =>
+      Boolean(await users.findByEmail(candidate)),
+    );
+    const input: UserInput = {
+      name: body.name,
+      socialName: body.socialName ?? null,
+      email,
+      personalEmail: body.personalEmail,
+      registrationNumber: body.registrationNumber ?? null,
+      role: body.role,
+    };
     const result = await new AccountService().createUser(
-      body,
+      input,
       actorFrom(actor, request),
       requestReason,
       authorizationDocument,

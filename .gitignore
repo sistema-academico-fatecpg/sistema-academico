@@ -42,6 +42,8 @@ skills-lock.json
 # Miscellaneous
 .DS_Store
 *.pem
+# Links de ativação gerados pelo docker-compose (nunca versionar)
+/tmp/
 
 # Logs
 npm-debug.log*

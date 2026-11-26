@@ -4,6 +4,7 @@ import {
   AccountStatusSchema,
   type DateTime,
   DateTimeSchema,
+  DEFAULT_INSTITUTIONAL_EMAIL_DOMAIN,
   type Email,
   EmailSchema,
   type InstitucionalEmail,
@@ -30,6 +31,20 @@ export const RoleAssignmentSchema = z
   .min(2)
   .max(60)
   .regex(/^[A-Z][A-Z0-9_]*$/, "Use maiúsculas, números e underscore");
+
+/**
+ * Payload do formulário de cadastro: o e-mail institucional NÃO é informado —
+ * ele é gerado no servidor a partir do nome + código único (8.4.1).
+ */
+export const CreateUserRequestSchema = z.object({
+  name: z.string().trim().min(3, "Nome deve ter ao menos 3 caracteres").max(150),
+  socialName: z.string().trim().max(150).nullable().optional(),
+  personalEmail: EmailSchema,
+  registrationNumber: z.string().trim().min(1).max(30).nullable().optional(),
+  role: RoleAssignmentSchema,
+});
+
+export type CreateUserRequest = z.infer<typeof CreateUserRequestSchema>;
 
 export const UserInputSchema = z.object({
   name: z.string().trim().min(3, "Nome deve ter ao menos 3 caracteres").max(150),
@@ -92,7 +107,8 @@ export const ChangeUserRoleSchema = z.object({
   reason: z.string().trim().min(5).max(500),
 });
 
-const institutionalEmailDomain = process.env.INSTITUTIONAL_EMAIL_DOMAIN?.trim();
+const institutionalEmailDomain =
+  process.env.INSTITUTIONAL_EMAIL_DOMAIN?.trim() || DEFAULT_INSTITUTIONAL_EMAIL_DOMAIN;
 
 /** Contas genéricas (ex.: secretaria@) são proibidas pela seção 8.4.1. */
 export function isGenericAccount(email: string): boolean {

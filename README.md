@@ -1,4 +1,4 @@
-# Sistema Acadêmico — FATECPG
+# Sistema Acadêmico
 
 Aplicação Next.js 16 para gestão acadêmica com os controles da `Politica de Seguranca.md` (RBAC, dupla aprovação, MFA, auditoria isolada, LGPD, backups e resposta a incidentes).
 
@@ -9,6 +9,11 @@ pnpm install
 pnpm db:generate
 pnpm dev
 ```
+
+`docker compose up -d --build` sobe o Postgres e a aplicação e dispara o serviço
+`activation-mailer`: aplica migrações, cria a massa de teste (4 Masters) e envia
+o link/código de ativação para `TEST_EMAIL` pela Resend. Detalhes em
+`docs/TEST-DATA.md`.
 
 Variáveis em `.env.example`. Qualidade local:
 

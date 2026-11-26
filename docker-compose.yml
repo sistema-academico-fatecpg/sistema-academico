@@ -18,6 +18,31 @@ services:
       retries: 5
       start_period: 10s
 
+  # Dispara na subida: aplica migrações, cria a massa de teste com 4 Masters e
+  # envia o link/código de ativação para TEST_EMAIL pela Resend.
+  activation-mailer:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+      target: builder
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}
+      AUDIT_DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}_audit
+      BACKUP_TEST_DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}_backup_test
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+    volumes:
+      - ./tmp/test-data:/tmp/opencode
+    command:
+      - sh
+      - -c
+      - pnpm db:deploy && pnpm db:seed:test && pnpm tsx scripts/send-master-activation.ts && chown -R "$HOST_UID:$HOST_GID" /tmp/opencode
+
   app:
     build:
       context: .
@@ -26,9 +51,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      activation-mailer:
+        condition: service_started
     env_file: [.env]
     environment:
       DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}
+      AUDIT_DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}_audit
+      BACKUP_TEST_DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}_backup_test
     ports: ["${PORT:? PORT is required}:3000"]
 
 volumes:

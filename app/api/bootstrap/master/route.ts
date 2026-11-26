@@ -3,11 +3,11 @@ import { jsonError } from "@/app/lib/api/responses";
 import { bootstrapMaster } from "@/app/lib/auth/bootstrap";
 import { getClientIp } from "@/app/lib/request-context";
 import { assertMaintenanceSecret } from "@/app/lib/security/maintenance";
-import { InstitucionalEmailSchema } from "@/app/types/common";
+import { EmailSchema } from "@/app/types/common";
 
 const BootstrapSchema = z.object({
   name: z.string().trim().min(3).max(150),
-  email: InstitucionalEmailSchema,
+  personalEmail: EmailSchema,
 });
 
 export async function POST(request: Request) {

@@ -90,7 +90,11 @@ export class AccountService {
     assertCanAssignRole(actor, input.role);
     if (!actor.actorId) throw forbidden("Sessão sem usuário identificado");
 
-    const existing = await this.users.findByEmail(input.email);
+    // O institucional é gerado a cada cadastro; o e-mail pessoal identifica a
+    // pessoa quando ela já tem conta (evita duplicar o mesmo titular).
+    const existing =
+      (await this.users.findByEmail(input.email)) ??
+      (input.personalEmail ? await this.users.findByEmail(input.personalEmail) : null);
 
     if (roleRequiresApproval(input.role)) {
       const reason = requestReason?.trim();

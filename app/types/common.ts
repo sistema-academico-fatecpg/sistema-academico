@@ -53,6 +53,9 @@ export const EmailSchema = z
   .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "E-mail inválido");
 export type Email = z.infer<typeof EmailSchema>;
 
+/** Domínio padrão dos e-mails institucionais gerados pelo sistema (8.4.1). */
+export const DEFAULT_INSTITUTIONAL_EMAIL_DOMAIN = "academico.com";
+
 export const InstitucionalEmailSchema = EmailSchema;
 export type InstitucionalEmail = z.infer<typeof InstitucionalEmailSchema>;
 

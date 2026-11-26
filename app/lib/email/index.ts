@@ -4,6 +4,7 @@ export {
   emailTemplates,
   passwordResetEmail,
   securityAlertEmail,
+  testAccountsSummaryEmail,
 } from "./templates";
 export {
   ConsoleEmailTransport,

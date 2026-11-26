@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sistema Acadêmico · FATECPG",
+  title: "Sistema Acadêmico",
   description: "Sistema acadêmico institucional com segurança desde a concepção.",
   robots: { index: false, follow: false },
 };
