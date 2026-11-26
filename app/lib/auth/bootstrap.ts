@@ -2,13 +2,15 @@ import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
 import { db } from "@/app/lib/db";
 import { UserRepository } from "@/app/repositories/user.repository";
-import type { InstitucionalEmail, UserId } from "@/app/types/common";
+import type { UserId } from "@/app/types/common";
 import { AccountService } from "./account-service";
 import { conflict } from "./errors";
+import { generateInstitutionalEmail } from "./institutional-email";
 
 export type BootstrapMasterInput = {
   name: string;
-  email: InstitucionalEmail;
+  /** Endereço real do titular; recebe o link e nunca é usado para login. */
+  personalEmail: string;
   ipAddress?: string;
 };
 
@@ -29,10 +31,14 @@ export async function bootstrapMaster(input: BootstrapMasterInput) {
   const users = new UserRepository();
   const accountService = new AccountService();
   const audit = createAuditService();
+  const email = await generateInstitutionalEmail(input.name, async (candidate) =>
+    Boolean(await users.findByEmail(candidate)),
+  );
 
   const user = await users.create({
     name: input.name,
-    email: input.email,
+    email,
+    personalEmail: input.personalEmail,
     role: "ADMIN_MASTER",
     createdBy: null,
   });

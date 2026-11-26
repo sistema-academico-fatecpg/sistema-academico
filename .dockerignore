@@ -1,0 +1,10 @@
+# Nunca versionar/copiar segredos ou artefatos locais para dentro da imagem.
+.env*
+!.env.example
+node_modules
+.next
+coverage
+tmp
+.docker
+.git
+*.log

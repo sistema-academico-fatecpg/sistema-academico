@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   description: "Aviso de privacidade e direitos dos titulares de dados pessoais (LGPD).",
 };
 
-const DPO_EMAIL = process.env.DPO_EMAIL ?? "dpo@fatecpg.edu.br";
+const DPO_EMAIL = process.env.DPO_EMAIL ?? "dpo@academico.com";
 
 export default function PrivacyPage() {
   return (

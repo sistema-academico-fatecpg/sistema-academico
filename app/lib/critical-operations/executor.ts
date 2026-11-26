@@ -132,7 +132,12 @@ export class CriticalOperationExecutor {
       }
 
       await deliverActivation(
-        { id: created.id, name: created.name, email: created.email },
+        {
+          id: created.id,
+          name: created.name,
+          email: created.email,
+          personalEmail: created.personalEmail,
+        },
         new TokenService(new TokenRepository(client)),
       );
 

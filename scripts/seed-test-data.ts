@@ -24,11 +24,25 @@ const db = new PrismaClient({ adapter: new PrismaPg(databaseUrl) });
 const TEST_EMAIL = process.env.TEST_EMAIL?.trim().toLowerCase();
 /** Opt-in: envia os links de ativação por e-mail (exige RESEND_API_KEY). */
 const SEND_EMAIL = process.env.TEST_DATA_SEND_EMAIL === "1";
-const DOMAIN = "fatecpg.edu.br";
-const mail = (local: string) => `${local}@${DOMAIN}`;
+const DOMAIN = process.env.INSTITUTIONAL_EMAIL_DOMAIN?.trim().toLowerCase() || "academico.com";
+/** Códigos fixos apenas para a massa de teste (em produção são aleatórios). */
+const TEST_CODES: Record<string, string> = {
+  coord: "a1b2c3",
+  coord2: "b2c3d4",
+  coord3: "c3d4e5",
+  coord4: "d4e5f6",
+  sec1: "e5f6a1",
+  prof1: "f6a1b2",
+  aluno1: "a2b3c4",
+  aluno2: "b3c4d5",
+  auditor1: "c4d5e6",
+  infra1: "d5e6f7",
+};
+const mail = (local: string) => `${local}${TEST_CODES[local] ?? "000000"}@${DOMAIN}`;
 
 type Activation = {
-  email: string;
+  institutionalEmail: string;
+  personalEmail: string | null;
   name: string;
   role: string;
   url: string;
@@ -64,6 +78,7 @@ async function upsertUser(input: {
   name: string;
   role: string;
   registrationNumber?: string;
+  personalEmail?: string;
 }) {
   let user = await db.user.findUnique({ where: { email: input.email } });
   if (!user) {
@@ -71,9 +86,22 @@ async function upsertUser(input: {
       data: {
         name: input.name,
         email: input.email,
+        personalEmail: input.personalEmail ?? null,
         registrationNumber: input.registrationNumber ?? null,
         status: "PENDING_ACTIVATION",
         emailVerified: false,
+      },
+    });
+  } else if (
+    user.name !== input.name ||
+    (input.personalEmail && user.personalEmail !== input.personalEmail)
+  ) {
+    // Remove nomes legados que citavam TEST_EMAIL e mantém o pessoal atualizado.
+    user = await db.user.update({
+      where: { id: user.id },
+      data: {
+        name: input.name,
+        personalEmail: input.personalEmail ?? user.personalEmail,
       },
     });
   }
@@ -111,7 +139,7 @@ async function upsertUser(input: {
     },
   });
 
-  const url = activationUrl(token);
+  const url = activationUrl(token, code);
 
   if (SEND_EMAIL) {
     try {
@@ -119,8 +147,9 @@ async function upsertUser(input: {
         accountActivationEmail({
           to: user.email,
           name: input.name,
+          institutionalEmail: user.email,
+          personalEmail: null,
           activationUrl: url,
-          code,
           validHours: 24,
         }),
       );
@@ -136,7 +165,8 @@ async function upsertUser(input: {
   }
 
   activations.push({
-    email: user.email,
+    institutionalEmail: user.email,
+    personalEmail: user.personalEmail,
     name: input.name,
     role: input.role,
     url,
@@ -145,18 +175,60 @@ async function upsertUser(input: {
   return user;
 }
 
+/** Migra o formato anterior (com "+") para o padrão nomecodigo@dominio. */
+async function migrateLegacyEmails(): Promise<void> {
+  const legacy = new Map<string, string>();
+  for (const local of Object.keys(TEST_CODES)) {
+    legacy.set(`${local}+${TEST_CODES[local]}@${DOMAIN}`, mail(local));
+  }
+  if (TEST_EMAIL) legacy.set(TEST_EMAIL, mail("coord"));
+
+  for (const [oldEmail, newEmail] of legacy) {
+    if (oldEmail === newEmail) continue;
+    const [oldUser, target] = await Promise.all([
+      db.user.findUnique({ where: { email: oldEmail } }),
+      db.user.findUnique({ where: { email: newEmail } }),
+    ]);
+    if (!oldUser) continue;
+    if (!target) {
+      await db.user.update({
+        where: { id: oldUser.id },
+        data: {
+          email: newEmail,
+          personalEmail: oldEmail === TEST_EMAIL ? oldEmail : oldUser.personalEmail,
+        },
+      });
+    } else {
+      if (oldEmail === TEST_EMAIL) {
+        await db.user.update({
+          where: { id: target.id },
+          data: { personalEmail: oldEmail },
+        });
+      }
+      if (oldUser.status === "ACTIVE") {
+        await db.user.update({ where: { id: oldUser.id }, data: { status: "INACTIVE" } });
+      }
+    }
+  }
+}
+
 async function main() {
   await syncRolesAndPermissions(db);
+  await migrateLegacyEmails();
 
-  // 8.1.2: três contas Master. A primeira usa TEST_EMAIL, se definido.
+  // 8.1.2 exige três contas Master; a massa de teste cria um quarto Master
+  // apenas para permitir aprovações com múltiplos titulares em desenvolvimento.
+  // TEST_EMAIL é o e-mail PESSOAL: o institucional é sempre gerado.
   const masters = await Promise.all([
     upsertUser({
-      email: TEST_EMAIL ?? mail("coord"),
-      name: TEST_EMAIL ? "Coordenação (TEST_EMAIL)" : "Coordenação",
+      email: mail("coord"),
+      name: "Coordenação",
       role: "ADMIN_MASTER",
+      personalEmail: TEST_EMAIL,
     }),
     upsertUser({ email: mail("coord2"), name: "Vice-coordenação", role: "ADMIN_MASTER" }),
     upsertUser({ email: mail("coord3"), name: "Coordenação substituta", role: "ADMIN_MASTER" }),
+    upsertUser({ email: mail("coord4"), name: "Master adicional (teste)", role: "ADMIN_MASTER" }),
   ]);
   const secondary = await upsertUser({
     email: mail("sec1"),
@@ -575,7 +647,9 @@ async function main() {
   console.log(
     `Perfis: ${6} · usuários: ${activations.length} · cursos: 1 · períodos: 1 · turmas: 3`,
   );
-  console.log(`Usuários de teste (sem senha): ${activations.map((item) => item.email).join(", ")}`);
+  console.log(
+    `Usuários de teste (sem senha): ${activations.map((item) => item.institutionalEmail).join(", ")}`,
+  );
   console.log(`Links de ativação e códigos (SECRETOS, uso único): ${outputFile}`);
   if (SEND_EMAIL) {
     const sent = emailResults.filter((item) => !item.skipped).length;

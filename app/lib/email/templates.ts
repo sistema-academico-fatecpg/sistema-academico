@@ -31,26 +31,69 @@ function layout(title: string, body: string): string {
 export function accountActivationEmail(input: {
   to: string;
   name: string;
+  /** Conta criada no sistema — exibida para que o titular saiba qual e-mail usar no login. */
+  institutionalEmail: string;
+  personalEmail?: string | null;
+  /** Já contém token e código de confirmação. */
   activationUrl: string;
-  code: string;
   validHours?: number;
 }): EmailMessage {
   const validHours = input.validHours ?? 24;
+  const contactLine = input.personalEmail
+    ? "Enviamos este link para o e-mail pessoal cadastrado."
+    : "";
   return {
     kind: "ACCOUNT_ACTIVATION",
     to: input.to,
     subject: "Ative sua conta no Sistema Acadêmico",
-    text: `Olá, ${input.name}.\n\nAtive sua conta acessando: ${input.activationUrl}\n\nCódigo de confirmação: ${input.code} (válido por 10 minutos).\n\nO link é de uso único e expira em ${validHours} horas.`,
+    text:
+      `Olá, ${input.name}.\n\n` +
+      `E-mail institucional da sua conta: ${input.institutionalEmail}\n` +
+      `${contactLine ? `${contactLine}\n` : ""}\n` +
+      `Ative sua conta acessando: ${input.activationUrl}\n\n` +
+      `O link já contém o código de confirmação de 6 dígitos: ao abri-lo, o campo será preenchido automaticamente. ` +
+      `O código é válido por 10 minutos e o link é de uso único, com expiração em ${validHours} horas.\n\n` +
+      `Use o e-mail institucional acima para entrar no sistema depois da ativação.`,
     html: layout(
       "Ative sua conta",
       `<p>Olá, ${escapeHtml(input.name)}.</p>
-       <p>Para criar sua própria senha, acesse o link abaixo. O link é de uso único e expira em ${validHours} horas.</p>
+       <p><strong>E-mail institucional da sua conta:</strong> ${escapeHtml(input.institutionalEmail)}. Use-o para entrar no sistema.</p>
+       ${input.personalEmail ? `<p style="font-size:13px;color:#71717a">Enviamos este link para o e-mail pessoal cadastrado.</p>` : ""}
+       <p>Para criar sua própria senha, acesse o link abaixo. Ele já contém o código de confirmação: a página preenche o campo de 6 dígitos automaticamente.</p>
        <p style="margin:24px 0">
          <a href="${escapeHtml(input.activationUrl)}" style="background:#18181b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">Ativar conta</a>
        </p>
-       <p>Ao abrir o link, informe o código de confirmação enviado junto com esta mensagem:</p>
-       <p style="font-size:28px;letter-spacing:6px;font-weight:bold;margin:16px 0">${escapeHtml(input.code)}</p>
-       <p style="font-size:13px;color:#71717a">O código é de uso único e válido por 10 minutos. Se você não solicitou o cadastro, ignore esta mensagem.</p>`,
+       <p style="font-size:13px;color:#71717a">O código é válido por 10 minutos e o link é de uso único, expirando em ${validHours} horas. Se você não solicitou o cadastro, ignore esta mensagem.</p>`,
+    ),
+  };
+}
+
+/**
+ * Resumo da massa de teste: o titular recebe a lista de e-mails institucionais
+ * criados, sem expor tokens/códigos (que ficam apenas no link individual).
+ */
+export function testAccountsSummaryEmail(input: {
+  to: string;
+  accounts: Array<{ name: string; email: string; role: string; status: string }>;
+}): EmailMessage {
+  const rows = input.accounts
+    .map(
+      (account) =>
+        `<li>${escapeHtml(account.name)} — ${escapeHtml(account.email)} (${escapeHtml(account.role)}, ${escapeHtml(account.status)})</li>`,
+    )
+    .join("");
+  const textRows = input.accounts
+    .map((account) => `- ${account.name} — ${account.email} (${account.role}, ${account.status})`)
+    .join("\n");
+  return {
+    kind: "SECURITY_ALERT",
+    to: input.to,
+    subject: "E-mails institucionais da massa de teste",
+    text: `Contas criadas para teste:\n\n${textRows}\n\nUse o e-mail institucional de cada conta para entrar após ativá-la.`,
+    html: layout(
+      "Contas de teste",
+      `<p>Contas criadas para teste:</p><ul>${rows}</ul>
+       <p style="font-size:13px;color:#71717a">Links e códigos de ativação são individuais e de uso único; não são repetidos neste resumo.</p>`,
     ),
   };
 }
@@ -114,6 +157,7 @@ export function securityAlertEmail(input: {
 
 export const emailTemplates = {
   accountActivationEmail,
+  testAccountsSummaryEmail,
   emailConfirmationCodeEmail,
   passwordResetEmail,
   securityAlertEmail,

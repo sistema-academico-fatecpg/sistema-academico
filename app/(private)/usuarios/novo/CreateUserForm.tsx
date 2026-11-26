@@ -34,7 +34,7 @@ export function CreateUserForm({ creatableRoles }: { creatableRoles: RoleName[] 
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         name: form.get("name"),
-        email: form.get("email"),
+        personalEmail: form.get("personalEmail"),
         registrationNumber: form.get("registrationNumber") || null,
         role: form.get("role"),
         requestReason: form.get("requestReason"),
@@ -55,8 +55,8 @@ export function CreateUserForm({ creatableRoles }: { creatableRoles: RoleName[] 
 
     setMessage(
       data.status === "PENDING_APPROVAL"
-        ? "Cadastro enviado para dupla aprovação do Admin Master."
-        : "Usuário cadastrado. O link de ativação foi enviado ao titular; nenhuma senha foi definida por você.",
+        ? "Cadastro enviado para dupla aprovação do Admin Master. O e-mail institucional será gerado na aprovação."
+        : `Usuário cadastrado. E-mail institucional: ${data.user.email}. O link de ativação foi enviado ao e-mail pessoal; nenhuma senha foi definida por você.`,
     );
     event.currentTarget.reset();
   }
@@ -72,9 +72,14 @@ export function CreateUserForm({ creatableRoles }: { creatableRoles: RoleName[] 
         <Input name="name" required />
       </Label>
       <Label>
-        E-mail institucional
-        <Input name="email" required type="email" />
+        E-mail pessoal
+        <Input name="personalEmail" required type="email" />
       </Label>
+      <p className="-mt-2 text-xs text-slate-500">
+        É para cá que o titular recebe o link de ativação. O e-mail institucional (
+        <code>nomecodigo@academico.com</code>) é gerado automaticamente, informado no e-mail e usado
+        no login — você não precisa digitá-lo.
+      </p>
       <Label>
         Matrícula (opcional)
         <Input name="registrationNumber" />

@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { authClient } from "@/app/lib/auth/client";
+import { savePendingTotpSetup } from "@/app/lib/auth/totp-setup";
 
-export function AtivarForm({ token }: { token: string }) {
-  const [code, setCode] = useState("");
+export function AtivarForm({ token, code: initialCode }: { token: string; code: string }) {
+  const router = useRouter();
+  const [code, setCode] = useState(initialCode);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string[] | null>(null);
@@ -22,6 +26,29 @@ export function AtivarForm({ token }: { token: string }) {
     );
   }
 
+  /** Aproveita a senha recém-criada: a tela TOTP não pede a senha outra vez. */
+  async function startTotpSetup() {
+    setError(null);
+    setLoading(true);
+    const result = await authClient.twoFactor.enable({ password });
+    setLoading(false);
+    if (result.error || result.data?.method !== "totp") {
+      setError([
+        result.error?.message ?? "Não foi possível iniciar a configuração do autenticador.",
+      ]);
+      return;
+    }
+    if (!result.data.totpURI || !result.data.backupCodes) {
+      setError(["O autenticador não retornou a chave de configuração."]);
+      return;
+    }
+    savePendingTotpSetup({
+      totpURI: result.data.totpURI,
+      backupCodes: result.data.backupCodes,
+    });
+    router.push("/configurar-2fa");
+  }
+
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -35,12 +62,31 @@ export function AtivarForm({ token }: { token: string }) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ token, code, password }),
     });
-    const data = await response.json();
+    const data = (await response.json()) as {
+      requiresTwoFactorSetup?: boolean;
+      sessionStarted?: boolean;
+      error?: string;
+      details?: Array<{ message: string } | string>;
+    };
     setLoading(false);
     if (!response.ok) {
-      setError(Array.isArray(data.details) ? data.details : [data.error ?? "Falha na ativação"]);
+      setError(
+        Array.isArray(data.details)
+          ? data.details.map((item) => (typeof item === "string" ? item : item.message))
+          : [data.error ?? "Falha na ativação"],
+      );
       return;
     }
+
+    if (!data.sessionStarted) {
+      router.push("/login");
+      return;
+    }
+    if (data.requiresTwoFactorSetup) {
+      await startTotpSetup();
+      return;
+    }
+    // Alunos não são obrigados a usar TOTP: oferecemos as duas opções.
     setDone(true);
   }
 
@@ -49,11 +95,26 @@ export function AtivarForm({ token }: { token: string }) {
       <div>
         <h1 className="text-xl font-semibold">Conta ativada</h1>
         <p className="mt-3 text-sm text-zinc-600">
-          Sua senha foi definida. Entre no sistema para concluir a configuração.
+          Sua senha foi definida e você já está autenticado. Para alunos, o segundo fator é
+          opcional.
         </p>
-        <Link className="mt-6 inline-block font-medium underline" href="/login">
-          Ir para o login
-        </Link>
+        <div className="mt-6 flex flex-wrap gap-4">
+          <button
+            className="rounded-lg bg-zinc-900 px-4 py-2 font-medium text-white"
+            onClick={() => router.push("/dashboard")}
+            type="button"
+          >
+            Entrar diretamente
+          </button>
+          <button
+            className="rounded-lg border border-zinc-300 px-4 py-2 font-medium disabled:opacity-50"
+            disabled={loading}
+            onClick={() => void startTotpSetup()}
+            type="button"
+          >
+            {loading ? "Gerando chave..." : "Configurar autenticador (opcional)"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -62,8 +123,8 @@ export function AtivarForm({ token }: { token: string }) {
     <form className="space-y-4" onSubmit={onSubmit}>
       <h1 className="text-xl font-semibold">Ativação de conta</h1>
       <p className="text-sm text-zinc-600">
-        Informe o código de 6 dígitos recebido por e-mail e crie sua própria senha. O link é de uso
-        único e a senha nunca é definida por administradores.
+        Crie sua própria senha. O código de 6 dígitos veio junto com o link e já foi preenchido; ele
+        continua sendo conferido no servidor. A senha nunca é definida por administradores.
       </p>
 
       <label className="block text-sm font-medium">
@@ -117,6 +178,11 @@ export function AtivarForm({ token }: { token: string }) {
       >
         {loading ? "Ativando..." : "Definir senha e ativar"}
       </button>
+      <p className="text-xs text-zinc-500">
+        <Link className="underline" href="/login">
+          Já tenho conta: ir para o login
+        </Link>
+      </p>
     </form>
   );
 }

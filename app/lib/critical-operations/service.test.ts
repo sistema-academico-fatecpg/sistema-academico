@@ -146,7 +146,7 @@ describe("fluxo de dupla aprovação (7.5, 7.6 e 8.8)", () => {
       authorizationDocument: "Ofício 9/2026",
       payload: {
         action: "CREATE_USER",
-        user: { name: "Nova Coordenação", email: "nova@fatecpg.edu.br", role: "ADMIN_MASTER" },
+        user: { name: "Nova Coordenação", email: "nova@academico.com", role: "ADMIN_MASTER" },
       },
     });
 
@@ -255,7 +255,7 @@ describe("fluxo de dupla aprovação (7.5, 7.6 e 8.8)", () => {
 
     await service.requestEmergencyMaster({
       name: "Coordenação Emergencial",
-      email: "emergencial@fatecpg.edu.br",
+      email: "emergencial@academico.com",
       authorizationDocument: "Ofício 42/2026 da direção",
       requestedByAuditorId: auditor,
       ipAddress: "127.0.0.1",
@@ -277,7 +277,7 @@ describe("fluxo de dupla aprovação (7.5, 7.6 e 8.8)", () => {
     await expect(
       service.requestEmergencyMaster({
         name: "Coordenação Emergencial",
-        email: "emergencial@fatecpg.edu.br",
+        email: "emergencial@academico.com",
         authorizationDocument: "Ofício 42/2026 da direção",
         requestedByAuditorId: auditor,
         ipAddress: "127.0.0.1",
@@ -295,7 +295,7 @@ describe("fluxo de dupla aprovação (7.5, 7.6 e 8.8)", () => {
           action: "CREATE_USER",
           user: {
             name: "Nova Coordenação",
-            email: "nova@fatecpg.edu.br",
+            email: "nova@academico.com",
             role: "ADMIN_MASTER",
           },
         },
@@ -315,7 +315,7 @@ describe("fluxo de dupla aprovação (7.5, 7.6 e 8.8)", () => {
         action: "CREATE_USER",
         user: {
           name: "Nova Coordenação",
-          email: "nova@fatecpg.edu.br",
+          email: "nova@academico.com",
           role: "ADMIN_MASTER",
         },
       },

@@ -27,9 +27,51 @@ export function jsonError(error: unknown): Response {
     const status = error.code === "NOT_FOUND" ? 404 : error.code === "CONFLICT" ? 409 : 400;
     return Response.json({ error: error.message, code: error.code }, { status });
   }
-  // Nunca expor detalhes internos ao cliente (seção 12.7).
-  console.error("[api] erro não tratado", error instanceof Error ? error.name : "unknown");
+  // Nunca expor detalhes internos ao cliente (seção 12.7), mas registrar o
+  // motivo real no servidor para permitir diagnóstico sem vazar segredos.
+  logUnexpectedError(error);
   return Response.json({ error: "Erro interno", code: "INTERNAL" }, { status: 500 });
+}
+
+/** Remove e-mails e valores de query que possam conter tokens/códigos. */
+function sanitizeForLog(value: string): string {
+  return value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, (email) => {
+      const [local = "", domain = ""] = email.split("@");
+      return `${local.slice(0, 2)}***@${domain}`;
+    })
+    .replace(/((?:token|code|secret|key|password|api[_-]?key)=)[^&\s"']+/gi, "$1[REDACTED]")
+    .slice(0, 1200);
+}
+
+export function logUnexpectedError(error: unknown): void {
+  const details =
+    error instanceof Error
+      ? {
+          name: error.name,
+          code:
+            "code" in error && typeof error.code === "string"
+              ? sanitizeForLog(error.code)
+              : undefined,
+          message: sanitizeForLog(error.message || String(error)),
+          stack: sanitizeForLog(error.stack ?? "")
+            .split("\n")
+            .slice(0, 6)
+            .join("\n"),
+        }
+      : {
+          name: "unknown",
+          message: sanitizeForLog(
+            (() => {
+              try {
+                return JSON.stringify(error);
+              } catch {
+                return String(error);
+              }
+            })(),
+          ),
+        };
+  console.error("[api] erro não tratado", details);
 }
 
 export function actorFrom(user: { id: string; roles: RoleName[] }, request: Request) {

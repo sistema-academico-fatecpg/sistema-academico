@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
+import { useEffect, useState } from "react";
 import { authClient } from "@/app/lib/auth/client";
+import {
+  clearPendingTotpSetup,
+  readPendingTotpSetup,
+  savePendingTotpSetup,
+} from "@/app/lib/auth/totp-setup";
 import { Button, FormFeedback, Input, Label } from "@/components/ui";
 
 export function SetupForm() {
@@ -12,6 +18,16 @@ export function SetupForm() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  // Quando a configuração começa durante a ativação, a chave já vem preparada
+  // e a senha não é solicitada novamente.
+  useEffect(() => {
+    const pending = readPendingTotpSetup();
+    if (pending) {
+      setTotpURI(pending.totpURI);
+      setBackupCodes(pending.backupCodes);
+    }
+  }, []);
 
   async function enable(event: React.FormEvent) {
     event.preventDefault();
@@ -27,6 +43,10 @@ export function SetupForm() {
     }
     setTotpURI(result.data.totpURI);
     setBackupCodes(result.data.backupCodes);
+    savePendingTotpSetup({
+      totpURI: result.data.totpURI,
+      backupCodes: result.data.backupCodes,
+    });
   }
 
   async function confirm(event: React.FormEvent) {
@@ -47,6 +67,7 @@ export function SetupForm() {
       setError("Não foi possível registrar os códigos de recuperação. Procure a secretaria.");
       return;
     }
+    clearPendingTotpSetup();
     setDone(true);
   }
 
@@ -74,9 +95,17 @@ export function SetupForm() {
       <form className="space-y-4" onSubmit={confirm}>
         <h1 className="text-xl font-semibold">Confirmar autenticador</h1>
         <p className="text-sm text-zinc-600">
-          Cadastre a chave abaixo no aplicativo autenticador e informe o código gerado.
+          Escaneie o QR code com o aplicativo autenticador do celular e informe o código gerado.
         </p>
-        <code className="block break-all rounded-lg bg-zinc-100 p-3 text-xs">{totpURI}</code>
+        <div className="flex justify-center rounded-lg border border-zinc-200 bg-white p-4">
+          <QRCodeSVG value={totpURI} size={208} level="M" includeMargin />
+        </div>
+        <details className="text-sm text-zinc-600">
+          <summary className="cursor-pointer">
+            Não consigo ler o QR code: usar a chave manual
+          </summary>
+          <code className="mt-2 block break-all rounded-lg bg-zinc-100 p-3 text-xs">{totpURI}</code>
+        </details>
         <Label>
           Código de 6 dígitos
           <Input
