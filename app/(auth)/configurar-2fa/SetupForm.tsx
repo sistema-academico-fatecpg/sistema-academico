@@ -40,6 +40,10 @@ export function SetupForm() {
   async function enable(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    if (!password) {
+      setError("Informe sua senha para gerar a chave.");
+      return;
+    }
     const result = await authClient.twoFactor.enable({ password });
     if (result.error) {
       setError(result.error.message ?? "Não foi possível iniciar a configuração");
@@ -51,6 +55,8 @@ export function SetupForm() {
     }
     setTotpURI(result.data.totpURI);
     setBackupCodes(result.data.backupCodes);
+    setCode("");
+    setPassword("");
     savePendingTotpSetup({
       totpURI: result.data.totpURI,
       backupCodes: result.data.backupCodes,
@@ -140,6 +146,25 @@ export function SetupForm() {
         <Button className="w-full" type="submit">
           Confirmar código
         </Button>
+        <details className="text-sm text-zinc-600">
+          <summary className="cursor-pointer">O código continua inválido: gerar nova chave</summary>
+          <p className="mt-2">
+            A chave pode ter mudado após uma reativação. Informe sua senha para gerar outra chave,
+            exclua a entrada antiga do autenticador e leia o novo QR code.
+          </p>
+          <Label>
+            Senha atual
+            <Input
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              type="password"
+              value={password}
+            />
+          </Label>
+          <Button className="mt-2" type="button" onClick={(event) => void enable(event)}>
+            Gerar nova chave
+          </Button>
+        </details>
       </form>
     );
   }
