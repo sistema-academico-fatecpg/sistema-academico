@@ -93,10 +93,12 @@ alertas de segurança) também usam o mesmo transporte.
 
 O serviço `activation-mailer` do `docker-compose.yml` roda uma vez, depois que
 o Postgres fica saudável: aplica as migrações, executa o seed de teste e envia
-**apenas um** e-mail de ativação para `TEST_EMAIL` pela Resend. Ele também
-reabre a conta como `PENDING_ACTIVATION` e atualiza o link/código no arquivo
-protegido montado em `./tmp/test-data` (equivalente a `/tmp/opencode` dentro do
-container). Assim, cada subida dos containers deixa o fluxo pronto para teste:
+**apenas um** e-mail de ativação para `TEST_EMAIL` pela Resend. Contas ainda
+pendentes têm o link/código atualizado no arquivo protegido montado em
+`./tmp/test-data` (equivalente a `/tmp/opencode` dentro do container); contas já
+`ACTIVE` são preservadas, com senha, sessão e chave TOTP intactas. Assim, cada
+subida dos containers deixa o fluxo pronto para teste sem invalidar o
+autenticador de quem já ativou:
 
 ```bash
 docker compose up -d --build
@@ -159,10 +161,14 @@ para `/configurar-2fa` usando a senha recém-criada — sem digitá-la de novo.
 Alunos veem a opção de entrar diretamente no painel ou configurar o
 autenticador voluntariamente.
 
-> **Atenção:** cada ativação (ou reexecução do seed/seed de teste) gera uma
-> **nova chave TOTP**. Se o banco foi recriado ou a conta foi reativada, apague
-> a entrada antiga do aplicativo autenticador e escaneie o QR atual da tela de
-> configuração; códigos da chave antiga sempre retornarão `Código inválido`.
+> **Atenção:** a chave TOTP muda quando você ativa a conta novamente, recria o
+> volume do Postgres (`docker compose down -v`) ou usa “Gerar nova chave” na
+> tela de configuração. Reexecutar o seed com a conta já `ACTIVE` **não** muda a
+> chave. Se o banco foi recriado, apague a entrada antiga do autenticador e
+> adicione a chave atual da tela; códigos da chave antiga sempre retornarão
+> `Código inválido`, mesmo com relógios corretos. Use `docker compose down`
+> (sem `-v`) para reiniciar os containers sem apagar o banco.
+>
 > O servidor aceita desvios de até 120 s e também códigos gerados com
 > SHA-256/512 ou janela de 60 s, mas o código deve ser digitado logo após
 > aparecer no aplicativo.

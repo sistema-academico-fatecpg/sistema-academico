@@ -135,7 +135,7 @@ export function SetupForm() {
         showError(
           "confirm",
           result.error.code === "INVALID_CODE"
-            ? "Esse não é o código do aplicativo. Digite apenas os 6 dígitos mostrados no autenticador para esta chave. Se o código estiver correto, confira a data/hora do aparelho."
+            ? "Esse não é o código da chave exibida nesta tela. Digite apenas os 6 dígitos do autenticador. Se o autenticador estiver com uma chave antiga (por exemplo, após recriar o banco), apague-a, adicione a chave atual e tente de novo."
             : (result.error.message ?? "Código inválido"),
         );
         return;
