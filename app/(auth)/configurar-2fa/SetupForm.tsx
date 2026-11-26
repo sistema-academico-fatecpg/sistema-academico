@@ -62,7 +62,11 @@ export function SetupForm() {
     setError(null);
     const result = await authClient.twoFactor.verifyTotp({ code });
     if (result.error) {
-      setError(result.error.message ?? "Código inválido");
+      setError(
+        result.error.code === "INVALID_CODE"
+          ? "Código inválido. Confira a data/hora do aparelho e use a chave mostrada nesta tela. Se a chave mudou, exclua o cadastro antigo do autenticador e leia o QR novamente."
+          : (result.error.message ?? "Código inválido"),
+      );
       return;
     }
 
