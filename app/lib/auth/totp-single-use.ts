@@ -2,23 +2,40 @@ import { createHash } from "node:crypto";
 import type { BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { db } from "@/app/lib/db";
+import { resolveTotpUserId, type TotpHookContext } from "./totp-user";
 
-/** Reserva de código: 5 minutos (cobre a janela TOTP de 30s com folga). */
-const RESERVATION_TTL_MS = 5 * 60_000;
+/** Registro de código usado: 5 minutos (cobre a janela TOTP de 30 s com folga). */
+const USED_CODE_TTL_MS = 5 * 60_000;
 
 const VERIFY_TOTP_PATH = "/two-factor/verify-totp";
+const USED_KEY = Symbol("totp-used-code-key");
+
+type MiddlewareContext = TotpHookContext & {
+  body?: { code?: string };
+  context: TotpHookContext["context"] & {
+    returned?: { token?: unknown };
+    [USED_KEY]?: string;
+  };
+};
+
+function contextOf(ctx: unknown): MiddlewareContext {
+  return ctx as MiddlewareContext;
+}
+
+function reusedCodeError(): APIError {
+  return new APIError("BAD_REQUEST", {
+    message: "Código de verificação inválido ou já utilizado",
+    code: "TOTP_ALREADY_USED",
+  });
+}
 
 /**
  * 8.4.2: "Cada código é aceito uma única vez".
  *
- * O plugin twoFactor do Better Auth já consome o desafio de 2FA no sucesso e
- * aplica `accountLockout`, mas um mesmo código TOTP poderia ser reapresentado
- * dentro da janela de 30 s em um novo desafio. Este wrapper adiciona um hook
- * `before` que reserva atomicamente o par (desafio, código): uma segunda
- * tentativa com o mesmo par falha com erro genérico.
- *
- * A chave usa o cabeçalho de cookies do desafio, portanto não há colisão entre
- * usuários diferentes que por acaso gerem o mesmo código de 6 dígitos.
+ * A checagem de reutilização acontece antes da validação do Better Auth, para
+ * que um replay não chegue a criar uma nova sessão. O registro só é gravado
+ * depois de uma validação bem-sucedida: um código digitado errado não é
+ * descartado, evitando que a tentativa correta seguinte seja rejeitada.
  */
 export function withSingleUseTotp(plugin: BetterAuthPlugin): BetterAuthPlugin {
   return {
@@ -29,29 +46,43 @@ export function withSingleUseTotp(plugin: BetterAuthPlugin): BetterAuthPlugin {
         ...(plugin.hooks?.before ?? []),
         {
           matcher: (context) => context.path === VERIFY_TOTP_PATH,
-          handler: createAuthMiddleware(async (ctx) => {
-            const loose = ctx as unknown as {
-              body?: { code?: string };
-              headers?: Headers;
-              request?: { headers?: Headers };
-            };
-            const code = loose.body?.code;
+          handler: createAuthMiddleware(async (rawCtx) => {
+            const ctx = contextOf(rawCtx);
+            const code = ctx.body?.code;
             if (typeof code !== "string" || code.length === 0) return;
-            const cookie =
-              loose.headers?.get("cookie") ?? loose.request?.headers?.get("cookie") ?? "";
-            const key = createHash("sha256").update(`${cookie}|${code}`).digest("hex");
 
-            // Limpeza oportunista sem ler conteúdo de logs.
+            const userId = await resolveTotpUserId(ctx);
+            if (!userId) return;
+            const key = createHash("sha256").update(`${userId}|${code}`).digest("hex");
+            ctx.context[USED_KEY] = key;
+
+            const used = await db.totpUsedCode.findUnique({
+              where: { key },
+              select: { usedAt: true },
+            });
+            if (used && used.usedAt.getTime() > Date.now() - USED_CODE_TTL_MS) {
+              throw reusedCodeError();
+            }
+          }),
+        },
+      ],
+      after: [
+        ...(plugin.hooks?.after ?? []),
+        {
+          matcher: (context) => context.path === VERIFY_TOTP_PATH,
+          handler: createAuthMiddleware(async (rawCtx) => {
+            const ctx = contextOf(rawCtx);
+            const returned = ctx.context.returned;
+            const key = ctx.context[USED_KEY];
+            if (typeof returned?.token !== "string" || !key) return;
+
             await db.totpUsedCode.deleteMany({
-              where: { usedAt: { lt: new Date(Date.now() - RESERVATION_TTL_MS) } },
+              where: { usedAt: { lt: new Date(Date.now() - USED_CODE_TTL_MS) } },
             });
             try {
               await db.totpUsedCode.create({ data: { key } });
             } catch {
-              throw new APIError("BAD_REQUEST", {
-                message: "Código de verificação inválido ou já utilizado",
-                code: "TOTP_ALREADY_USED",
-              });
+              throw reusedCodeError();
             }
           }),
         },
