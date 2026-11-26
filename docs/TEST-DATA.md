@@ -158,3 +158,10 @@ obrigatório (Admin Master/Secundário, Professor, Auditor e Suporte) vão diret
 para `/configurar-2fa` usando a senha recém-criada — sem digitá-la de novo.
 Alunos veem a opção de entrar diretamente no painel ou configurar o
 autenticador voluntariamente.
+
+> **Atenção:** cada ativação (ou reexecução do seed/seed de teste) gera uma
+> **nova chave TOTP**. Se o banco foi recriado ou a conta foi reativada, apague
+> a entrada antiga do aplicativo autenticador e escaneie o QR atual da tela de
+> configuração; códigos da chave antiga sempre retornarão `Código inválido`.
+> O servidor aceita desvios de até 60 s, mas a data/hora do aparelho também
+> deve estar ajustada automaticamente.

@@ -30,7 +30,11 @@ export function LoginForm({ dpoEmail }: { dpoEmail: string }) {
         : await authClient.twoFactor.verifyTotp({ code });
       setLoading(false);
       if (result.error) {
-        setError(result.error.message ?? "Código inválido");
+        setError(
+          result.error.code === "INVALID_CODE"
+            ? "Código inválido. Verifique a data/hora do aparelho. Se a chave foi alterada, use um código de recuperação ou procure a secretaria."
+            : (result.error.message ?? "Código inválido"),
+        );
         return;
       }
       if (useRecoveryCode) {
