@@ -71,7 +71,9 @@ async function roleId(name: string): Promise<string> {
 
 /**
  * Cria (ou reutiliza) um usuário SEM SENHA, atribui o perfil e emite um link
- * de ativação de uso único. Nunca define senha — política 8.2.
+ * de ativação de uso único somente enquanto a conta está pendente. Contas já
+ * ativadas não são reabertas: cada subida do Docker preserva senha, sessão e
+ * chave TOTP do titular. Nunca define senha — política 8.2.
  */
 async function upsertUser(input: {
   email: string;
@@ -110,6 +112,8 @@ async function upsertUser(input: {
     update: {},
     create: { userId: user.id, roleId: await roleId(input.role), assignedBy: null },
   });
+
+  if (user.status !== "PENDING_ACTIVATION") return user;
 
   const token = generateToken();
   const code = generateNumericCode();

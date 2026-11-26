@@ -8,14 +8,30 @@ import { resolveTotpUserId, type TotpHookContext } from "./totp-user";
 const PERIOD_MS = 30_000;
 const DIGITS = 6;
 
-/** Aceita códigos de até duas janelas (60 s) à frente ou atrás do servidor. */
-const EXTRA_WINDOWS = 2;
+type TotpAlgorithm = "sha1" | "sha256" | "sha512";
+
+/**
+ * O servidor usa SHA-1/janelas de 30 s. A tolerância de quatro janelas (120 s)
+ * cobre aço do relógio e o tempo entre ler o código e digitá-lo. Variantes com
+ * SHA-256/512 ou janela de 60 s também são convertidas para o código canônico.
+ */
+const VARIANTS: Array<{ periodMs: number; algorithm: TotpAlgorithm; windows: number }> = [
+  { periodMs: 30_000, algorithm: "sha1", windows: 4 },
+  { periodMs: 30_000, algorithm: "sha256", windows: 4 },
+  { periodMs: 30_000, algorithm: "sha512", windows: 4 },
+  { periodMs: 60_000, algorithm: "sha1", windows: 2 },
+  { periodMs: 60_000, algorithm: "sha256", windows: 2 },
+];
 
 /** Código TOTP RFC 6238 para um contador específico. */
-export function totpCodeAt(secret: string, counter: number): string {
+export function totpCodeAt(
+  secret: string,
+  counter: number,
+  algorithm: TotpAlgorithm = "sha1",
+): string {
   const buffer = Buffer.alloc(8);
   buffer.writeBigUInt64BE(BigInt(counter));
-  const digest = createHmac("sha1", Buffer.from(secret, "utf8")).update(buffer).digest();
+  const digest = createHmac(algorithm, Buffer.from(secret, "utf8")).update(buffer).digest();
   const offset = digest[digest.length - 1] & 0x0f;
   const value =
     ((digest[offset] & 0x7f) << 24) |
@@ -32,9 +48,9 @@ function sameCode(left: string, right: string): boolean {
 }
 
 /**
- * Converte um código gerado com relógio levemente dessincronizado no código da
- * janela atual. Retorna `null` quando o código já é válido na janela atual
- * (o plugin cuida dele) ou quando não corresponde a nenhuma janela aceita.
+ * Converte um código gerado com outro relógio/parâmetro no código da janela
+ * atual. Retorna `null` quando o código já é válido na janela atual (o plugin
+ * cuida dele) ou quando não corresponde a nenhuma variante aceita.
  */
 export function normalizeSkewedTotpCode(
   secret: string,
@@ -42,11 +58,19 @@ export function normalizeSkewedTotpCode(
   nowMs = Date.now(),
 ): string | null {
   if (!/^\d{6}$/.test(code)) return null;
-  const counter = Math.floor(nowMs / PERIOD_MS);
-  for (let offset = -EXTRA_WINDOWS; offset <= EXTRA_WINDOWS; offset += 1) {
-    const candidate = totpCodeAt(secret, counter + offset);
-    if (!sameCode(code, candidate)) continue;
-    return offset === 0 ? null : totpCodeAt(secret, counter);
+  const canonicalCounter = Math.floor(nowMs / PERIOD_MS);
+  const canonicalCode = totpCodeAt(secret, canonicalCounter);
+
+  for (const variant of VARIANTS) {
+    const counter = Math.floor(nowMs / variant.periodMs);
+    for (let offset = -variant.windows; offset <= variant.windows; offset += 1) {
+      const candidate = totpCodeAt(secret, counter + offset, variant.algorithm);
+      if (!sameCode(code, candidate)) continue;
+      if (variant.periodMs === PERIOD_MS && variant.algorithm === "sha1" && offset === 0) {
+        return null;
+      }
+      return canonicalCode;
+    }
   }
   return null;
 }

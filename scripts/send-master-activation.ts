@@ -18,8 +18,9 @@ import { syncRolesAndPermissions } from "../prisma/seed-roles";
 /**
  * Prepara o usuário de teste (TEST_EMAIL) para o fluxo de ativação e envia um
  * link/código novo pela Resend. Usado pelo serviço `activation-mailer` do
- * docker-compose: a cada subida dos containers, o e-mail chega pronto para o
- * teste, sem exigir comando manual.
+ * docker-compose: a cada subida dos containers, contas ainda pendentes recebem
+ * o e-mail pronto para o teste, sem exigir comando manual. Contas já ativadas
+ * são preservadas.
  */
 const databaseUrl = process.env.DATABASE_URL ?? "";
 if (!databaseUrl) throw new Error("DATABASE_URL não definida");
@@ -73,11 +74,12 @@ async function main() {
     create: { userId: user.id, roleId: role.id, assignedBy: null },
   });
 
-  // A ativação só aceita contas pendentes: reabre a conta para reenviar o link.
-  await db.user.update({
-    where: { id: user.id },
-    data: { status: "PENDING_ACTIVATION", emailVerified: false },
-  });
+  // Conta já ativada preserva senha, sessão e chave TOTP. Reabrir a conta a
+  // cada subida invalidava o autenticador do titular e seus links anteriores.
+  if (user.status !== "PENDING_ACTIVATION") {
+    console.log(`Conta ${user.email} já está ${user.status}; nenhum novo link foi emitido.`);
+    return;
+  }
 
   const issued = await new TokenService(new TokenRepository(db)).issue(
     user.id,
