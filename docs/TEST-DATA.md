@@ -59,7 +59,9 @@ link é de uso único e expira em 24 h; o código expira em 10 minutos.
 
 O e-mail pessoal **não** é usado como identificador de conta, não aparece em
 logs nem no corpo das mensagens — apenas como destinatário e no campo
-protegido `personalEmail` desse arquivo local.
+protegido `personalEmail` desse arquivo local. O seed atribui a todos os
+usuários um alias real do `TEST_EMAIL` (por exemplo `seuemail+aluno1@gmail.com`);
+o e-mail institucional é fictício e **nunca** é usado como destinatário.
 
 > Os links **não** aparecem no console nem em logs: a política 10.5 proíbe
 > gravar tokens/códigos em log. O arquivo local é a única cópia em dev.
