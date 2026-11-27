@@ -6,6 +6,7 @@ import { requirePagePermission } from "@/app/lib/auth/page-guard";
 import { UserRepository } from "@/app/repositories/user.repository";
 import { PERMISSIONS } from "@/app/types/roles";
 import { DataTable, Icon, PageHeader } from "@/components";
+import { ResetPasswordButton } from "./ResetPasswordButton";
 import styles from "./styles.module.scss";
 
 export default async function UsersPage() {
@@ -38,6 +39,11 @@ export default async function UsersPage() {
             render: (user) => user.roles.map((role) => role.role.name).join(", "),
           },
           { key: "status", header: "Status" },
+          {
+            key: "actions",
+            header: "Ações",
+            render: (user) => <ResetPasswordButton userId={user.id} userName={user.name} />,
+          },
         ]}
         rows={items}
         rowKey={(user) => user.id}
