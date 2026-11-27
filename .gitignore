@@ -50,3 +50,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# CA local do Caddy (gerada em dev, nunca versionar)
+caddy-local-ca.crt
+certificates/
