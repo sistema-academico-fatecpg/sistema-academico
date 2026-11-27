@@ -2,7 +2,7 @@ import { z } from "zod";
 import { jsonError } from "@/app/lib/api/responses";
 import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
-import { requireUser } from "@/app/lib/auth/session";
+import { requireUserForMfaSetup } from "@/app/lib/auth/session";
 import { hashToken } from "@/app/lib/auth/tokens";
 import { db } from "@/app/lib/db";
 import { getClientIp } from "@/app/lib/request-context";
@@ -19,7 +19,7 @@ const BodySchema = z.object({
  */
 export async function POST(request: Request) {
   try {
-    const actor = await requireUser();
+    const actor = await requireUserForMfaSetup(request.headers);
     const { backupCodes } = BodySchema.parse(await request.json());
 
     const activeTwoFactor = await db.twoFactor.count({

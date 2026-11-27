@@ -130,6 +130,21 @@ export async function requireUser(requestHeaders?: Headers): Promise<Authenticat
   return user;
 }
 
+/**
+ * Exige sessão válida, mas NÃO exige segundo fator já configurado.
+ *
+ * É o equivalente server-side do `skipMfaRedirect` do guard de páginas: usado
+ * apenas nos endpoints da própria tela de configuração. Com `requireUser`,
+ * esses endpoints responderiam 403 MFA_REQUIRED justamente para quem precisa
+ * configurar o 2FA, impedindo a geração da chave e o registro dos códigos de
+ * recuperação (a tela ficaria presa a um botão que sempre falha).
+ */
+export async function requireUserForMfaSetup(requestHeaders?: Headers): Promise<AuthenticatedUser> {
+  const user = await getAuthenticatedUser(requestHeaders);
+  if (!user) throw unauthenticated();
+  return user;
+}
+
 export function actorHasPermission(actor: AuthenticatedUser, permission: Permission): boolean {
   return actor.permissions.has(permission) || hasPermission(actor.roles, permission);
 }
