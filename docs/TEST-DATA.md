@@ -49,19 +49,24 @@ ${TEST_DATA_OUTPUT_DIR:-/tmp/opencode}/test-data-activation.json
 
 Arquivo criado com permissão `0600`. Cada entrada contém:
 
-- `destinatario`: e-mail fictício (`@ficticio.local`), **não enviar**;
+- `destinatario`: e-mail fictício (`@ficticio.local`) marcado como `[MOCK]`,
+  **nunca enviado**;
 - `destinatarioReal`: `true` apenas para o primeiro Admin Master quando
-  `TEST_EMAIL` está definido (verificação pessoal);
+  `TEST_EMAIL` está definido (verificação pessoal). Esse é o **único** e-mail
+  enviado pelo seed, sem variável de opt-in;
 - `emailInstitucional`: conta de login, gerada pelo banco;
 - `matricula`, `perfil`, `codigo` e `url` (já com `token` e `code`).
 
 Os mesmos dados são impressos no console no formato:
 
 ```
-[FICTÍCIO — NÃO ENVIAR] aluno001@ficticio.local | institucional: aluno00220260001@aluno.academico.com | http://localhost:3000/ativar?token=...&code=123456
+[MOCK] aluno001@ficticio.local | institucional: aluno.00120260001@aluno.academico.com | http://localhost:3000/ativar?token=...&code=123456 | MOCK — nunca enviado
 ```
 
-Copie a URL no navegador: o código já vem preenchido e é validado no servidor.
+O primeiro Master aparece como `[REAL]` e recebe o link no `TEST_EMAIL` (desde
+que `RESEND_API_KEY` esteja configurada; sem ela, o transporte de desenvolvimento
+apenas registra o envio como não realizado). Copie a URL no navegador: o código
+já vem preenchido e é validado no servidor.
 Crie uma senha com no mínimo 12 caracteres (maiúscula, minúscula, número e
 especial). No Docker, o arquivo fica montado em `./tmp/test-data` e o serviço
 `seed-test-data` roda uma vez na subida (`docker compose logs -f seed-test-data`).
