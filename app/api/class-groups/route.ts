@@ -3,7 +3,7 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import { jsonError } from "@/app/lib/api/responses";
 import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
-import { notFound, validationError } from "@/app/lib/auth/errors";
+import { conflict, notFound, validationError } from "@/app/lib/auth/errors";
 import { requirePermission } from "@/app/lib/auth/session";
 import { getClientIp } from "@/app/lib/request-context";
 import { ClassGroupRepository } from "@/app/repositories/class-group.repository";
@@ -20,7 +20,9 @@ const QuerySchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    await requirePermission(PERMISSIONS.CLASSES_READ);
+    // A listagem completa é administrativa: alunos/professores já têm listas
+    // escopadas em EnrollmentService/ClassGroupRepository.listForProfessor.
+    await requirePermission(PERMISSIONS.USERS_CREATE);
     const filter = QuerySchema.parse(Object.fromEntries(new URL(request.url).searchParams));
     const groups = await new ClassGroupRepository().list(filter);
     return Response.json({
@@ -60,6 +62,15 @@ export async function POST(request: Request) {
       if (!professor?.roles.some((item) => item.role.name === "PROFESSOR")) {
         throw validationError("Professor informado não possui o perfil PROFESSOR");
       }
+      if (professor.status !== "ACTIVE") {
+        throw validationError("Professor informado não está ativo");
+      }
+      const duplicate = await classes.findDuplicate({
+        subjectId: input.subjectId,
+        academicPeriodId: input.academicPeriodId,
+        professorId: input.professorId,
+      });
+      if (duplicate) throw conflict("Já existe turma desta disciplina para o professor no período");
     }
 
     const group = await classes.create({

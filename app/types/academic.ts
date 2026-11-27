@@ -1,11 +1,16 @@
 import { z } from "zod";
 import { type DateTime, DateTimeSchema, UserIdSchema } from "./common";
 
-export const ScheduleSlotSchema = z.object({
-  weekday: z.number().int().min(0).max(6),
-  start: z.string().regex(/^\d{2}:\d{2}$/),
-  end: z.string().regex(/^\d{2}:\d{2}$/),
-});
+export const ScheduleSlotSchema = z
+  .object({
+    weekday: z.number().int().min(0).max(6),
+    start: z.string().regex(/^\d{2}:\d{2}$/),
+    end: z.string().regex(/^\d{2}:\d{2}$/),
+  })
+  .refine((slot) => slot.start < slot.end, {
+    message: "O horário de término deve ser posterior ao de início",
+    path: ["end"],
+  });
 export type ScheduleSlot = z.infer<typeof ScheduleSlotSchema>;
 
 export const CreateAcademicPeriodSchema = z

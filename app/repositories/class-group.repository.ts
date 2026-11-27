@@ -89,6 +89,10 @@ export class ClassGroupRepository {
     );
   }
 
+  findDuplicate(input: { subjectId: string; academicPeriodId: string; professorId: string }) {
+    return withRepositoryErrors(() => this.client.classGroup.findFirst({ where: input }));
+  }
+
   create(data: Prisma.ClassGroupCreateInput) {
     return withRepositoryErrors(() => this.client.classGroup.create({ data }));
   }
@@ -97,9 +101,17 @@ export class ClassGroupRepository {
     return withRepositoryErrors(() => this.client.classGroup.update({ where: { id }, data }));
   }
 
-  assignProfessor(id: string, professorId: string) {
+  /** Designação atômica: falha se outra requisição já ocupou a turma. */
+  assignProfessorIfFree(id: string, professorId: string) {
     return withRepositoryErrors(() =>
-      this.client.classGroup.update({ where: { id }, data: { professorId } }),
+      this.client.classGroup.updateMany({
+        where: { id, OR: [{ professorId: null }, { professorId }] },
+        data: { professorId },
+      }),
     );
+  }
+
+  remove(id: string) {
+    return withRepositoryErrors(() => this.client.classGroup.delete({ where: { id } }));
   }
 }

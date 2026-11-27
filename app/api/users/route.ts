@@ -66,6 +66,9 @@ export async function POST(request: Request) {
 
     // Aluno e professor só entram no sistema já vinculados a uma turma: esse
     // vínculo é o que restringe o acesso às notas (9.2.3 e 9.3.1).
+    if (!classGroupIsRequired(body.role) && body.classGroupId) {
+      throw validationError("Turma só se aplica a aluno ou professor.");
+    }
     if (classGroupIsRequired(body.role) && !body.classGroupId) {
       throw validationError("Informe a turma.");
     }

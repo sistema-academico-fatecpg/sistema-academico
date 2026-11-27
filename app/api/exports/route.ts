@@ -96,7 +96,9 @@ export async function GET(request: Request) {
       classGroupId: query.classGroupId,
       status: query.status,
     };
-    const hasNarrowingFilter = Boolean(query.studentId || query.classGroupId || query.status);
+    // `status` sozinho não reduz o escopo (ex.: PUBLISHED devolve todas as
+    // notas): só studentId/classGroupId autorizam a exportação simples.
+    const hasNarrowingFilter = Boolean(query.studentId || query.classGroupId);
     // Sem filtro redutor a consulta equivale à exportação em massa: exige a
     // solicitação aprovada e executada, com a mesma validação do download.
     const rows = hasNarrowingFilter

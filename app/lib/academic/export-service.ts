@@ -1,3 +1,4 @@
+import type { Prisma } from "@/app/generated/prisma/client";
 import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { conflict, forbidden, notFound } from "@/app/lib/auth/errors";
@@ -31,13 +32,31 @@ export class ExportService {
     private readonly audit = createAuditService(),
   ) {}
 
+  /** ALUNO/PROFESSOR só exportam os próprios vínculos; perfis administrativos, tudo. */
+  private isPrivileged(actor?: AcademicActor): boolean {
+    if (!actor) return false;
+    return actor.roles.includes("ADMIN_MASTER") || actor.roles.includes("ADMIN_SECUNDARIO");
+  }
+
   private async rows(
     scope: ExportScope,
     filters: ExportFilters,
+    actor?: AcademicActor,
   ): Promise<Record<string, unknown>[]> {
+    // Perfis sem vínculo acadêmico não enxergam registros de terceiros.
+    const ownScope: Prisma.EnrollmentWhereInput =
+      actor && !this.isPrivileged(actor)
+        ? actor.roles.includes("PROFESSOR")
+          ? { classGroup: { professorId: actor.id } }
+          : actor.roles.includes("ALUNO")
+            ? { studentId: actor.id }
+            : { id: "__sem_vinculo__" }
+        : {};
+
     if (scope === "ENROLLMENTS") {
       const items = await db.enrollment.findMany({
         where: {
+          ...ownScope,
           ...(filters.studentId ? { studentId: filters.studentId } : {}),
           ...(filters.classGroupId ? { classGroupId: filters.classGroupId } : {}),
           ...(filters.status ? { status: EnrollmentStatusSchema.parse(filters.status) } : {}),
@@ -62,9 +81,12 @@ export class ExportService {
     if (scope === "GRADES") {
       const items = await db.grade.findMany({
         where: {
-          ...(filters.studentId ? { enrollment: { studentId: filters.studentId } } : {}),
-          ...(filters.classGroupId ? { enrollment: { classGroupId: filters.classGroupId } } : {}),
           ...(filters.status ? { status: GradeStatusSchema.parse(filters.status) } : {}),
+          enrollment: {
+            ...ownScope,
+            ...(filters.studentId ? { studentId: filters.studentId } : {}),
+            ...(filters.classGroupId ? { classGroupId: filters.classGroupId } : {}),
+          },
         },
         include: {
           enrollment: {
@@ -88,7 +110,10 @@ export class ExportService {
     }
 
     const items = await db.user.findMany({
-      where: filters.status ? { status: AccountStatusSchema.parse(filters.status) } : {},
+      where: {
+        ...(actor && !this.isPrivileged(actor) ? { id: actor.id } : {}),
+        ...(filters.status ? { status: AccountStatusSchema.parse(filters.status) } : {}),
+      },
       include: { roles: { include: { role: { select: { name: true } } } } },
       take: 5000,
     });
@@ -107,7 +132,7 @@ export class ExportService {
     scope: ExportScope,
     filters: ExportFilters,
   ): Promise<Record<string, unknown>[]> {
-    const data = await this.rows(scope, filters);
+    const data = await this.rows(scope, filters, actor);
     await this.audit.record({
       ...auditActor(actor),
       action: AUDIT_ACTIONS.EXPORT,

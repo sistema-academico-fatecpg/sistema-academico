@@ -28,11 +28,10 @@ export async function assignUserToClassGroup(
   if (!group) throw notFound("Turma não encontrada");
 
   if (input.role === "PROFESSOR") {
-    if (group.professorId && group.professorId !== input.userId) {
+    if (group.professorId === input.userId) return;
+    const assigned = await classes.assignProfessorIfFree(group.id, input.userId);
+    if (assigned.count === 0) {
       throw conflict("Esta turma já possui outro professor vinculado");
-    }
-    if (group.professorId !== input.userId) {
-      await classes.assignProfessor(group.id, input.userId);
     }
     return;
   }

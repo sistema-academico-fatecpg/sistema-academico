@@ -2,6 +2,7 @@ export const instant = false;
 
 import { requirePagePermission } from "@/app/lib/auth/page-guard";
 import { ClassGroupRepository } from "@/app/repositories/class-group.repository";
+import { AcademicPeriodRepository } from "@/app/repositories/period.repository";
 import type { RoleName } from "@/app/types/common";
 import { PERMISSIONS } from "@/app/types/roles";
 import { PageHeader, RegisterForm } from "@/components";
@@ -15,7 +16,12 @@ export default async function NewUserPage() {
     ? ["ADMIN_MASTER", "ADMIN_SECUNDARIO", "PROFESSOR", "ALUNO", "AUDITOR", "SUPORTE_TECNICO"]
     : ["PROFESSOR", "ALUNO"];
 
-  const classGroups = (await new ClassGroupRepository().list()).map((group) => ({
+  const currentPeriod = await new AcademicPeriodRepository().findCurrent();
+  const classGroups = (
+    await new ClassGroupRepository().list(
+      currentPeriod ? { academicPeriodId: currentPeriod.id } : {},
+    )
+  ).map((group) => ({
     id: group.id,
     label: `${group.subject.code} — ${group.subject.name} (${group.academicPeriod.name})${
       group.professor ? ` · ${group.professor.name}` : ""

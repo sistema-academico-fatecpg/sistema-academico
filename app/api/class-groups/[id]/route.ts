@@ -22,12 +22,24 @@ export async function PATCH(request: Request, context: Context) {
     const { id } = ParamsSchema.parse(await context.params);
     const input = UpdateClassGroupSchema.parse(await request.json());
     const classes = new ClassGroupRepository();
-    if (!(await classes.findById(id))) throw notFound("Turma não encontrada");
+    const group = await classes.findById(id);
+    if (!group) throw notFound("Turma não encontrada");
 
     if (input.professorId) {
       const professor = await new UserRepository().findById(input.professorId);
       if (!professor?.roles.some((item) => item.role.name === "PROFESSOR")) {
         throw validationError("Professor informado não possui o perfil PROFESSOR");
+      }
+      if (professor.status !== "ACTIVE") {
+        throw validationError("Professor informado não está ativo");
+      }
+      const duplicate = await classes.findDuplicate({
+        subjectId: group.subjectId,
+        academicPeriodId: group.academicPeriodId,
+        professorId: input.professorId,
+      });
+      if (duplicate && duplicate.id !== id) {
+        throw conflict("Professor já possui turma desta disciplina no período");
       }
     }
 
@@ -64,14 +76,15 @@ export async function DELETE(request: Request, context: Context) {
     const actor = await requirePermission(PERMISSIONS.CLASSES_DELETE);
     const { id } = ParamsSchema.parse(await context.params);
     const classes = new ClassGroupRepository();
-    if (!(await classes.findById(id))) throw notFound("Turma não encontrada");
+    const group = await classes.findById(id);
+    if (!group) throw notFound("Turma não encontrada");
 
     const enrollments = await db.enrollment.count({ where: { classGroupId: id } });
     if (enrollments > 0) {
       throw conflict("Não é possível excluir uma turma com matrículas vinculadas");
     }
 
-    await db.classGroup.delete({ where: { id } });
+    await classes.remove(id);
     await createAuditService().record({
       ...auditActor({ ...actor, ipAddress: getClientIp(request) }),
       action: AUDIT_ACTIONS.ACADEMIC_RECORD_DELETED,
@@ -79,6 +92,11 @@ export async function DELETE(request: Request, context: Context) {
       recordType: "ClassGroup",
       recordId: id,
       result: "SUCCESS",
+      oldValue: {
+        subjectId: group.subjectId,
+        academicPeriodId: group.academicPeriodId,
+        professorId: group.professorId,
+      },
     });
 
     return Response.json({ status: "DELETED" });
