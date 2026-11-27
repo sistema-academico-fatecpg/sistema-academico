@@ -40,6 +40,20 @@ const TEST_CODES: Record<string, string> = {
 };
 const mail = (local: string) => `${local}${TEST_CODES[local] ?? "000000"}@${DOMAIN}`;
 
+/**
+ * E-mail pessoal real dos usuários de teste. Usa aliases (`+`) do TEST_EMAIL
+ * para que os links cheguem a uma caixa existente — nunca ao e-mail
+ * institucional fictício.
+ */
+function personalAlias(institutionalEmail: string): string | null {
+  if (!TEST_EMAIL) return null;
+  const localPart = institutionalEmail.split("@")[0];
+  const key =
+    Object.keys(TEST_CODES).find((candidate) => localPart.startsWith(candidate)) ?? "conta";
+  const [mailbox, domain] = TEST_EMAIL.split("@");
+  return `${mailbox}+${key}@${domain}`;
+}
+
 type Activation = {
   institutionalEmail: string;
   personalEmail: string | null;
@@ -88,7 +102,7 @@ async function upsertUser(input: {
       data: {
         name: input.name,
         email: input.email,
-        personalEmail: input.personalEmail ?? null,
+        personalEmail: input.personalEmail ?? personalAlias(input.email),
         registrationNumber: input.registrationNumber ?? null,
         status: "PENDING_ACTIVATION",
         emailVerified: false,
@@ -146,25 +160,31 @@ async function upsertUser(input: {
   const url = activationUrl(token, code);
 
   if (SEND_EMAIL) {
-    try {
-      const result = await sendEmail(
-        accountActivationEmail({
-          to: user.email,
-          name: input.name,
-          institutionalEmail: user.email,
-          personalEmail: null,
-          activationUrl: url,
-          validHours: 24,
-        }),
-      );
-      emailResults.push({ email: user.email, skipped: result.skipped });
-    } catch (error) {
-      emailResults.push({
-        email: user.email,
-        skipped: true,
-        failed: true,
-        reason: error instanceof Error ? error.name : "unknown",
-      });
+    const recipient = user.personalEmail?.trim().toLowerCase();
+    if (!recipient) {
+      // O e-mail institucional é fictício: nunca é usado como destinatário.
+      emailResults.push({ email: user.email, skipped: true, reason: "sem e-mail pessoal" });
+    } else {
+      try {
+        const result = await sendEmail(
+          accountActivationEmail({
+            to: recipient,
+            name: input.name,
+            institutionalEmail: user.email,
+            personalEmail: recipient,
+            activationUrl: url,
+            validHours: 24,
+          }),
+        );
+        emailResults.push({ email: recipient, skipped: result.skipped });
+      } catch (error) {
+        emailResults.push({
+          email: recipient,
+          skipped: true,
+          failed: true,
+          reason: error instanceof Error ? error.name : "unknown",
+        });
+      }
     }
   }
 
