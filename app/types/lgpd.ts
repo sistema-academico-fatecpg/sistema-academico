@@ -21,11 +21,14 @@ export const DataSubjectDecisionSchema = z.object({
   reason: z.string().trim().max(1000).optional(),
 });
 
-export const GuardianConsentSchema = z.object({
-  guardianName: z.string().trim().min(3).max(150),
-  studentId: UserIdSchema.optional(),
-  birthDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data de nascimento no formato YYYY-MM-DD")
-    .optional(),
-});
+/**
+ * 11.1.3: o consentimento não aceita `birthDate` — a idade é validada no
+ * servidor a partir da data armazenada no cadastro do aluno. Campos extras
+ * (inclusive uma tentativa de enviar `birthDate`) são recusados.
+ */
+export const GuardianConsentSchema = z
+  .object({
+    guardianName: z.string().trim().min(3).max(150),
+    studentId: UserIdSchema.optional(),
+  })
+  .strict();

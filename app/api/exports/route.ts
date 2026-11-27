@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ExportService } from "@/app/lib/academic/export-service";
 import { actorFrom, jsonError } from "@/app/lib/api/responses";
+import { AuthError } from "@/app/lib/auth/errors";
 import { requirePermission, requireUser } from "@/app/lib/auth/session";
 import { CriticalOperationService } from "@/app/lib/critical-operations/service";
 import { getClientIp } from "@/app/lib/request-context";
@@ -22,6 +23,28 @@ const MassBodySchema = z.object({
   filters: z.record(z.string(), z.unknown()).optional(),
   reason: z.string().trim().min(10).max(2000),
 });
+
+function exportResponse(rows: Record<string, unknown>[], format: "json" | "csv"): Response {
+  if (format === "csv") {
+    return new Response(csv(rows), {
+      headers: { "content-type": "text/csv; charset=utf-8" },
+    });
+  }
+  return Response.json({ items: rows });
+}
+
+/** 9.4.2: exportações sem filtro redutor dependem de dupla aprovação. */
+function massExportRequestId(requestId: string | undefined): string {
+  if (!requestId) {
+    throw new AuthError(
+      "Exportação em massa exige solicitação aprovada e executada (9.4.2)",
+      "APPROVAL_REQUIRED",
+      403,
+      { code: "MASS_EXPORT_APPROVAL_REQUIRED" },
+    );
+  }
+  return requestId;
+}
 
 function csv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
@@ -47,13 +70,9 @@ export async function GET(request: Request) {
       const rows = await service.massExport(
         { id: ctx.actorId, roles: ctx.actorRoles, ipAddress: ctx.ipAddress },
         query.requestId,
+        query.scope,
       );
-      if (query.format === "csv") {
-        return new Response(csv(rows), {
-          headers: { "content-type": "text/csv; charset=utf-8" },
-        });
-      }
-      return Response.json({ items: rows });
+      return exportResponse(rows, query.format);
     }
 
     if (!query.scope) {
@@ -67,21 +86,23 @@ export async function GET(request: Request) {
           : PERMISSIONS.REPORTS_EXPORT;
     const actor = await requirePermission(permission);
     const ctx = actorFrom(actor, request);
-    const rows = await service.simpleExport(
-      { id: ctx.actorId, roles: ctx.actorRoles, ipAddress: ctx.ipAddress },
-      query.scope,
-      {
-        studentId: query.studentId,
-        classGroupId: query.classGroupId,
-        status: query.status,
-      },
-    );
-    if (query.format === "csv") {
-      return new Response(csv(rows), {
-        headers: { "content-type": "text/csv; charset=utf-8" },
-      });
-    }
-    return Response.json({ items: rows });
+    const academicActor = {
+      id: ctx.actorId,
+      roles: ctx.actorRoles,
+      ipAddress: ctx.ipAddress,
+    };
+    const filters = {
+      studentId: query.studentId,
+      classGroupId: query.classGroupId,
+      status: query.status,
+    };
+    const hasNarrowingFilter = Boolean(query.studentId || query.classGroupId || query.status);
+    // Sem filtro redutor a consulta equivale à exportação em massa: exige a
+    // solicitação aprovada e executada, com a mesma validação do download.
+    const rows = hasNarrowingFilter
+      ? await service.simpleExport(academicActor, query.scope, filters)
+      : await service.massExport(academicActor, massExportRequestId(query.requestId), query.scope);
+    return exportResponse(rows, query.format);
   } catch (error) {
     return jsonError(error);
   }

@@ -23,6 +23,8 @@ on:
 
 permissions:
   contents: read
+  # 12.5: o job de governance consulta a proteção da branch main (somente leitura).
+  administration: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

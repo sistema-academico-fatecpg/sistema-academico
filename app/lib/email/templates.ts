@@ -33,15 +33,15 @@ export function accountActivationEmail(input: {
   name: string;
   /** Conta criada no sistema — exibida para que o titular saiba qual e-mail usar no login. */
   institutionalEmail: string;
+  /** Destino real da mensagem; o e-mail institucional não possui caixa postal. */
   personalEmail?: string | null;
   /** Já contém token e código de confirmação. */
   activationUrl: string;
   validHours?: number;
 }): EmailMessage {
   const validHours = input.validHours ?? 24;
-  const contactLine = input.personalEmail
-    ? "Enviamos este link para o e-mail pessoal cadastrado."
-    : "";
+  // O link só é enviado ao e-mail pessoal: o institucional é apenas identificador.
+  const contactLine = "Enviamos este link para o seu e-mail pessoal cadastrado.";
   return {
     kind: "ACCOUNT_ACTIVATION",
     to: input.to,
@@ -58,7 +58,7 @@ export function accountActivationEmail(input: {
       "Ative sua conta",
       `<p>Olá, ${escapeHtml(input.name)}.</p>
        <p><strong>E-mail institucional da sua conta:</strong> ${escapeHtml(input.institutionalEmail)}. Use-o para entrar no sistema.</p>
-       ${input.personalEmail ? `<p style="font-size:13px;color:#71717a">Enviamos este link para o e-mail pessoal cadastrado.</p>` : ""}
+       <p style="font-size:13px;color:#71717a">Enviamos este link para o seu e-mail pessoal cadastrado; o institucional acima serve apenas para identificar a conta.</p>
        <p>Para criar sua própria senha, acesse o link abaixo. Ele já contém o código de confirmação: a página preenche o campo de 6 dígitos automaticamente.</p>
        <p style="margin:24px 0">
          <a href="${escapeHtml(input.activationUrl)}" style="background:#18181b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">Ativar conta</a>
@@ -117,26 +117,41 @@ export function emailConfirmationCodeEmail(input: {
   };
 }
 
+/**
+ * E-mail de redefinição solicitada pela secretaria. O link (token) e o código
+ * de 6 dígitos são enviados juntos, exclusivamente ao e-mail pessoal real do
+ * titular (8.4.3/8.6.1); nenhum administrador define a senha.
+ */
 export function passwordResetEmail(input: {
   to: string;
   name: string;
   resetUrl: string;
+  code?: string;
   validMinutes?: number;
 }): EmailMessage {
   const validMinutes = input.validMinutes ?? 30;
+  const codeLine = input.code
+    ? `\n\nCódigo de confirmação de 6 dígitos: ${input.code}. Ele também já vem preenchido no link e expira em 10 minutos.`
+    : "";
   return {
     kind: "PASSWORD_RESET",
     to: input.to,
     subject: "Redefinição de senha do Sistema Acadêmico",
-    text: `Olá, ${input.name}.\n\nA secretaria solicitou a redefinição da sua senha (atendimento presencial). Acesse: ${input.resetUrl}\n\nO link é de uso único e expira em ${validMinutes} minutos. Se não foi você, ignore esta mensagem.`,
+    text:
+      `Olá, ${input.name}.\n\n` +
+      `A secretaria solicitou a redefinição da sua senha (atendimento presencial). ` +
+      `Acesse o link abaixo para criar a sua própria senha: ${input.resetUrl}\n\n` +
+      `O link é de uso único e expira em ${validMinutes} minutos.${codeLine}\n\n` +
+      `Enviamos esta mensagem ao seu e-mail pessoal cadastrado. Se não foi você, ignore-a.`,
     html: layout(
       "Redefinição de senha",
       `<p>Olá, ${escapeHtml(input.name)}.</p>
-       <p>A secretaria solicitou a redefinição da sua senha (atendimento presencial). O link é de uso único e expira em ${validMinutes} minutos.</p>
+       <p>A secretaria solicitou a redefinição da sua senha (atendimento presencial). Você mesmo define a nova senha pelo link abaixo, de uso único, que expira em ${validMinutes} minutos.</p>
+       ${input.code ? `<p>Código de confirmação de 6 dígitos (válido por 10 minutos): <strong style="font-size:22px;letter-spacing:4px">${escapeHtml(input.code)}</strong>. Ele também já vem preenchido no link.</p>` : ""}
        <p style="margin:24px 0">
          <a href="${escapeHtml(input.resetUrl)}" style="background:#18181b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">Redefinir senha</a>
        </p>
-       <p style="font-size:13px;color:#71717a">Se não foi você, ignore esta mensagem. Nenhum administrador redefine senhas.</p>`,
+       <p style="font-size:13px;color:#71717a">Esta mensagem foi enviada ao seu e-mail pessoal cadastrado. Se não foi você, ignore-a. Nenhum administrador redefine senhas.</p>`,
     ),
   };
 }

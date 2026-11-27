@@ -1,8 +1,11 @@
 import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
-import { conflict, forbidden, notFound } from "@/app/lib/auth/errors";
+import { conflict, forbidden, notFound, validationError } from "@/app/lib/auth/errors";
 import { db } from "@/app/lib/db";
-import { SensitiveDataService } from "@/app/lib/security/sensitive-data-service";
+import {
+  minorStatusFromBirthDate,
+  SensitiveDataService,
+} from "@/app/lib/security/sensitive-data-service";
 import type { DataSubjectRequestInput } from "@/app/types/lgpd";
 import type { SensitiveActor } from "./sensitive-data-service";
 
@@ -13,7 +16,7 @@ export class DataSubjectService {
   ) {}
 
   /** 11.1.4: consulta e cópia dos próprios dados, sem qualquer id externo. */
-  async ownData(actor: SensitiveActor) {
+  private async loadOwnData(actor: SensitiveActor) {
     const user = await db.user.findUnique({
       where: { id: actor.id },
       include: {
@@ -44,7 +47,25 @@ export class DataSubjectService {
         status: item.status,
         grade: item.grade?.value ? Number(item.grade.value) : null,
       })),
+    };
+  }
+
+  /** 11.1.4: exibição com dados sensíveis mascarados (uso padrão). */
+  async ownData(actor: SensitiveActor) {
+    return {
+      ...(await this.loadOwnData(actor)),
       sensitiveData: await this.sensitive.maskedForUser(actor.id),
+    };
+  }
+
+  /**
+   * 11.1.4: cópia transportável para o próprio titular. Diferente da exibição,
+   * inclui os valores sensíveis em texto puro — restrito ao id da sessão.
+   */
+  async ownDataCopy(actor: SensitiveActor) {
+    return {
+      ...(await this.loadOwnData(actor)),
+      sensitiveData: await this.sensitive.plaintextForUser(actor.id),
     };
   }
 
@@ -155,24 +176,42 @@ export class DataSubjectService {
     });
   }
 
-  /** 11.1.3: consentimento de responsável legal para dados de menores. */
+  /**
+   * 11.1.3: consentimento de responsável legal para dados de menores.
+   * A data de nascimento é lida do cadastro armazenado — nunca do payload — e
+   * não pode ser alterada por quem registra o consentimento.
+   */
   async recordGuardianConsent(
     actor: SensitiveActor,
     studentId: string,
     guardianName: string,
-    birthDate?: string,
   ): Promise<void> {
     if (!actor.roles.includes("ADMIN_MASTER") && !actor.roles.includes("ADMIN_SECUNDARIO")) {
       throw forbidden("Consentimento registrado pela secretaria/coordenação");
     }
     const profile = await db.studentProfile.findUnique({ where: { userId: studentId } });
     if (!profile) throw notFound("Perfil de aluno não encontrado");
+
+    const isMinor = minorStatusFromBirthDate(profile.birthDate);
+    if (isMinor === null) {
+      throw validationError(
+        "Data de nascimento do aluno ausente ou inválida; não é possível validar o consentimento do responsável (11.1.3)",
+      );
+    }
+    if (!isMinor) {
+      throw validationError(
+        "Consentimento de responsável legal só se aplica a alunos menores de 18 anos (11.1.3)",
+      );
+    }
+    if (!guardianName || guardianName.trim().length < 3) {
+      throw validationError("Informe o nome do responsável legal (11.1.3)");
+    }
+
     await db.studentProfile.update({
       where: { userId: studentId },
       data: {
         guardianName,
         guardianConsentAt: new Date(),
-        ...(birthDate ? { birthDate: new Date(`${birthDate}T00:00:00Z`) } : {}),
       },
     });
     await this.audit.record({
@@ -182,7 +221,7 @@ export class DataSubjectService {
       recordType: "StudentProfile",
       recordId: studentId,
       result: "SUCCESS",
-      newValue: { guardianName },
+      newValue: { guardianName, isMinor },
     });
   }
 }

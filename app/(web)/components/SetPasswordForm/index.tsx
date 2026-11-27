@@ -13,7 +13,7 @@ export type SetPasswordMode = "activation" | "reset";
 export interface SetPasswordFormProps {
   token: string;
   mode: SetPasswordMode;
-  /** Código de confirmação enviado por e-mail na ativação. */
+  /** Código de confirmação enviado por e-mail (ativação ou redefinição). */
   code?: string;
 }
 
@@ -84,7 +84,7 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
       const response = await fetch("/api/auth/password-reset/confirm", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ token, code, password }),
       });
       const data = (await response.json().catch(() => ({}))) as {
         error?: string;
@@ -176,22 +176,20 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
         description={
           isActivation
             ? "Crie sua própria senha. O código de 6 dígitos veio junto com o link e já foi preenchido; ele continua sendo conferido no servidor."
-            : "A redefinição foi solicitada pela secretaria. Crie uma nova senha: o link é de uso único e válido por 30 minutos."
+            : "A redefinição foi solicitada pela secretaria e enviada ao seu e-mail pessoal. Crie uma nova senha: o link é de uso único, válido por 30 minutos, e o código de 6 dígitos veio junto com ele."
         }
         eyebrow="Sistema Acadêmico"
         title={isActivation ? "Ativação de conta" : "Definir nova senha"}
       />
-      {isActivation ? (
-        <Field
-          className={styles.codeField}
-          inputMode="numeric"
-          label="Código de confirmação"
-          maxLength={6}
-          onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
-          required
-          value={code}
-        />
-      ) : null}
+      <Field
+        className={styles.codeField}
+        inputMode="numeric"
+        label="Código de confirmação"
+        maxLength={6}
+        onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+        required
+        value={code}
+      />
       <Field
         action={passwordAction}
         label="Nova senha"

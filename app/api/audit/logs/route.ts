@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const ctx = actorFrom(actor, request);
     await new SupportAccessService().assertCanRead(
       { id: ctx.actorId, roles: ctx.actorRoles, ipAddress: ctx.ipAddress },
-      "AUDIT_LOGS",
+      [filter.module ?? "AUDIT_LOGS"],
     );
     await createAuditService().record({
       ...auditActor({ ...actor, ipAddress: ctx.ipAddress }),

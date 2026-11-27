@@ -58,16 +58,6 @@ export function roleRequiresApproval(role: string): boolean {
   return ADMIN_ROLES.includes(role);
 }
 
-async function assertNotLastMaster(target: UserWithRoles): Promise<void> {
-  if (!rolesOf(target).includes("ADMIN_MASTER")) return;
-  const activeMasters = await new UserRepository().countActiveMasters();
-  if (activeMasters <= 1) {
-    throw validationError(
-      "Não é possível desativar a última conta Admin Master ativa (seção 8.1.4)",
-    );
-  }
-}
-
 export class AccountService {
   constructor(
     private readonly users = new UserRepository(),
@@ -157,7 +147,8 @@ export class AccountService {
     try {
       await this.sendActivation(user, actor.ipAddress);
     } catch {
-      // O cadastro é preservado; a secretaria pode reenviar o link.
+      // O cadastro é preservado; a secretaria deve cadastrar o e-mail pessoal
+      // do titular (quando ausente) e então reenviar o link.
       activationSent = false;
     }
 
@@ -276,9 +267,11 @@ export class AccountService {
   }
 
   /**
-   * Redefinição de senha é solicitada pela secretaria (presencialmente), nunca
-   * pelo próprio titular em uma tela de "esqueci minha senha" (8.3). O link de
-   * uso único (30 min) é enviado ao e-mail institucional da conta.
+   * Redefinição de senha é solicitada presencialmente pela secretaria (Admin
+   * Secundário) na tela de usuários, nunca pelo próprio titular em uma tela de
+   * "esqueci minha senha" (8.3/8.6). O link de uso único (30 min) e o código de
+   * confirmação de 6 dígitos (8.4.3) são enviados somente ao e-mail pessoal real
+   * do titular; o e-mail institucional é fictício e não possui caixa postal.
    */
   async requestPasswordResetBySecretariat(userId: string, actor: ActorContext): Promise<void> {
     const user = await this.users.findById(userId);
@@ -287,12 +280,20 @@ export class AccountService {
       throw validationError("Somente contas ativas podem solicitar redefinição de senha");
     }
 
+    const personalEmail = user.personalEmail?.trim().toLowerCase();
+    if (!personalEmail) {
+      throw validationError(
+        "E-mail pessoal não cadastrado: não é possível enviar o link de redefinição de senha. Atualize o e-mail pessoal do titular antes de solicitar (seção 8.6).",
+      );
+    }
+
     const issued = await this.tokens.issue(user.id, "PASSWORD_RESET");
     await sendEmail(
       passwordResetEmail({
-        to: user.email,
+        to: personalEmail,
         name: user.name,
-        resetUrl: passwordResetUrl(issued.token),
+        resetUrl: passwordResetUrl(issued.token, issued.code),
+        code: issued.code,
         validMinutes: 30,
       }),
     );
@@ -307,8 +308,13 @@ export class AccountService {
     });
   }
 
+  /**
+   * A redefinição exige o link de uso único e o código de 6 dígitos enviados ao
+   * e-mail pessoal (8.4.3). O código é validado exatamente como na ativação.
+   */
   async resetPassword(input: {
     token: string;
+    code: string;
     password: string;
     ipAddress: string;
   }): Promise<UserWithRoles> {
@@ -325,8 +331,12 @@ export class AccountService {
     });
     if (!policy.valid) throw validationError("Senha não atende à política", policy.reasons);
 
+    const codeValid = await this.tokens.verifyConfirmationCode(user.id, input.code);
+    if (!codeValid) throw invalidToken("Código de confirmação inválido ou expirado");
+
     const consumed = await this.tokens.consume(input.token, "PASSWORD_RESET");
     if (!consumed) throw invalidToken();
+    await this.tokens.consumeConfirmationCode(user.id, input.code);
 
     await setUserPassword(user.id, input.password);
     await db.user.update({
@@ -352,7 +362,9 @@ export class AccountService {
   async block(userId: string, reason: string, actor: ActorContext): Promise<void> {
     const target = await this.users.findById(userId);
     if (!target) throw notFound("Usuário não encontrado");
-    await assertNotLastMaster(target);
+    // 8.7/8.8: bloqueio é imediato mesmo que reste apenas um Master ativo.
+    // A restrição de "último Master" aplica-se apenas à revogação de perfil
+    // (operação crítica), não ao bloqueio por desligamento.
     await this.users.block(userId, actor.actorId ?? "system", reason);
     await this.audit.record({
       ...auditActor(actor),
@@ -369,7 +381,8 @@ export class AccountService {
   async deactivate(userId: string, actor: ActorContext): Promise<void> {
     const target = await this.users.findById(userId);
     if (!target) throw notFound("Usuário não encontrado");
-    await assertNotLastMaster(target);
+    // 8.7/8.8: desativação não é retardada pela quantidade de Masters ativos;
+    // o modo de conta única é tratado pelo alerta abaixo.
     await this.users.deactivate(userId, actor.actorId ?? "system");
     await this.users.revokeSessions(userId);
     await this.tokens.invalidateForUser(userId);

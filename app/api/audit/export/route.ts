@@ -34,12 +34,12 @@ export async function GET(request: Request) {
     const ctx = actorFrom(actor, request);
     await new SupportAccessService().assertCanRead(
       { id: ctx.actorId, roles: ctx.actorRoles, ipAddress: ctx.ipAddress },
-      "AUDIT_LOGS",
+      [query.module ?? "AUDIT_LOGS"],
     );
     const result = await auditReader().findMany({ ...query, pageSize: 200 });
     await createAuditService().record({
       userId: actor.id as never,
-      role: "AUDITOR",
+      role: (actor.roles[0] ?? null) as never,
       ipAddress: ctx.ipAddress,
       action: AUDIT_ACTIONS.EXPORT,
       module: "AUDIT_LOGS",

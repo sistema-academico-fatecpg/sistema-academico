@@ -4,7 +4,11 @@ import { requireUser } from "@/app/lib/auth/session";
 import { DataSubjectService } from "@/app/lib/security/data-subject-service";
 import { GuardianConsentSchema } from "@/app/types/lgpd";
 
-/** 11.1.3: registro do consentimento do responsável legal. */
+/**
+ * 11.1.3: registro do consentimento do responsável legal. A maioridade é
+ * validada no serviço com a data de nascimento armazenada no cadastro; o
+ * payload não aceita `birthDate` nem pode alterar o cadastro do aluno.
+ */
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireUser();
@@ -16,7 +20,6 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       { id: context.actorId, roles: context.actorRoles, ipAddress: context.ipAddress },
       body.studentId ?? studentId,
       body.guardianName,
-      body.birthDate,
     );
     return Response.json({ status: "CONSENT_RECORDED" });
   } catch (error) {
