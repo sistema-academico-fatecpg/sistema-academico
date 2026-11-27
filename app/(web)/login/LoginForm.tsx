@@ -102,7 +102,6 @@ export function LoginForm({ dpoEmail }: { dpoEmail: string }) {
       </Button>
 
       <div className={styles.links}>
-        <Link href="/esqueci-senha">Esqueci minha senha</Link>
         <Link href="/configurar-2fa">Configurar 2FA</Link>
       </div>
       <PrivacyNote email={dpoEmail} />

@@ -1,7 +1,6 @@
 export const instant = false;
 
-import { AuthCard } from "@/components";
-import { AtivarForm } from "./AtivarForm";
+import { AuthCard, SetPasswordForm } from "@/components";
 
 export default async function AtivarPage({
   searchParams,
@@ -11,7 +10,7 @@ export default async function AtivarPage({
   const { token, code } = await searchParams;
   return (
     <AuthCard>
-      <AtivarForm code={code ?? ""} token={token ?? ""} />
+      <SetPasswordForm code={code ?? ""} mode="activation" token={token ?? ""} />
     </AuthCard>
   );
 }

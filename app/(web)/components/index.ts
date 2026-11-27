@@ -21,4 +21,9 @@ export { ModulePlaceholder } from "./ModulePlaceholder";
 export { PageHeader } from "./PageHeader";
 export { Panel } from "./Panel";
 export { RegisterForm, type RegisterFormProps } from "./RegisterForm";
+export {
+  SetPasswordForm,
+  type SetPasswordFormProps,
+  type SetPasswordMode,
+} from "./SetPasswordForm";
 export { Shell, type ShellProps } from "./Shell";

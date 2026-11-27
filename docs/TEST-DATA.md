@@ -86,8 +86,8 @@ quantos deixaram de ser enviados. Em produção, a ausência da chave gera erro
 
 Mesmo com envio habilitado, os links/códigos continuam sendo gravados no
 arquivo local protegido — útil se o provedor falhar. Nenhum segredo é impresso
-no console (10.5). Os fluxos normais da aplicação (recuperação de senha e
-alertas de segurança) também usam o mesmo transporte.
+no console (10.5). Os fluxos normais da aplicação (redefinição solicitada pela
+secretaria e alertas de segurança) também usam o mesmo transporte.
 
 ### Envio automático no `docker compose up`
 

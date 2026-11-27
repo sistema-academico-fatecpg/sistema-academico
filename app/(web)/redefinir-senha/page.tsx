@@ -1,7 +1,6 @@
 export const instant = false;
 
-import { AuthCard } from "@/components";
-import { ResetForm } from "./ResetForm";
+import { AuthCard, SetPasswordForm } from "@/components";
 
 export default async function ResetPasswordPage({
   searchParams,
@@ -11,7 +10,7 @@ export default async function ResetPasswordPage({
   const { token } = await searchParams;
   return (
     <AuthCard>
-      <ResetForm token={token ?? ""} />
+      <SetPasswordForm mode="reset" token={token ?? ""} />
     </AuthCard>
   );
 }

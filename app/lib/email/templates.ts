@@ -128,11 +128,11 @@ export function passwordResetEmail(input: {
     kind: "PASSWORD_RESET",
     to: input.to,
     subject: "Redefinição de senha do Sistema Acadêmico",
-    text: `Olá, ${input.name}.\n\nRecebemos uma solicitação de redefinição de senha. Acesse: ${input.resetUrl}\n\nO link é de uso único e expira em ${validMinutes} minutos. Se não foi você, ignore esta mensagem.`,
+    text: `Olá, ${input.name}.\n\nA secretaria solicitou a redefinição da sua senha (atendimento presencial). Acesse: ${input.resetUrl}\n\nO link é de uso único e expira em ${validMinutes} minutos. Se não foi você, ignore esta mensagem.`,
     html: layout(
       "Redefinição de senha",
       `<p>Olá, ${escapeHtml(input.name)}.</p>
-       <p>Recebemos uma solicitação de redefinição de senha. O link é de uso único e expira em ${validMinutes} minutos.</p>
+       <p>A secretaria solicitou a redefinição da sua senha (atendimento presencial). O link é de uso único e expira em ${validMinutes} minutos.</p>
        <p style="margin:24px 0">
          <a href="${escapeHtml(input.resetUrl)}" style="background:#18181b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">Redefinir senha</a>
        </p>
