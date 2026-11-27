@@ -10,6 +10,7 @@ import {
   hashToken,
   TOKEN_TTL_MS,
 } from "../app/lib/auth/tokens";
+import { accountActivationEmail, sendEmail } from "../app/lib/email";
 import { syncRolesAndPermissions } from "../prisma/seed-roles";
 
 /**
@@ -41,6 +42,7 @@ type Activation = {
   matricula: string;
   url: string;
   codigo: string;
+  envio: string;
 };
 
 const activations: Activation[] = [];
@@ -339,11 +341,39 @@ async function main() {
     });
   }
 
+  let realEmailSent = 0;
   for (const user of [...masters, secretary, ...professors, ...students]) {
     const issued = await issueActivation(user);
+    const destinatarioReal = user.id === masters[0].id && Boolean(TEST_EMAIL);
+    let envio = destinatarioReal ? "e-mail real" : "MOCK — nunca enviado";
+
+    // Apenas o titular verificado recebe o link; nenhuma variável de opt-in.
+    if (destinatarioReal && issued && user.personalEmail) {
+      try {
+        const result = await sendEmail(
+          accountActivationEmail({
+            to: user.personalEmail,
+            name: user.name,
+            institutionalEmail: user.email,
+            personalEmail: user.personalEmail,
+            activationUrl: issued.url,
+            validHours: 24,
+          }),
+        );
+        if (result.skipped) {
+          envio = "e-mail NÃO enviado (transporte de desenvolvimento sem RESEND_API_KEY)";
+        } else {
+          realEmailSent += 1;
+          envio = `e-mail enviado (id ${result.id ?? "indisponível"})`;
+        }
+      } catch {
+        envio = "FALHA no envio do e-mail real (veja o log acima)";
+      }
+    }
+
     activations.push({
       destinatario: user.personalEmail ?? fictionalEmail("sem-email"),
-      destinatarioReal: user.id === masters[0].id && Boolean(TEST_EMAIL),
+      destinatarioReal,
       emailInstitucional: user.email,
       nome: user.name,
       perfil:
@@ -352,6 +382,7 @@ async function main() {
       matricula: user.registrationNumber ?? "",
       url: issued?.url ?? "(conta já ativada — sem novo link)",
       codigo: issued?.code ?? "",
+      envio,
     });
   }
 
@@ -362,7 +393,8 @@ async function main() {
     `${JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
-        aviso: "NENHUM e-mail foi enviado. Destinatários fictícios não recebem mensagens.",
+        aviso:
+          "Apenas o destinatário REAL recebe e-mail. Os destinatários [MOCK] nunca são enviados.",
         activations,
       },
       null,
@@ -371,14 +403,19 @@ async function main() {
     { encoding: "utf8", mode: 0o600 },
   );
 
-  console.log("Massa de teste criada (NENHUM e-mail enviado).");
+  console.log("Massa de teste criada.");
+  console.log(
+    TEST_EMAIL
+      ? `E-mail real para ${TEST_EMAIL}: ${realEmailSent} enviado(s). Destinatários [MOCK] não recebem nada.`
+      : "TEST_EMAIL não definido: nenhum e-mail real foi enviado.",
+  );
   console.log(
     `Admin Master: ${masters.length} · Secretaria: 1 · Professores: ${professors.length} · Alunos: ${students.length} · Turmas: ${classGroups.length}`,
   );
   console.log("\nLinks de ativação — copie a URL no navegador:");
   for (const item of activations) {
     console.log(
-      `${item.destinatarioReal ? "[REAL]" : "[FICTÍCIO — NÃO ENVIAR]"} ${item.destinatario} | institucional: ${item.emailInstitucional} | ${item.url}`,
+      `${item.destinatarioReal ? "[REAL]" : "[MOCK]"} ${item.destinatario} | institucional: ${item.emailInstitucional} | ${item.url} | ${item.envio}`,
     );
   }
   console.log(`\nArquivo protegido (0600): ${outputFile}`);
