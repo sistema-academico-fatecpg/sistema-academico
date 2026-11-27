@@ -1,0 +1,9 @@
+@use "@/web/styles/tokens" as *;
+
+.label {
+  display: block;
+  font-size: $font-size-base;
+  font-weight: 650;
+  color: $color-ink;
+  margin-bottom: 0.25rem;
+}

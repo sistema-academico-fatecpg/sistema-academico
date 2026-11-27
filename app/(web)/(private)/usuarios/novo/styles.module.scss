@@ -1,0 +1,6 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  display: grid;
+  gap: $space-lg;
+}

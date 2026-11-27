@@ -93,6 +93,28 @@ export class UserRepository {
     );
   }
 
+  /**
+   * Gera o próximo número de matrícula (índice crescente) para um cargo.
+   * Busca o maior registro existente entre usuários com o cargo informado,
+   * extrai o sufixo numérico e incrementa em 1. Quando não houver registro,
+   * inicia em 1.
+   */
+  async nextRegistrationNumber(roleName: string): Promise<string> {
+    const last = await this.client.user.findFirst({
+      where: {
+        roles: { some: { role: { name: roleName } } },
+        registrationNumber: { not: null },
+      },
+      orderBy: { registrationNumber: "desc" },
+      select: { registrationNumber: true },
+    });
+
+    const ultimoNumero = last?.registrationNumber ?? "";
+    const digitos = ultimoNumero.replace(/\D/g, "");
+    const proximo = digitos ? Number(digitos) + 1 : 1;
+    return String(proximo).padStart(4, "0");
+  }
+
   update(id: string, data: Prisma.UserUpdateInput) {
     return withRepositoryErrors(() =>
       this.client.user.update({ where: { id }, data, include: userWithRoles }),

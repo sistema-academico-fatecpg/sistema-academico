@@ -1,0 +1,128 @@
+@use "@/web/styles/tokens" as *;
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: $header-height;
+  padding: 0 32px;
+  background: $color-surface;
+  border-bottom: 1px solid $color-border;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    max-width: 190px;
+  }
+
+  img {
+    object-fit: contain;
+    object-position: left center;
+  }
+}
+
+.right {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: $space-lg;
+}
+
+.menu {
+  display: none;
+  padding: $space-sm;
+  border: 0;
+  background: transparent;
+  color: $color-ink;
+  cursor: pointer;
+}
+
+.profileWrap {
+  position: relative;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $color-ink;
+  text-align: left;
+  cursor: pointer;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: $color-primary-soft;
+  color: $color-primary;
+  font-weight: 750;
+}
+
+.profileText {
+  strong {
+    display: block;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  small {
+    display: block;
+    margin-top: 3px;
+    color: $color-muted;
+    font-size: 11px;
+  }
+}
+
+.dropdown {
+  position: absolute;
+  right: 0;
+  top: 48px;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface;
+  box-shadow: $shadow-card;
+}
+
+.error {
+  margin: 0 6px 6px;
+  color: $color-danger;
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 0 $space-md;
+  }
+
+  .menu {
+    display: block;
+  }
+
+  .profileText {
+    display: none;
+  }
+
+  .brand a {
+    max-width: 130px;
+  }
+}

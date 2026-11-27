@@ -40,8 +40,13 @@ export const CreateUserRequestSchema = z.object({
   name: z.string().trim().min(3, "Nome deve ter ao menos 3 caracteres").max(150),
   socialName: z.string().trim().max(150).nullable().optional(),
   personalEmail: EmailSchema,
+  // A matrícula é gerada automaticamente pelo servidor (índice crescente); o
+  // cliente não deve enviá-la. Mantido opcional apenas para não quebrar chamadas
+  // antigas, sendo ignorado a favor do valor gerado.
   registrationNumber: z.string().trim().min(1).max(30).nullable().optional(),
   role: RoleAssignmentSchema,
+  /** Turma vinculada ao aluno ou professor (apenas coleta de cadastro). */
+  turma: z.string().trim().max(100).optional(),
 });
 
 export type CreateUserRequest = z.infer<typeof CreateUserRequestSchema>;

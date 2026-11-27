@@ -1,0 +1,140 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  display: grid;
+  gap: $space-lg;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: $color-ink;
+  font-weight: 650;
+}
+
+.formWrap {
+  margin-top: $space-md;
+}
+
+.form {
+  display: grid;
+  gap: $space-md;
+}
+
+.textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.fieldset {
+  margin: 0;
+  padding: $space-sm;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+}
+
+.legend {
+  color: $color-ink-soft;
+  font-size: $font-size-base;
+  font-weight: 650;
+}
+
+.moduleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-sm;
+  margin-top: $space-sm;
+  font-size: $font-size-base;
+}
+
+.dateGrid {
+  display: grid;
+  gap: $space-sm;
+  grid-template-columns: 1fr;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  color: $color-ink-soft;
+  font-size: $font-size-base;
+  cursor: pointer;
+
+  input {
+    accent-color: $color-primary;
+  }
+}
+
+.pending {
+  display: grid;
+  gap: $space-sm;
+}
+
+.grantList {
+  display: grid;
+  gap: $space-sm;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-sm;
+}
+
+.grantRequester {
+  margin: 0;
+  color: $color-ink;
+  font-size: $font-size-base;
+  font-weight: 700;
+}
+
+.grantReason {
+  margin: 4px 0 0;
+  color: $color-ink-soft;
+  font-size: $font-size-base;
+}
+
+.grantMeta {
+  margin: $space-sm 0 0;
+  color: $color-muted;
+  font-size: $font-size-sm;
+}
+
+.grantWarning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: $space-sm 0 0;
+  color: $color-warning;
+  font-size: $font-size-sm;
+  font-weight: 700;
+}
+
+.decision {
+  display: grid;
+  gap: $space-sm;
+  margin-top: $space-sm;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-sm;
+}
+
+.empty {
+  color: $color-muted;
+  font-size: $font-size-base;
+}
+
+@media (min-width: 769px) {
+  .moduleGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dateGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

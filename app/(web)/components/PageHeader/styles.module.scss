@@ -1,0 +1,56 @@
+@use "@/web/styles/tokens" as *;
+
+.wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $space-md;
+  margin-bottom: 26px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: $color-muted-light;
+}
+
+.title {
+  margin: 0;
+  font-size: $font-size-lg;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  color: $color-ink;
+  line-height: 1.2;
+}
+
+.description {
+  margin: 7px 0 0;
+  max-width: 48rem;
+  font-size: $font-size-base;
+  font-weight: 400;
+  color: $color-muted;
+  line-height: 1.5;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .wrapper {
+    flex-direction: column;
+  }
+}

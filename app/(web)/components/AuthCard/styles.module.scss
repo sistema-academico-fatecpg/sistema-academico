@@ -1,0 +1,18 @@
+@use "@/web/styles/tokens" as *;
+
+.card {
+  width: min(430px, calc(100% - 32px));
+  margin: 48px auto;
+  padding: 32px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface;
+  box-shadow: $shadow-card;
+}
+
+@media (max-width: 640px) {
+  .card {
+    margin: 24px auto;
+    padding: $space-lg;
+  }
+}

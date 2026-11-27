@@ -1,0 +1,87 @@
+@use "@/web/styles/tokens" as *;
+
+.sidebar {
+  width: $sidebar-width;
+  flex: 0 0 $sidebar-width;
+  padding: 28px $space-md;
+  background: $color-surface;
+  border-right: 1px solid $color-border;
+  overflow-y: auto;
+}
+
+.navLabel {
+  margin: 0 12px 14px;
+  color: $color-muted-light;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.nav {
+  display: grid;
+  gap: 2px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border-radius: $radius-sm;
+  color: $color-ink-muted;
+  font-size: $font-size-base;
+  font-weight: 550;
+  text-decoration: none;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+
+  &:hover {
+    background: #faf4f4;
+    color: $color-primary;
+  }
+}
+
+.active {
+  background: $color-primary-soft;
+  color: $color-primary;
+  font-weight: 700;
+
+  &:hover {
+    background: $color-primary-soft;
+  }
+}
+
+.backdrop {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .sidebar {
+    display: none;
+    position: fixed;
+    z-index: 30;
+    top: $header-height;
+    bottom: 0;
+    left: 0;
+    width: min(300px, 85vw);
+    flex-basis: auto;
+    box-shadow: $shadow-card;
+  }
+
+  .show {
+    display: block;
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: $header-height 0 0;
+    z-index: 25;
+    border: 0;
+    background: rgba(28, 15, 17, 0.32);
+    cursor: pointer;
+  }
+}

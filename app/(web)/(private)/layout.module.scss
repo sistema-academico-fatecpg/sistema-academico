@@ -1,0 +1,6 @@
+@use "@/web/styles/tokens" as *;
+
+.fallback {
+  min-height: 100vh;
+  background-color: $color-background;
+}

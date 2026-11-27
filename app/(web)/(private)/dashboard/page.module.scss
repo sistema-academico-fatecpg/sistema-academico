@@ -1,0 +1,60 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  display: grid;
+  gap: $space-lg;
+}
+
+.roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-sm;
+}
+
+.section {
+  padding: 22px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $space-md;
+  margin-bottom: 18px;
+
+  h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  p {
+    margin: 5px 0 0;
+    color: $color-muted;
+    font-size: 12px;
+  }
+}
+
+.count {
+  font-size: $font-size-base;
+  color: $color-muted;
+  white-space: nowrap;
+}
+
+.grid {
+  display: grid;
+  gap: $space-md;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+@media (max-width: 760px) {
+  .section {
+    padding: 14px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,34 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  display: grid;
+  gap: $space-lg;
+}
+
+.wrap {
+  display: grid;
+  gap: $space-md;
+}
+
+.form {
+  display: grid;
+  gap: $space-sm;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: $color-ink;
+  font-weight: 650;
+}
+
+.textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.note {
+  margin: 0;
+  color: $color-muted;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+}

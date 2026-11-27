@@ -1,0 +1,62 @@
+@use "@/web/styles/tokens" as *;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: $space-lg;
+  background: rgba(28, 15, 17, 0.48);
+  backdrop-filter: blur(3px);
+}
+
+.dialog {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 30px;
+  background: $color-surface;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-dialog;
+  text-align: center;
+  outline: none;
+
+  h2 {
+    margin: 14px 0 8px;
+    font-size: 19px;
+  }
+
+  p {
+    margin: 0;
+    color: $color-muted;
+    line-height: 1.6;
+  }
+}
+
+.symbol {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: auto;
+  border-radius: 50%;
+  background: $color-primary-soft;
+  color: $color-primary;
+}
+
+.close {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  border: 0;
+  background: transparent;
+  color: $color-muted;
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $space-sm;
+  margin-top: $space-lg;
+}

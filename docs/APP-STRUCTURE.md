@@ -1,50 +1,37 @@
 # Estrutura de rotas (`app/`)
 
-## Por que existem pastas com parênteses
+## Front-end em `(web)`
 
-No App Router, pastas `app/(nome)` são **route groups**: organizam arquivos e
-compartilham `layout.tsx` **sem aparecer na URL**. `app/(private)/dashboard/page.tsx`
-é acessível em `/dashboard`, não em `/private/dashboard`.
+Tudo que é interface mora em `app/(web)`. O grupo não aparece na URL, então
+`/app/(web)/(private)/dashboard/page.tsx` continua acessível em `/dashboard`.
+A back-end (`api/`, `lib/`, `repositories/`, `types/`) permanece na raiz de `app/`.
 
-O projeto precisa de **três layouts diferentes**, e é exatamente para isso que os
-grupos servem:
+| Caminho                                              | URL                            | Layout                                       | Conteúdo                                            |
+| ---------------------------------------------------- | ------------------------------ | -------------------------------------------- | --------------------------------------------------- |
+| `app/layout.tsx`                                     | —                              | raiz: `<html>/<body>` e metadata             | base de tudo                                        |
+| `app/(web)/layout.tsx`                               | —                              | importa `styles/globals.scss`                | baseline visual                                     |
+| `app/(web)/page.tsx`                                 | `/`                            | raiz                                         | redireciona para `/dashboard` ou `/login`           |
+| `app/(web)/login`                                    | `/login`                       | sem menu                                     | única página pública de entrada                     |
+| `app/(web)/ativar`, `app/(web)/redefinir-senha`      | `/ativar`, `/redefinir-senha`  | cartão (`AuthCard`), sem menu                | mesma tela para definir a senha (`SetPasswordForm`) |
+| `app/(web)/privacidade`                              | `/privacidade`                 | sem menu                                     | aviso de privacidade público (11.1.5)               |
+| `app/(web)/(private)/layout.tsx`                     | —                              | **sidebar + header + guard de autenticação** | área logada                                         |
+| `app/(web)/(private)/configurar-2fa`                 | `/configurar-2fa`              | `(private)`                                  | TOTP e códigos de recuperação                       |
+| `app/(web)/(private)/dashboard`, `usuarios`, `notas` | `/dashboard`, `/usuarios`, ... | `(private)`                                  | todos os módulos internos                           |
 
-| Caminho                                                                            | URL                            | Layout                                       | Conteúdo                                  |
-| ---------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------- | ----------------------------------------- |
-| `app/layout.tsx`                                                                   | —                              | raiz: `<html>/<body>`, fontes, `globals.css` | base de tudo                              |
-| `app/page.tsx`                                                                     | `/`                            | raiz                                         | redireciona para `/dashboard` ou `/login` |
-| `app/privacidade/page.tsx`                                                         | `/privacidade`                 | raiz                                         | aviso de privacidade público (11.1.5)     |
-| `app/(auth)/layout.tsx`                                                            | —                              | cartão centralizado, sem menu                | fluxos de autenticação                    |
-| `app/(auth)/login`, `ativar`, `configurar-2fa`, `esqueci-senha`, `redefinir-senha` | `/login` etc.                  | `(auth)`                                     | login, ativação, MFA, recuperação         |
-| `app/(private)/layout.tsx`                                                         | —                              | **sidebar + header + guard de autenticação** | área logada                               |
-| `app/(private)/dashboard`, `usuarios`, `notas`, ...                                | `/dashboard`, `/usuarios`, ... | `(private)`                                  | todos os módulos internos                 |
-
-Se tudo fosse colocado na raiz, o `app/layout.tsx` teria que decidir, página por
-página, se mostra ou não a sidebar — inclusive em `/login` e `/privacidade`.
-Isso exigiria condicionais por `pathname` no layout raiz (fragil, e mistura
-servidor/cliente) ou repetir o guard em cada página. Os grupos resolvem isso de
-forma declarativa.
-
-## Por que `(private)` e não `(app)`
-
-`(app)` era um nome tautológico e confuso (quase idêntico ao diretório `app/`).
-Foi renomeado para **`(private)`**, que descreve a regra do grupo: só entra quem
-está autenticado. O guard central está em `app/lib/auth/page-guard.ts`
-(`requirePageUser` / `requirePagePermission`) e é usado pelo layout e por todas
-as páginas com dados.
-
-`(auth)` foi mantido: descreve com precisão o outro grupo (fluxos de
-autenticação, que também precisam de um layout sem menu). A dupla
-`(private)` / `(auth)` deixa a intenção explícita.
-
-> Renomear um route group não muda nenhuma URL, portanto não quebra links,
-> bookmarks nem redirecionamentos.
+`ativar` e `redefinir-senha` são públicos porque os links chegam por e-mail a
+quem ainda não está autenticado. Não existe "esqueci minha senha": a troca é
+presencial e a secretaria (Admin Secundário) solicita o envio do link em
+`/usuarios`, pela ação **Redefinir senha** (`POST /api/users/[id]/request-password-reset`).
 
 ## Componentes compartilhados
 
-As primitivas visuais ficam em `app/components/ui/` (`PageHeader`, `Panel`,
-`DataTable`, `Badge`, `Button`, `Input`, `Label`, `AlertBanner`,
-`ModulePlaceholder`). Páginas grandes foram divididas em componentes menores no
-próprio diretório da rota (ex.: `aprovacoes/ApprovalCard.tsx`,
-`auditoria/LogTable.tsx`, `perfis/RoleCard.tsx`). Ver `.github/README.md` para
-os checks de CI que garantem que tudo continua compilando.
+As primitivas visuais ficam em `app/(web)/components/<CamelCase>/` e são
+exportadas pelo barrel `@/components`: `Button`, `Icon`, `Field`, `Confirm`,
+`DataTable`, `Panel`, `PageHeader`, `Badge`, `FormFeedback`, `AuthCard`, `Shell`,
+`SetPasswordForm`, entre outras. Cada diretório tem seu `styles.module.scss`,
+que usa `@use "@/web/styles/tokens" as *;`. Não há mais `components/ui/` nem
+classes Tailwind.
+
+Páginas grandes são divididas em componentes no próprio diretório da rota
+(ex.: `aprovacoes/ApprovalCard.tsx`, `auditoria/LogTable.tsx`).
+Ver `.github/README.md` para os checks de CI.

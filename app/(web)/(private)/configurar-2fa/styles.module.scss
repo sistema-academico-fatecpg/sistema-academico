@@ -1,0 +1,105 @@
+@use "@/web/styles/tokens" as *;
+
+.stack {
+  display: grid;
+  gap: $space-lg;
+}
+
+.form,
+.state,
+.regenerateForm {
+  display: grid;
+  gap: $space-md;
+}
+
+.steps {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+  color: $color-muted;
+  font-size: $font-size-base;
+  line-height: 1.5;
+}
+
+.qrBox {
+  display: flex;
+  justify-content: center;
+  padding: $space-md;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface;
+}
+
+.mutedText {
+  color: $color-muted;
+  font-size: $font-size-base;
+}
+
+.summary {
+  cursor: pointer;
+}
+
+.detailText {
+  margin: $space-sm 0 0;
+  color: $color-muted;
+  line-height: 1.5;
+}
+
+.codeBlock {
+  display: block;
+  margin-top: $space-sm;
+  padding: 12px;
+  border-radius: $radius-sm;
+  background: $color-surface-soft;
+  color: $color-ink;
+  font-family: monospace;
+  font-size: $font-size-sm;
+  word-break: break-all;
+}
+
+.hint {
+  margin: 0;
+  color: $color-muted;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+}
+
+.codeField input {
+  letter-spacing: 0.12em;
+}
+
+.submit {
+  width: 100%;
+}
+
+.backupCodes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-sm;
+  margin: 0;
+  padding: $space-md;
+  border-radius: $radius-sm;
+  background: $color-surface-soft;
+  color: $color-ink;
+  font-family: monospace;
+  font-size: $font-size-base;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-sm;
+}
+
+.regenerate {
+  padding-top: $space-md;
+  border-top: 1px solid $color-border;
+  color: $color-muted;
+  font-size: $font-size-base;
+}
+
+.regenerateForm {
+  margin-top: $space-sm;
+}

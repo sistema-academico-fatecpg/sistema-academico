@@ -1,0 +1,31 @@
+@use "@/web/styles/tokens" as *;
+
+.badgeBase {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.badgeDefault {
+  background-color: $color-primary-soft;
+  color: $color-primary;
+}
+
+.badgeSuccess {
+  background-color: $color-success-soft;
+  color: $color-success;
+}
+
+.badgeNeutral {
+  background-color: $color-background;
+  color: $color-muted;
+}
+
+.badgeDanger {
+  background-color: $color-danger-soft;
+  color: $color-danger;
+}

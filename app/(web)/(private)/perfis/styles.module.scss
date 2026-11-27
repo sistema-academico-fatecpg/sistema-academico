@@ -1,0 +1,104 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  display: grid;
+  gap: $space-lg;
+}
+
+.createForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: $space-sm;
+}
+
+.roleInput {
+  width: auto;
+}
+
+.panelStack {
+  display: grid;
+  gap: $space-md;
+}
+
+.roles {
+  display: grid;
+  gap: $space-sm;
+}
+
+.roleCard {
+  padding: 20px;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  background-color: $color-surface;
+  box-shadow: $shadow-card;
+}
+
+.summary {
+  cursor: pointer;
+  color: $color-ink;
+  font-weight: 650;
+}
+
+.description {
+  margin: $space-sm 0 0;
+  color: $color-muted;
+  font-size: $font-size-base;
+}
+
+.permissionList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: $space-sm 0 0;
+  padding: 0;
+  color: $color-ink-soft;
+  font-size: $font-size-sm;
+}
+
+.permissionItem {
+  list-style: none;
+}
+
+.subDetails {
+  margin-top: $space-sm;
+}
+
+.subSummary {
+  cursor: pointer;
+  color: $color-muted;
+  font-size: $font-size-sm;
+  font-weight: 700;
+}
+
+.picker {
+  display: grid;
+  gap: $space-sm;
+  margin-top: $space-sm;
+}
+
+.permissionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  font-size: $font-size-sm;
+}
+
+.permissionOption {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: $color-ink-soft;
+  cursor: pointer;
+
+  input {
+    accent-color: $color-primary;
+  }
+}
+
+@media (min-width: 769px) {
+  .permissionList,
+  .permissionGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

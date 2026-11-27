@@ -275,10 +275,18 @@ export class AccountService {
     return activated;
   }
 
-  /** Solicita redefinição por link de uso único (30 min), sem revelar se a conta existe. */
-  async requestPasswordReset(email: string, ipAddress: string): Promise<void> {
-    const user = await this.users.findByEmail(email);
-    if (user?.status !== "ACTIVE") return;
+  /**
+   * Redefinição de senha é solicitada pela secretaria (presencialmente), nunca
+   * pelo próprio titular em uma tela de "esqueci minha senha" (8.3). O link de
+   * uso único (30 min) é enviado ao e-mail institucional da conta.
+   */
+  async requestPasswordResetBySecretariat(userId: string, actor: ActorContext): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user) throw notFound("Usuário não encontrado");
+    if (user.status !== "ACTIVE") {
+      throw validationError("Somente contas ativas podem solicitar redefinição de senha");
+    }
+
     const issued = await this.tokens.issue(user.id, "PASSWORD_RESET");
     await sendEmail(
       passwordResetEmail({
@@ -289,14 +297,13 @@ export class AccountService {
       }),
     );
     await this.audit.record({
-      userId: auditUserId(user.id),
-      role: rolesOf(user)[0] ?? null,
-      ipAddress,
+      ...auditActor(actor),
       action: AUDIT_ACTIONS.PASSWORD_RESET_REQUESTED,
       module: "USERS",
       recordType: "User",
       recordId: user.id,
       result: "SUCCESS",
+      newValue: { requestedBySecretariat: true },
     });
   }
 

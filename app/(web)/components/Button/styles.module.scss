@@ -1,0 +1,67 @@
+@use "@/web/styles/tokens" as *;
+
+.btnBase {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-sm;
+  border: 1px solid transparent;
+  border-radius: $radius-sm;
+  font-weight: 650;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.btnBase:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btnMd {
+  min-height: 40px;
+  padding: 0 15px;
+  font-size: $font-size-base;
+}
+
+.btnSm {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: $font-size-sm;
+}
+
+.btnPrimary {
+  background-color: $color-primary;
+  border-color: $color-primary;
+  color: $color-surface;
+
+  &:hover:not(:disabled) {
+    background-color: $color-primary-hover;
+    border-color: $color-primary-hover;
+  }
+}
+
+.btnSecondary {
+  background-color: $color-surface;
+  border-color: $color-primary-border;
+  color: $color-primary;
+
+  &:hover:not(:disabled) {
+    background-color: $color-primary-soft;
+  }
+}
+
+.btnTertiary {
+  background-color: transparent;
+  border-color: transparent;
+  color: $color-muted;
+
+  &:hover:not(:disabled) {
+    background-color: $color-border-soft;
+    color: $color-ink;
+  }
+}
