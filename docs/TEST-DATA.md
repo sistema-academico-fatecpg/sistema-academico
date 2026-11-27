@@ -100,7 +100,7 @@ conta única e as operações críticas ficam suspensas.
 - **Login**: após entrar com senha, um perfil com 2º fator ativo recebe
   `twoFactorRedirect`; o formulário mostra o campo de **6 dígitos do
   autenticador** e um link "Perdi o celular: usar código de recuperação".
-- **Configuração do autenticador**: `app/(web)/(private)/configurar-2fa/SetupForm.tsx`
+- **Configuração do autenticador**: `app/(web)/(mfa)/configurar-2fa/SetupForm.tsx`
   pede a senha quando a configuração é iniciada pelo login, mostra a URI TOTP e
   valida o código de 6 dígitos. Após ativar, exibe os 10 códigos de recuperação
   **uma única vez**.

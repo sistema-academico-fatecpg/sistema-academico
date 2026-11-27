@@ -27,7 +27,7 @@ vi.mock("@/web/lib/auth/client", () => ({
   },
 }));
 
-import { SetupForm } from "../../(private)/configurar-2fa/SetupForm";
+import { SetupForm } from "../../(mfa)/configurar-2fa/SetupForm";
 
 const BACKUP_CODES = Array.from({ length: 10 }, (_, index) => `CODE-${index}`);
 const OLD_URI = "otpauth://totp/Sistema:old?secret=OLDSECRET&digits=6&period=30";
