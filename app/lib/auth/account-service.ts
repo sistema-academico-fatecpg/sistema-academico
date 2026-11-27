@@ -2,8 +2,8 @@ import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { CriticalOperationService } from "@/app/lib/critical-operations/service";
 import { db } from "@/app/lib/db";
-import { sendEmail } from "@/app/lib/email";
 import { passwordResetEmail } from "@/app/lib/email/templates";
+import { MessagingService } from "@/app/lib/messaging";
 import { RoleRepository } from "@/app/repositories/role.repository";
 import { UserRepository, type UserWithRoles } from "@/app/repositories/user.repository";
 import type { RoleName, UserId } from "@/app/types/common";
@@ -65,6 +65,7 @@ export class AccountService {
     private readonly tokens = new TokenService(),
     private readonly criticalOperations = new CriticalOperationService(),
     private readonly audit = createAuditService(),
+    private readonly messaging = new MessagingService(),
   ) {}
 
   /**
@@ -166,7 +167,7 @@ export class AccountService {
   }
 
   async sendActivation(user: UserWithRoles, ipAddress: string, resent = false): Promise<void> {
-    await deliverActivation(user, this.tokens);
+    await deliverActivation(user, this.tokens, this.messaging);
     if (resent) {
       await this.audit.record({
         userId: auditUserId(user.id),
@@ -288,7 +289,7 @@ export class AccountService {
     }
 
     const issued = await this.tokens.issue(user.id, "PASSWORD_RESET");
-    await sendEmail(
+    await this.messaging.sendEmail(
       passwordResetEmail({
         to: personalEmail,
         name: user.name,

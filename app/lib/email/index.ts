@@ -14,6 +14,4 @@ export {
   type EmailTransport,
   maskEmail,
   ResendEmailTransport,
-  sendEmail,
-  setEmailTransportForTests,
 } from "./transport";

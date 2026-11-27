@@ -65,8 +65,10 @@ Os mesmos dados são impressos no console no formato:
 
 O primeiro Master aparece como `[REAL]` e recebe o link no `TEST_EMAIL` (desde
 que `RESEND_API_KEY` esteja configurada; sem ela, o transporte de desenvolvimento
-apenas registra o envio como não realizado). Copie a URL no navegador: o código
-já vem preenchido e é validado no servidor.
+apenas registra o envio como não realizado). Os `[MOCK]` passam pelo mesmo
+`MessagingService`, mas com um transporte de console injetado apenas naquela
+operação — nada sai do processo. Copie a URL no navegador: o código já vem
+preenchido e é validado no servidor.
 Crie uma senha com no mínimo 12 caracteres (maiúscula, minúscula, número e
 especial). No Docker, o arquivo fica montado em `./tmp/test-data` e o serviço
 `seed-test-data` roda uma vez na subida (`docker compose logs -f seed-test-data`).

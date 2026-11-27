@@ -10,7 +10,13 @@ import {
   hashToken,
   TOKEN_TTL_MS,
 } from "../app/lib/auth/tokens";
-import { accountActivationEmail, sendEmail } from "../app/lib/email";
+import { accountActivationEmail } from "../app/lib/email/templates";
+import {
+  type EmailMessage,
+  type EmailSendResult,
+  type EmailTransport,
+  MessagingService,
+} from "../app/lib/messaging";
 import { syncRolesAndPermissions } from "../prisma/seed-roles";
 
 /**
@@ -32,6 +38,14 @@ const db = new PrismaClient({ adapter: new PrismaPg(databaseUrl) });
 const TEST_EMAIL = process.env.TEST_EMAIL?.trim().toLowerCase() || null;
 const FICTIONAL_DOMAIN = "ficticio.local";
 const OUTPUT_DIR = process.env.TEST_DATA_OUTPUT_DIR?.trim() || path.join("/tmp", "opencode");
+
+/** Transporte de simulação: para os usuários [MOCK], "envia" escrevendo no console. */
+class MockConsoleTransport implements EmailTransport {
+  async send(message: EmailMessage): Promise<EmailSendResult> {
+    console.log(`[MOCK][mensageria] ${message.to} | ${message.text}`);
+    return { id: null, skipped: true };
+  }
+}
 
 type Activation = {
   destinatario: string;
@@ -342,32 +356,40 @@ async function main() {
   }
 
   let realEmailSent = 0;
+  const messaging = new MessagingService();
+  const mockTransport = new MockConsoleTransport();
   for (const user of [...masters, secretary, ...professors, ...students]) {
     const issued = await issueActivation(user);
     const destinatarioReal = user.id === masters[0].id && Boolean(TEST_EMAIL);
     let envio = destinatarioReal ? "e-mail real" : "MOCK — nunca enviado";
 
-    // Apenas o titular verificado recebe o link; nenhuma variável de opt-in.
-    if (destinatarioReal && issued && user.personalEmail) {
-      try {
-        const result = await sendEmail(
-          accountActivationEmail({
-            to: user.personalEmail,
-            name: user.name,
-            institutionalEmail: user.email,
-            personalEmail: user.personalEmail,
-            activationUrl: issued.url,
-            validHours: 24,
-          }),
-        );
-        if (result.skipped) {
-          envio = "e-mail NÃO enviado (transporte de desenvolvimento sem RESEND_API_KEY)";
-        } else {
-          realEmailSent += 1;
-          envio = `e-mail enviado (id ${result.id ?? "indisponível"})`;
+    if (issued && user.personalEmail) {
+      const message = accountActivationEmail({
+        to: user.personalEmail,
+        name: user.name,
+        institutionalEmail: user.email,
+        personalEmail: user.personalEmail,
+        activationUrl: issued.url,
+        validHours: 24,
+      });
+
+      if (!destinatarioReal) {
+        // Override por operação: simula o envio escrevendo no console.
+        await messaging.sendEmail(message, mockTransport);
+        envio = "MOCK — nunca enviado (console)";
+      } else {
+        // Sem override: usa o transporte padrão do serviço (Resend em produção).
+        try {
+          const result = await messaging.sendEmail(message);
+          if (result.skipped) {
+            envio = "e-mail NÃO enviado (transporte de desenvolvimento sem RESEND_API_KEY)";
+          } else {
+            realEmailSent += 1;
+            envio = `e-mail enviado (id ${result.id ?? "indisponível"})`;
+          }
+        } catch {
+          envio = "FALHA no envio do e-mail real (veja o log acima)";
         }
-      } catch {
-        envio = "FALHA no envio do e-mail real (veja o log acima)";
       }
     }
 
