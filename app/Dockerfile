@@ -10,7 +10,7 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # O postinstall roda `prisma generate`: o schema precisa existir antes do install.
-COPY prisma7.config.ts ./
+COPY prisma7.config.ts db-env.ts ./
 COPY prisma ./prisma
 
 RUN pnpm install --frozen-lockfile
