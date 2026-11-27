@@ -7,13 +7,15 @@ Aplicação Next.js 16 para gestão acadêmica com os controles da `Politica de 
 ```bash
 pnpm install
 pnpm db:generate
-pnpm dev
+pnpm dev:https   # HTTPS local com certificado autoassinado (ou `pnpm dev` sem TLS)
 ```
 
 `docker compose up -d --build` sobe o Postgres, cria os bancos isolados de
-auditoria/backup (`prepare-databases`) e dispara o serviço `activation-mailer`:
-aplica migrações, cria a massa de teste (4 Masters) e envia o link/código de
-ativação para `TEST_EMAIL` pela Resend. Detalhes em `docs/TEST-DATA.md`.
+auditoria/backup (`prepare-databases`), aplica migrações e executa o seed
+(`seed-test-data`): 3 Masters, 1 secretaria, 2 professores e 40 alunos, sem
+envio em massa — apenas o `TEST_EMAIL` recebe o link real. O serviço
+`tls-proxy` (Caddy) termina TLS em `https://localhost:3000`. Detalhes em
+`docs/TEST-DATA.md` e `docs/HTTPS-LOCAL.md`.
 
 Erros inesperados nas APIs são registrados no servidor com mensagem e stack
 (sem segredos) e respondidos ao cliente apenas como `Erro interno`/`INTERNAL`.
