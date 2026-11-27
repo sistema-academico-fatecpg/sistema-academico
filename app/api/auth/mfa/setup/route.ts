@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { generateRandomString, symmetricEncrypt } from "better-auth/crypto";
 import { z } from "zod";
 import { jsonError } from "@/app/lib/api/responses";
-import { requireUser } from "@/app/lib/auth/session";
+import { requireUserForMfaSetup } from "@/app/lib/auth/session";
 import { db } from "@/app/lib/db";
 
 const ISSUER = "Sistema Acadêmico";
@@ -20,7 +20,7 @@ const BodySchema = z.object({}).optional();
 export async function POST(request: Request) {
   try {
     BodySchema.parse(await request.json().catch(() => ({})));
-    const actor = await requireUser(request.headers);
+    const actor = await requireUserForMfaSetup(request.headers);
     const secret = process.env.BETTER_AUTH_SECRET;
     if (!secret || secret === "replace-with-a-secure-secret") {
       throw new Error("BETTER_AUTH_SECRET não configurada");
