@@ -51,9 +51,7 @@ async function main() {
   });
   if (!user) {
     const name = "Coordenação";
-    const institutionalEmail = await generateInstitutionalEmail(name, async (candidate) =>
-      Boolean(await db.user.findUnique({ where: { email: candidate } })),
-    );
+    const institutionalEmail = generateInstitutionalEmail(name, null, "ADMIN_MASTER");
     user = await db.user.create({
       data: {
         name,
@@ -73,6 +71,18 @@ async function main() {
     update: {},
     create: { userId: user.id, roleId: role.id, assignedBy: null },
   });
+
+  // O banco gera o e-mail institucional no INSERT de user_roles; sincroniza
+  // users.email (login) com o valor devolvido.
+  const roleLink = await db.userRole.findUnique({
+    where: { userId_roleId: { userId: user.id, roleId: role.id } },
+  });
+  if (roleLink?.institutionalEmail && roleLink.institutionalEmail !== user.email) {
+    user = await db.user.update({
+      where: { id: user.id },
+      data: { email: roleLink.institutionalEmail },
+    });
+  }
 
   // Conta já ativada preserva senha, sessão e chave TOTP. Reabrir a conta a
   // cada subida invalidava o autenticador do titular e seus links anteriores.

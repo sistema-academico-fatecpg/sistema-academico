@@ -17,23 +17,24 @@ O script é **idempotente**: pode ser executado várias vezes sem duplicar regis
 
 ## O que é criado
 
-O **e-mail institucional é gerado** no padrão `nomecodigo@academico.com` (nome
-normalizado seguido de 6 caracteres únicos, sem `+`) e é com ele que você entra.
-O `TEST_EMAIL` do `.env` é o seu **e-mail pessoal**, que recebe o link de
-ativação — são dados distintos.
+O **e-mail institucional é gerado pelo banco** no INSERT de `user_roles`, no
+padrão `nome<matrícula>@<domínio do cargo>`, e é com ele que você entra. O valor
+é devolvido ao back via `RETURNING` e copiado para `users.email`. O `TEST_EMAIL`
+do `.env` é o seu **e-mail pessoal**, que recebe o link de ativação — são dados
+distintos.
 
-| Perfil             | E-mail institucional (login)   | Observação                                   |
-| ------------------ | ------------------------------ | -------------------------------------------- |
-| `ADMIN_MASTER`     | `coorda1b2c3@academico.com`    | seu usuário; pessoal = `TEST_EMAIL`          |
-| `ADMIN_MASTER`     | `coord2b2c3d4@academico.com`   | vice-coordenação                             |
-| `ADMIN_MASTER`     | `coord3c3d4e5@academico.com`   | terceiro Master (8.1.2)                      |
-| `ADMIN_MASTER`     | `coord4d4e5f6@academico.com`   | quarto Master, apenas para teste local       |
-| `ADMIN_SECUNDARIO` | `sec1e5f6a1@academico.com`     | secretaria                                   |
-| `PROFESSOR`        | `prof1f6a1b2@academico.com`    | vinculado às 3 turmas                        |
-| `ALUNO`            | `aluno1a2b3c4@academico.com`   | matrículas + nota                            |
-| `ALUNO`            | `aluno2b3c4d5@academico.com`   | menor, com DP e consentimento do responsável |
-| `AUDITOR`          | `auditor1c4d5e6@academico.com` | revisa logs e incidentes                     |
-| `SUPORTE_TECNICO`  | `infra1d5e6f7@academico.com`   | concessão pendente e expirada                |
+| Perfil             | Domínio institucional    | Observação                          |
+| ------------------ | ------------------------ | ----------------------------------- |
+| `ADMIN_MASTER`     | `@coord.academico.com`   | seu usuário; pessoal = `TEST_EMAIL` |
+| `ADMIN_SECUNDARIO` | `@admin.academico.com`   | secretaria                          |
+| `PROFESSOR`        | `@prof.academico.com`    | vinculado às 3 turmas               |
+| `ALUNO`            | `@aluno.academico.com`   | matrículas + nota                   |
+| `AUDITOR`          | `@auditor.academico.com` | revisa logs e incidentes            |
+| `SUPORTE_TECNICO`  | `@suporte.academico.com` | concessão pendente e expirada       |
+
+Para contas sem matrícula (caso dos Masters de teste), o sufixo numérico vem de
+uma sequência do banco. O e-mail exato de cada conta criada fica no arquivo de
+ativação e na coluna `user_roles.institutional_email`.
 
 Além dos usuários: 1 curso (`CC`), 1 período vigente (2026/2), 3 disciplinas e
 turmas com horários, matrículas, uma dependência (DP), nota com histórico,

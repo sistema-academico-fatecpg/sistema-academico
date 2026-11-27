@@ -182,6 +182,8 @@ model Role {
   // Os seis perfis da política continuam representados por RoleName no código.
   name        String           @unique
   description String?
+  /** Domínio do e-mail institucional deste cargo (ex.: prof.academico.com). */
+  emailDomain String?          @map("email_domain")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
   users       UserRole[]
@@ -213,12 +215,14 @@ model RolePermission {
 }
 
 model UserRole {
-  userId     String
-  roleId     String
-  assignedAt DateTime @default(now()) @map("assigned_at")
-  assignedBy String?  @map("assigned_by")
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role       Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  userId             String
+  roleId             String
+  assignedAt         DateTime @default(now()) @map("assigned_at")
+  assignedBy         String?  @map("assigned_by")
+  /** Gerado pelo banco no INSERT: nome + matrícula @ domínio do cargo. */
+  institutionalEmail String?  @unique @map("institutional_email")
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role               Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
   @@id([userId, roleId])
   @@map("user_roles")

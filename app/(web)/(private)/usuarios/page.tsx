@@ -32,7 +32,12 @@ export default async function UsersPage() {
       <DataTable
         columns={[
           { key: "name", header: "Nome" },
-          { key: "email", header: "E-mail" },
+          {
+            key: "institutionalEmail",
+            header: "E-mail institucional",
+            render: (user) =>
+              user.roles.find((link) => link.institutionalEmail)?.institutionalEmail ?? user.email,
+          },
           {
             key: "roles",
             header: "Perfil",
