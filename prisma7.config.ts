@@ -1,4 +1,4 @@
-import "./app/lib/env/database";
+import "./db-env";
 import { defineConfig } from "prisma/config";
 
 export default defineConfig({
