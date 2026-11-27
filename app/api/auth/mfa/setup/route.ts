@@ -1,8 +1,9 @@
 import { randomBytes } from "node:crypto";
+import { createOTP } from "@better-auth/utils/otp";
 import { generateRandomString, symmetricEncrypt } from "better-auth/crypto";
 import { z } from "zod";
 import { jsonError } from "@/app/lib/api/responses";
-import { requireUser } from "@/app/lib/auth/session";
+import { requireUserForMfaSetup } from "@/app/lib/auth/session";
 import { db } from "@/app/lib/db";
 
 const ISSUER = "Sistema Acadêmico";
@@ -20,7 +21,7 @@ const BodySchema = z.object({}).optional();
 export async function POST(request: Request) {
   try {
     BodySchema.parse(await request.json().catch(() => ({})));
-    const actor = await requireUser(request.headers);
+    const actor = await requireUserForMfaSetup(request.headers);
     const secret = process.env.BETTER_AUTH_SECRET;
     if (!secret || secret === "replace-with-a-secure-secret") {
       throw new Error("BETTER_AUTH_SECRET não configurada");
@@ -52,7 +53,10 @@ export async function POST(request: Request) {
     }
 
     // O secret em claro volta apenas nesta resposta, para montar o QR code.
-    const totpURI = `otpauth://totp/${encodeURIComponent(`${ISSUER}:${actor.email}`)}?secret=${plainSecret}&issuer=${encodeURIComponent(ISSUER)}&algorithm=SHA1&digits=6&period=30`;
+    // `createOTP.url` é o mesmo gerador usado pelo Better Auth em get-totp-uri:
+    // converte o secret para Base32 (A-Z2-7), exigido pelos autenticadores, e
+    // monta a label `issuer:conta` no formato esperado pelo verifyTotp.
+    const totpURI = createOTP(plainSecret).url(ISSUER, actor.email);
     const backupCodes = Array.from({ length: 10 }, () => randomBytes(5).toString("hex"));
 
     return Response.json({ totpURI, backupCodes });
