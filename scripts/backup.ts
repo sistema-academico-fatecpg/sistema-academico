@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../app/lib/env/database";
 import { BACKUP_SCHEDULE, BackupService } from "../app/lib/security/backup-service";
 
 type BackupType = "FULL" | "INCREMENTAL" | "SEMESTER_CLOSING";

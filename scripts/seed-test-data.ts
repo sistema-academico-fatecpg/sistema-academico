@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../app/lib/env/database";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";

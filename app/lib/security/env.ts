@@ -7,6 +7,8 @@
  * insegura.
  */
 
+import "@/app/lib/env/database";
+
 const PLACEHOLDERS = new Set([
   "replace-with-a-secure-secret",
   "changeme",

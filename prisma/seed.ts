@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../app/lib/env/database";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../app/generated/prisma/client";
 import { syncRolesAndPermissions } from "./seed-roles";

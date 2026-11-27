@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../app/lib/env/database";
 import { Client } from "pg";
 
 /**
