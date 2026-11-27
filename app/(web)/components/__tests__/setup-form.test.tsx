@@ -30,20 +30,8 @@ vi.mock("@/web/lib/auth/client", () => ({
 import { SetupForm } from "../../(mfa)/configurar-2fa/SetupForm";
 
 const BACKUP_CODES = Array.from({ length: 10 }, (_, index) => `CODE-${index}`);
-const OLD_URI = "otpauth://totp/Sistema:old?secret=OLDSECRET&digits=6&period=30";
 const NEW_URI = "otpauth://totp/Sistema:new?secret=NEWSECRET&digits=6&period=30";
-
-function seedPendingSetup() {
-  window.sessionStorage.setItem(
-    "sistema-academico:totp-setup",
-    JSON.stringify({
-      totpURI: OLD_URI,
-      backupCodes: BACKUP_CODES,
-      userId: "user-1",
-      createdAt: Date.now(),
-    }),
-  );
-}
+const OTHER_URI = "otpauth://totp/Sistema:other?secret=OTHERSECRET&digits=6&period=30";
 
 async function confirmSetup() {
   verifyTotp.mockResolvedValue({ data: { token: "token-de-teste" } });
@@ -53,13 +41,14 @@ async function confirmSetup() {
     target: { value: "123456" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Confirmar código" }));
-  return screen.findByText("Segundo fator ativado");
+  expect(await screen.findByText("Segundo fator ativado")).toBeDefined();
 }
 
 beforeEach(() => {
-  window.sessionStorage.clear();
-  seedPendingSetup();
   enable.mockReset();
+  enable.mockResolvedValue({
+    data: { method: "totp", totpURI: NEW_URI, backupCodes: BACKUP_CODES },
+  });
   verifyTotp.mockReset();
   push.mockReset();
   refresh.mockReset();
@@ -67,10 +56,10 @@ beforeEach(() => {
     "fetch",
     vi.fn().mockImplementation((input: string | URL | Request) => {
       const url = String(input);
-      if (url.includes("/api/auth/me")) {
-        return Promise.resolve({ ok: true, json: async () => ({ id: "user-1" }) });
+      if (url.includes("/api/auth/mfa/codes")) {
+        return Promise.resolve({ ok: true, json: async () => ({ status: "CONFIGURED" }) });
       }
-      return Promise.resolve({ ok: true, json: async () => ({ status: "CONFIGURED" }) });
+      return Promise.resolve({ ok: true, json: async () => ({}) });
     }),
   );
   Object.defineProperty(navigator, "clipboard", {
@@ -95,43 +84,28 @@ afterEach(() => {
 });
 
 describe("SetupForm", () => {
-  it("mantém a regeneração da chave em um formulário separado da confirmação", async () => {
-    enable.mockResolvedValue({
-      data: { method: "totp", totpURI: NEW_URI, backupCodes: BACKUP_CODES },
-    });
+  it("gera a chave ao abrir sem pedir a senha novamente", async () => {
     render(<SetupForm />);
-
     await screen.findByTestId("qr");
-    const forms = Array.from(document.querySelectorAll("form"));
-    const regenerateButton = screen.getByRole("button", { name: "Gerar nova chave" });
-    expect(forms).toHaveLength(2);
-    expect(forms[0].contains(regenerateButton)).toBe(false);
-    expect(forms[1].contains(regenerateButton)).toBe(true);
 
-    fireEvent.change(screen.getByLabelText("Senha atual"), {
-      target: { value: "Senha@123456" },
-    });
-    fireEvent.click(regenerateButton);
-
-    await waitFor(() => expect(enable).toHaveBeenCalledWith({ password: "Senha@123456" }));
-    await waitFor(() => expect(screen.getByTestId("qr").getAttribute("data-value")).toBe(NEW_URI));
-    expect(verifyTotp).not.toHaveBeenCalled();
+    expect(enable).toHaveBeenCalledWith({});
+    expect(screen.queryByLabelText("Senha atual")).toBeNull();
+    expect(screen.getByTestId("qr").getAttribute("data-value")).toBe(NEW_URI);
   });
 
-  it("mostra erro de senha incorreta no formulário de regeneração", async () => {
-    enable.mockResolvedValue({
-      error: { code: "INVALID_PASSWORD", message: "Invalid password" },
-    });
+  it("permite gerar outra chave sem formulário de senha", async () => {
     render(<SetupForm />);
-
     await screen.findByTestId("qr");
-    fireEvent.change(screen.getByLabelText("Senha atual"), {
-      target: { value: "senha-errada" },
+
+    enable.mockResolvedValue({
+      data: { method: "totp", totpURI: OTHER_URI, backupCodes: BACKUP_CODES },
     });
     fireEvent.click(screen.getByRole("button", { name: "Gerar nova chave" }));
 
-    expect(await screen.findByText("Senha incorreta.")).toBeDefined();
-    expect(screen.getByTestId("qr").getAttribute("data-value")).toBe(OLD_URI);
+    await waitFor(() =>
+      expect(screen.getByTestId("qr").getAttribute("data-value")).toBe(OTHER_URI),
+    );
+    expect(verifyTotp).not.toHaveBeenCalled();
   });
 
   it("copia os códigos de recuperação e volta ao início", async () => {
@@ -143,18 +117,17 @@ describe("SetupForm", () => {
     await waitFor(() =>
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(BACKUP_CODES.join("\n")),
     );
-    expect(push).toHaveBeenCalledWith("/");
+    expect(push).toHaveBeenCalledWith("/dashboard");
     expect(refresh).toHaveBeenCalled();
-    expect(window.sessionStorage.getItem("sistema-academico:totp-setup")).toBeNull();
   });
 
-  it("baixa os códigos de recuperação e volta ao início", async () => {
+  it("baixa os códigos de recuperação", async () => {
     await confirmSetup();
 
     fireEvent.click(screen.getByRole("button", { name: "Baixar arquivo .txt" }));
 
     expect(URL.createObjectURL).toHaveBeenCalled();
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/");
+    expect(push).toHaveBeenCalledWith("/dashboard");
   });
 });

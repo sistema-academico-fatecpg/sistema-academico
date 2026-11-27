@@ -109,10 +109,11 @@ conta única e as operações críticas ficam suspensas.
   e-mail**, não TOTP (8.4.3). O código vem preenchido pela URL e é validado no
   servidor.
 
-Após definir a senha, a ativação abre sessão automaticamente. Perfis com MFA
-obrigatório (Admin Master/Secundário e Professor) vão direto para
-`/configurar-2fa` usando a senha recém-criada. Alunos veem a opção de entrar
-diretamente no painel ou configurar o autenticador voluntariamente.
+Após definir a senha, o titular é levado ao **login**. Ao entrar, perfis com MFA
+obrigatório (Admin Master/Secundário e Professor) são direcionados para
+`/configurar-2fa`; a chave é gerada com a sessão já autenticada, **sem pedir a
+senha novamente** nem consultar `/api/auth/me` sem login. Alunos entram
+diretamente no painel e podem configurar o autenticador depois, se quiserem.
 
 > **Atenção:** a chave TOTP muda se você recriar o volume do Postgres
 > (`docker compose down -v`) ou usar "Gerar nova chave" na tela. Reexecutar o

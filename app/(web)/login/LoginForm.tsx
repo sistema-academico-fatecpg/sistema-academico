@@ -49,7 +49,7 @@ export function LoginForm({ dpoEmail }: { dpoEmail: string }) {
           return;
         }
       }
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
       return;
     }
@@ -67,6 +67,11 @@ export function LoginForm({ dpoEmail }: { dpoEmail: string }) {
     }
     if (data.twoFactorRedirect) {
       setNeedsTotp(true);
+      return;
+    }
+    if (data.mfaSetupRequired) {
+      router.push("/configurar-2fa");
+      router.refresh();
       return;
     }
     router.push("/dashboard");
