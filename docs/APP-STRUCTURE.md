@@ -16,16 +16,20 @@ A back-end (`api/`, `lib/`, `repositories/`, `types/`) permanece na raiz de `app
 | `app/(web)/redefinir-senha`                          | `/redefinir-senha`             | cartão (`AuthCard`), sem menu                | redefine a senha com o token do link da secretaria |
 | `app/(web)/privacidade`                              | `/privacidade`                 | sem menu                                     | aviso de privacidade público (11.1.5)              |
 | `app/(web)/(private)/layout.tsx`                     | —                              | **sidebar + header + guard de autenticação** | área logada                                        |
-| `app/(web)/(private)/configurar-2fa`                 | `/configurar-2fa`              | `(private)`                                  | TOTP e códigos de recuperação                      |
+| `app/(web)/(mfa)/configurar-2fa`                     | `/configurar-2fa`              | `(mfa)`: exige login, sem redirect de MFA    | TOTP e códigos de recuperação                      |
 | `app/(web)/(private)/meus-dados`                     | `/meus-dados`                  | `(private)`                                  | cópia dos próprios dados em CSV (11.1.4)           |
 | `app/(web)/(private)/dashboard`, `usuarios`, `notas` | `/dashboard`, `/usuarios`, ... | `(private)`                                  | demais módulos internos                            |
+
+`/configurar-2fa` fica em `(mfa)` (e não em `(private)`) porque exige apenas
+login: o guard comum redireciona contas sem MFA justamente para essa rota, o que
+geraria redirecionamento infinito se a própria página usasse esse guard.
 
 `ativar` e `redefinir-senha` são públicos porque os links chegam por e-mail a
 quem ainda não está autenticado. Não existe "esqueci minha senha": a troca é
 presencial e a secretaria (Admin Secundário com `USERS_UPDATE`) solicita o
 envio do link em `/usuarios`, pela ação **Redefinir senha**
 (`POST /api/users/[id]/request-password-reset`). Esse link de uso único, válido
-por 30 minutos, é enviado ao **e-mail institucional** da conta e leva a
+por 30 minutos, é enviado ao **e-mail pessoal** cadastrado e leva a
 `/redefinir-senha?token=...`, onde o titular cria a senha
 (`POST /api/auth/password-reset/confirm`).
 
