@@ -27,7 +27,9 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
   const [code, setCode] = useState(initialCode);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [activatedUserId, setActivatedUserId] = useState<string | null>(null);
   const [error, setError] = useState<string[] | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,16 +44,26 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
     );
   }
 
-  const passwordAction = {
-    iconName: showPassword ? "close" : "view",
-    label: showPassword ? "Ocultar senha" : "Mostrar senha",
-    onClick: () => setShowPassword((visible) => !visible),
+  const newPasswordAction = {
+    iconName: showNewPassword ? "close" : "view",
+    label: showNewPassword ? "Ocultar senha" : "Mostrar senha",
+    onClick: () => setShowNewPassword((visible) => !visible),
+  };
+  const confirmPasswordAction = {
+    iconName: showConfirmPassword ? "close" : "view",
+    label: showConfirmPassword ? "Ocultar confirmação" : "Mostrar confirmação",
+    onClick: () => setShowConfirmPassword((visible) => !visible),
   };
 
   /** Aproveita a senha recém-criada: a tela TOTP não pede a senha outra vez. */
   async function startTotpSetup() {
     setError(null);
     setLoading(true);
+    let userId = activatedUserId;
+    if (!userId) {
+      const me = await fetch("/api/auth/me").catch(() => null);
+      if (me?.ok) userId = ((await me.json()) as { id?: string }).id ?? null;
+    }
     const result = await authClient.twoFactor.enable({ password });
     setLoading(false);
     if (result.error || result.data?.method !== "totp") {
@@ -64,9 +76,16 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
       setError(["O autenticador não retornou a chave de configuração."]);
       return;
     }
+    if (!userId) {
+      setError(["Não foi possível identificar a sessão. Entre novamente e tente outra vez."]);
+      return;
+    }
+    setActivatedUserId(userId);
     savePendingTotpSetup({
       totpURI: result.data.totpURI,
       backupCodes: result.data.backupCodes,
+      userId,
+      createdAt: Date.now(),
     });
     router.push("/configurar-2fa");
   }
@@ -111,9 +130,11 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
     const data = (await response.json()) as {
       requiresTwoFactorSetup?: boolean;
       sessionStarted?: boolean;
+      user?: { id?: string };
       error?: string;
       details?: Array<{ message?: string } | string>;
     };
+    if (data.user?.id) setActivatedUserId(data.user.id);
     setLoading(false);
     if (!response.ok) {
       setError(
@@ -191,21 +212,21 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
         value={code}
       />
       <Field
-        action={passwordAction}
+        action={newPasswordAction}
         label="Nova senha"
         minLength={12}
         onChange={(event) => setPassword(event.target.value)}
         required
-        type={showPassword ? "text" : "password"}
+        type={showNewPassword ? "text" : "password"}
         value={password}
       />
       <Field
-        action={passwordAction}
+        action={confirmPasswordAction}
         label="Confirme a nova senha"
         minLength={12}
         onChange={(event) => setConfirm(event.target.value)}
         required
-        type={showPassword ? "text" : "password"}
+        type={showConfirmPassword ? "text" : "password"}
         value={confirm}
       />
       <FormFeedback errors={error} />
