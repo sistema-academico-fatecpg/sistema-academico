@@ -62,6 +62,7 @@ export class GradeService {
     this.assertProfessor(actor);
     const enrollment = await this.enrollments.findByIdWithClass(input.enrollmentId);
     if (!enrollment) throw notFound("Matrícula não encontrada");
+    if (enrollment.status !== "ACTIVE") throw validationError("Matrícula não está ativa");
     const group = enrollment.classGroup;
 
     if (group.professorId !== actor.id) {
@@ -114,6 +115,7 @@ export class GradeService {
       this.assertProfessor(actor);
       const enrollment = await this.enrollments.findByIdWithClass(input.enrollmentId);
       if (!enrollment) throw notFound("Matrícula não encontrada");
+      if (enrollment.status !== "ACTIVE") throw validationError("Matrícula não está ativa");
       if (enrollment.classGroup.professorId !== actor.id) {
         throw forbidden("Professor não vinculado à turma desta matrícula");
       }
