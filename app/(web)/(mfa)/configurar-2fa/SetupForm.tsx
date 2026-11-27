@@ -30,17 +30,18 @@ export function SetupForm() {
     setBusy("setup");
     setError(null);
     try {
-      const result = await authClient.twoFactor.enable({});
-      if (result.error) {
-        setError(result.error.message ?? "Não foi possível gerar a chave do autenticador.");
+      const response = await fetch("/api/auth/mfa/setup", { method: "POST" });
+      const data = (await response.json().catch(() => ({}))) as {
+        totpURI?: string;
+        backupCodes?: string[];
+        error?: string;
+      };
+      if (!response.ok || !data.totpURI || !data.backupCodes) {
+        setError(data.error ?? "Não foi possível gerar a chave do autenticador.");
         return;
       }
-      if (result.data?.method !== "totp" || !result.data.totpURI || !result.data.backupCodes) {
-        setError("O autenticador não retornou a chave de configuração.");
-        return;
-      }
-      setTotpURI(result.data.totpURI);
-      setBackupCodes(result.data.backupCodes);
+      setTotpURI(data.totpURI);
+      setBackupCodes(data.backupCodes);
       setCode("");
     } catch {
       setError("Não foi possível gerar a chave. Verifique sua conexão e tente novamente.");

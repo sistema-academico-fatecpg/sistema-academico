@@ -3,8 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { enable, verifyTotp, push, refresh } = vi.hoisted(() => ({
-  enable: vi.fn(),
+const { verifyTotp, push, refresh } = vi.hoisted(() => ({
   verifyTotp: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
@@ -21,7 +20,6 @@ vi.mock("qrcode.react", () => ({
 vi.mock("@/web/lib/auth/client", () => ({
   authClient: {
     twoFactor: {
-      enable: (...args: unknown[]) => enable(...args),
       verifyTotp: (...args: unknown[]) => verifyTotp(...args),
     },
   },
@@ -32,6 +30,7 @@ import { SetupForm } from "../../(mfa)/configurar-2fa/SetupForm";
 const BACKUP_CODES = Array.from({ length: 10 }, (_, index) => `CODE-${index}`);
 const NEW_URI = "otpauth://totp/Sistema:new?secret=NEWSECRET&digits=6&period=30";
 const OTHER_URI = "otpauth://totp/Sistema:other?secret=OTHERSECRET&digits=6&period=30";
+let setupUri = NEW_URI;
 
 async function confirmSetup() {
   verifyTotp.mockResolvedValue({ data: { token: "token-de-teste" } });
@@ -45,10 +44,7 @@ async function confirmSetup() {
 }
 
 beforeEach(() => {
-  enable.mockReset();
-  enable.mockResolvedValue({
-    data: { method: "totp", totpURI: NEW_URI, backupCodes: BACKUP_CODES },
-  });
+  setupUri = NEW_URI;
   verifyTotp.mockReset();
   push.mockReset();
   refresh.mockReset();
@@ -56,6 +52,12 @@ beforeEach(() => {
     "fetch",
     vi.fn().mockImplementation((input: string | URL | Request) => {
       const url = String(input);
+      if (url.includes("/api/auth/mfa/setup")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ totpURI: setupUri, backupCodes: BACKUP_CODES }),
+        });
+      }
       if (url.includes("/api/auth/mfa/codes")) {
         return Promise.resolve({ ok: true, json: async () => ({ status: "CONFIGURED" }) });
       }
@@ -88,7 +90,6 @@ describe("SetupForm", () => {
     render(<SetupForm />);
     await screen.findByTestId("qr");
 
-    expect(enable).toHaveBeenCalledWith({});
     expect(screen.queryByLabelText("Senha atual")).toBeNull();
     expect(screen.getByTestId("qr").getAttribute("data-value")).toBe(NEW_URI);
   });
@@ -97,9 +98,7 @@ describe("SetupForm", () => {
     render(<SetupForm />);
     await screen.findByTestId("qr");
 
-    enable.mockResolvedValue({
-      data: { method: "totp", totpURI: OTHER_URI, backupCodes: BACKUP_CODES },
-    });
+    setupUri = OTHER_URI;
     fireEvent.click(screen.getByRole("button", { name: "Gerar nova chave" }));
 
     await waitFor(() =>
