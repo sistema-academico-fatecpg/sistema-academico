@@ -37,19 +37,20 @@
 }
 
 .gradeForm {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: $space-sm;
-
   input[type="number"] {
     width: 84px;
     height: 38px;
   }
 }
 
+.saveBar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: $space-md;
+}
+
 .feedback {
-  flex-basis: 100%;
+  margin-top: $space-sm;
 }
 
 .link {
