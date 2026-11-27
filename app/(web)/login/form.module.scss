@@ -1,0 +1,55 @@
+@use "@/web/styles/tokens" as *;
+
+.form {
+  display: grid;
+  gap: 17px;
+}
+
+.submit {
+  width: 100%;
+  margin-top: 5px;
+}
+
+.links {
+  display: flex;
+  justify-content: space-between;
+  gap: $space-md;
+  font-size: $font-size-base;
+
+  a {
+    color: $color-primary;
+    font-weight: 600;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.codeField input {
+  letter-spacing: 0.12em;
+}
+
+.toggleMode {
+  justify-self: start;
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.privacyNote {
+  margin: 0;
+  padding-top: $space-md;
+  border-top: 1px solid $color-border;
+  color: $color-muted;
+  font-size: $font-size-sm;
+  line-height: 1.6;
+
+  a {
+    color: $color-primary;
+    text-decoration: underline;
+
+    &:hover {
+      color: $color-primary-hover;
+    }
+  }
+}

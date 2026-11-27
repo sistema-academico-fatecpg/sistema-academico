@@ -1,0 +1,62 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  display: grid;
+  gap: $space-lg;
+}
+
+.groupLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-sm;
+}
+
+.classLink {
+  padding: 10px $space-md;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface;
+  color: $color-ink;
+  font-size: $font-size-base;
+  text-decoration: none;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease;
+
+  &:hover {
+    border-color: $color-primary-border;
+    background: $color-surface-hover;
+  }
+}
+
+.classLinkActive {
+  border-color: $color-primary;
+  background: $color-primary-soft;
+  color: $color-primary;
+  font-weight: 700;
+}
+
+.gradeForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: $space-sm;
+
+  input[type="number"] {
+    width: 84px;
+    height: 38px;
+  }
+}
+
+.feedback {
+  flex-basis: 100%;
+}
+
+.link {
+  color: $color-primary;
+  text-decoration: underline;
+
+  &:hover {
+    color: $color-primary-hover;
+  }
+}

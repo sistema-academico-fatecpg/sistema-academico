@@ -1,0 +1,53 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 48px 20px;
+  color: $color-ink;
+}
+
+.text {
+  margin: 0;
+  color: $color-muted;
+  font-size: $font-size-base;
+  line-height: 1.6;
+}
+
+.sections {
+  display: grid;
+  gap: $space-lg;
+  margin-top: $space-lg;
+}
+
+.section {
+  display: grid;
+  gap: $space-sm;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: $color-ink;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+  color: $color-muted;
+  font-size: $font-size-base;
+  line-height: 1.6;
+}
+
+.link {
+  color: $color-primary;
+  font-weight: 600;
+  text-decoration: underline;
+
+  &:hover {
+    color: $color-primary-hover;
+  }
+}

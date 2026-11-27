@@ -1,0 +1,145 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(420px, 0.9fr) 1.1fr;
+  background: $color-surface;
+}
+
+.panel {
+  width: min(430px, calc(100% - 48px));
+  margin: auto;
+  padding: 48px 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: $color-primary;
+
+  span {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    color: $color-surface;
+    background: $color-primary;
+    border-radius: 11px;
+  }
+
+  strong {
+    display: block;
+    font-size: 16px;
+  }
+
+  small {
+    display: block;
+    margin-top: 3px;
+    color: $color-muted;
+  }
+}
+
+.intro {
+  margin: 54px 0 28px;
+
+  h1 {
+    margin: 0;
+    font-size: 29px;
+    letter-spacing: -0.04em;
+  }
+
+  p {
+    margin: 8px 0 0;
+    color: $color-muted;
+  }
+}
+
+.visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 8vw;
+  overflow: hidden;
+  color: $color-surface;
+  background:
+    radial-gradient(circle at 80% 15%, #b64c53 0, transparent 34%),
+    linear-gradient(145deg, #76151d, #390b10);
+
+  &::after {
+    content: "";
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    right: -190px;
+    bottom: -250px;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 55px rgba(255, 255, 255, 0.03),
+      0 0 0 110px rgba(255, 255, 255, 0.02);
+  }
+
+  > small {
+    position: absolute;
+    bottom: 30px;
+    color: #e1c3c5;
+    font-size: 11px;
+  }
+}
+
+.visualContent {
+  position: relative;
+  z-index: 1;
+  max-width: 530px;
+
+  h2 {
+    margin: 20px 0 14px;
+    font-size: clamp(32px, 4vw, 54px);
+    line-height: 1.08;
+    letter-spacing: -0.05em;
+  }
+
+  p {
+    max-width: 390px;
+    color: #f0dfe0;
+    line-height: 1.7;
+  }
+}
+
+.kicker {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #e8b9bc;
+  font-weight: 750;
+}
+
+.visualIcon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-top: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.33);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+@media (max-width: 800px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .visual {
+    display: none;
+  }
+
+  .panel {
+    padding: 32px 0;
+  }
+
+  .intro {
+    margin-top: 42px;
+  }
+}

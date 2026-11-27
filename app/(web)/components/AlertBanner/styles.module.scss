@@ -1,0 +1,51 @@
+@use "@/web/styles/tokens" as *;
+
+.alertBase {
+  border-radius: $radius-md;
+  border: 1px solid $color-border;
+  background-color: $color-background;
+  padding: 20px;
+  color: $color-ink;
+}
+
+.toneInfo {
+  border-color: $color-border;
+  background-color: $color-surface-soft;
+  color: $color-ink;
+}
+
+.toneWarning {
+  border-color: rgba(168, 107, 19, 0.35);
+  background-color: #fffbeb;
+  color: $color-warning;
+}
+
+.toneSuccess {
+  border-color: rgba(35, 122, 83, 0.35);
+  background-color: $color-success-soft;
+  color: $color-success;
+}
+
+.toneDanger {
+  border-color: rgba(180, 35, 24, 0.35);
+  background-color: $color-danger-soft;
+  color: $color-danger;
+}
+
+.alertTitle {
+  margin: 0 0 $space-sm 0;
+  font-weight: 700;
+  font-size: $font-size-base;
+  color: inherit;
+}
+
+.alertBody {
+  margin: 0;
+  font-size: $font-size-base;
+  line-height: 1.5;
+  color: inherit;
+}
+
+.alertBodyWithTitle {
+  margin-top: 0.25rem;
+}

@@ -1,0 +1,44 @@
+@use "@/web/styles/tokens" as *;
+
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.label {
+  color: $color-ink-soft;
+  font-size: $font-size-sm;
+  font-weight: 650;
+}
+
+.control {
+  position: relative;
+}
+
+.inputWithAction {
+  padding-right: 42px;
+}
+
+.action {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-height: 32px;
+  padding: 0 8px;
+}
+
+.hint,
+.error {
+  margin: 0;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+}
+
+.hint {
+  color: $color-muted;
+}
+
+.error {
+  color: $color-danger;
+}

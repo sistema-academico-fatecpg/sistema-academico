@@ -1,0 +1,36 @@
+@use "@/web/styles/tokens" as *;
+
+.form,
+.state {
+  display: grid;
+  gap: $space-md;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-md;
+}
+
+.submit {
+  width: 100%;
+}
+
+.codeField input {
+  letter-spacing: 0.12em;
+}
+
+.footnote {
+  margin: 0;
+  color: $color-muted;
+  font-size: $font-size-sm;
+
+  a {
+    color: $color-primary;
+    text-decoration: underline;
+
+    &:hover {
+      color: $color-primary-hover;
+    }
+  }
+}

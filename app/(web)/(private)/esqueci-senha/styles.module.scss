@@ -1,0 +1,21 @@
+@use "@/web/styles/tokens" as *;
+
+.form {
+  display: grid;
+  gap: $space-md;
+}
+
+.notice {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface-soft;
+  color: $color-ink;
+  font-size: $font-size-base;
+  line-height: 1.5;
+}
+
+.submit {
+  width: 100%;
+}

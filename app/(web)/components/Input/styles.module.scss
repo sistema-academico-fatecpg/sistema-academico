@@ -1,0 +1,39 @@
+@use "@/web/styles/tokens" as *;
+
+.inputBase {
+  width: 100%;
+  height: 43px;
+  padding: 0 12px;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  font-size: $font-size-base;
+  color: $color-ink;
+  background-color: $color-surface;
+  outline: none;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.inputBase::placeholder {
+  color: $color-muted-light;
+}
+
+.inputBase:focus {
+  border-color: $color-primary;
+  box-shadow: 0 0 0 3px rgba(143, 29, 37, 0.09);
+}
+
+.inputBase:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.inputError {
+  border-color: $color-danger;
+}
+
+.inputError:focus {
+  border-color: $color-danger;
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.12);
+}

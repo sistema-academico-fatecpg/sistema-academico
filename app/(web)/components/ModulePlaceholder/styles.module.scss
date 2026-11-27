@@ -1,0 +1,57 @@
+@use "@/web/styles/tokens" as *;
+
+.section {
+  display: grid;
+  gap: $space-lg;
+}
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-md;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: $font-size-base;
+  font-weight: 700;
+  color: $color-ink;
+}
+
+.description {
+  margin: 7px 0 0;
+  font-size: $font-size-base;
+  color: $color-muted;
+}
+
+.endpointBox {
+  margin-top: 20px;
+  padding: $space-md;
+  border-radius: $radius-sm;
+  background-color: $color-background;
+}
+
+.caption {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: $color-muted-light;
+}
+
+.endpoint {
+  display: block;
+  margin-top: $space-sm;
+  font-size: $font-size-base;
+  color: $color-primary;
+}
+
+.note {
+  margin: $space-md 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: $color-muted;
+}

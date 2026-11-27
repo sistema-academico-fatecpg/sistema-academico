@@ -1,0 +1,67 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  display: grid;
+  gap: $space-lg;
+}
+
+.stack {
+  display: grid;
+  gap: $space-lg;
+}
+
+.panelBody {
+  margin-top: $space-md;
+}
+
+.heading {
+  margin: 0;
+  color: $color-ink;
+  font-size: $font-size-base;
+  font-weight: 700;
+}
+
+.form {
+  display: grid;
+  gap: $space-md;
+}
+
+.option {
+  padding: $space-md;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface;
+
+  input[type="checkbox"] {
+    box-sizing: border-box;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    accent-color: $color-primary;
+  }
+}
+
+.optionConflict {
+  border-color: $color-primary-border;
+  background: $color-primary-soft;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.note {
+  color: $color-muted;
+  font-size: $font-size-base;
+}
+
+.link {
+  color: $color-primary;
+  text-decoration: underline;
+
+  &:hover {
+    color: $color-primary-hover;
+  }
+}

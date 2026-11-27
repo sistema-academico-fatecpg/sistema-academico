@@ -1,0 +1,24 @@
+@use "@/web/styles/tokens" as *;
+
+.panelBase {
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background-color: $color-surface;
+  box-shadow: $shadow-card;
+}
+
+.p0 {
+  padding: 0;
+}
+.p4 {
+  padding: $space-md;
+}
+.p5 {
+  padding: 20px;
+}
+.p6 {
+  padding: $space-lg;
+}
+.p8 {
+  padding: 32px;
+}

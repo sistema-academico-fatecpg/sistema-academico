@@ -1,0 +1,42 @@
+@use "@/web/styles/tokens" as *;
+
+.card {
+  display: block;
+  padding: 20px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface;
+  box-shadow: $shadow-card;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+
+  &:hover {
+    border-color: $color-primary-border;
+    box-shadow: 0 8px 24px rgba(44, 20, 24, 0.09);
+  }
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: $color-primary-soft;
+  color: $color-primary;
+}
+
+.title {
+  margin: 16px 0 5px;
+  font-size: $font-size-base;
+  font-weight: 700;
+  color: $color-ink;
+}
+
+.description {
+  margin: 0;
+  font-size: $font-size-sm;
+  line-height: 1.6;
+  color: $color-muted;
+}

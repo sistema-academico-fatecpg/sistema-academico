@@ -1,0 +1,37 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  display: grid;
+  gap: $space-lg;
+}
+
+.summary {
+  margin: 0;
+  color: $color-ink-soft;
+  font-size: $font-size-base;
+}
+
+.downloadLink {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-sm;
+  min-height: 40px;
+  margin-top: $space-sm;
+  padding: 0 15px;
+  border: 1px solid $color-primary;
+  border-radius: $radius-sm;
+  background-color: $color-primary;
+  color: $color-surface;
+  font-size: $font-size-base;
+  font-weight: 650;
+  line-height: 1;
+  text-decoration: none;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease;
+
+  &:hover {
+    background-color: $color-primary-hover;
+    border-color: $color-primary-hover;
+  }
+}

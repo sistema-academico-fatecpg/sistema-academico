@@ -1,0 +1,34 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  display: grid;
+  gap: $space-lg;
+}
+
+.reviewTitle {
+  margin: 0;
+  font-weight: 700;
+}
+
+.roleCell {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-sm;
+  color: $color-ink;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dutiesCell {
+  color: $color-ink-soft;
+}
+
+.note {
+  margin: 0;
+  color: $color-muted;
+  font-size: $font-size-sm;
+
+  code {
+    color: $color-primary;
+  }
+}

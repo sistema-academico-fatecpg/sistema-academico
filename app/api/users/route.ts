@@ -60,6 +60,10 @@ export async function POST(request: Request) {
       await request.json(),
     );
     const users = new UserRepository();
+
+    // A matrícula é gerada automaticamente pelo servidor, com índice crescente
+    // por cargo. O valor enviado pelo cliente é ignorado.
+    const registrationNumber = await users.nextRegistrationNumber(body.role);
     const email = await generateInstitutionalEmail(body.name, async (candidate) =>
       Boolean(await users.findByEmail(candidate)),
     );
@@ -68,7 +72,7 @@ export async function POST(request: Request) {
       socialName: body.socialName ?? null,
       email,
       personalEmail: body.personalEmail,
-      registrationNumber: body.registrationNumber ?? null,
+      registrationNumber,
       role: body.role,
     };
     const result = await new AccountService().createUser(

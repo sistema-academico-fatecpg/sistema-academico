@@ -1,0 +1,44 @@
+// Tokens visuais compartilhados, alinhados ao projeto de referência.
+// Componentes devem usar `@use "@/web/styles/tokens" as *;` em vez de
+// repetir cores, raios, sombras e espaçamentos literais.
+
+$color-primary: #8f1d25;
+$color-primary-hover: #74151c;
+$color-primary-soft: #f8e9ea;
+$color-primary-border: #d9b8bb;
+$color-ink: #282326;
+$color-ink-soft: #484146;
+$color-ink-muted: #62595e;
+$color-muted: #777076;
+$color-muted-strong: #766b6e;
+$color-muted-light: #a49a9d;
+$color-border: #e8e1e2;
+$color-border-soft: #f0ebeb;
+$color-surface: #ffffff;
+$color-surface-soft: #faf7f7;
+$color-surface-hover: #fdfafa;
+$color-background: #f7f5f5;
+$color-success: #237a53;
+$color-success-soft: #edf6f0;
+$color-warning: #a86b13;
+$color-danger: #b42318;
+$color-danger-soft: #f8e9ea;
+
+$radius-sm: 6px;
+$radius-md: 10px;
+$radius-lg: 16px;
+
+$shadow-card: 0 4px 18px rgba(44, 20, 24, 0.055);
+$shadow-dialog: 0 24px 70px rgba(28, 15, 17, 0.18);
+
+$space-sm: 8px;
+$space-md: 16px;
+$space-lg: 24px;
+
+$font-size-sm: 12px;
+$font-size-base: 14px;
+$font-size-lg: 25px;
+
+$header-height: 72px;
+$sidebar-width: 238px;
+$content-max-width: 1320px;

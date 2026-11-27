@@ -1,0 +1,95 @@
+@use "@/web/styles/tokens" as *;
+
+.page {
+  display: grid;
+  gap: $space-lg;
+}
+
+.pendingList {
+  display: grid;
+  gap: $space-md;
+}
+
+.empty {
+  text-align: center;
+  color: $color-muted;
+  font-size: $font-size-base;
+}
+
+.card {
+  display: grid;
+  gap: $space-sm;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $space-sm;
+}
+
+.eyebrow {
+  margin: 0;
+  color: $color-muted;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.title {
+  margin: 4px 0 0;
+  color: $color-ink;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.meta {
+  margin: 4px 0 0;
+  color: $color-muted;
+  font-size: $font-size-base;
+}
+
+.justification {
+  padding: $space-md;
+  border-radius: $radius-md;
+  background-color: $color-surface-soft;
+  color: $color-ink-soft;
+  font-size: $font-size-base;
+  line-height: 1.6;
+}
+
+.reason {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+}
+
+.document {
+  margin: $space-sm 0 0;
+  color: $color-muted;
+  font-size: $font-size-sm;
+}
+
+.notice {
+  margin: 0;
+  color: $color-muted;
+  font-size: $font-size-base;
+  font-weight: 600;
+}
+
+.decision {
+  display: grid;
+  gap: $space-sm;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-sm;
+}
+
+.deadline {
+  margin: $space-sm 0 0;
+  font-weight: 700;
+}
