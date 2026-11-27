@@ -2,7 +2,7 @@
 
 ## Base separada
 
-Em produção, `AUDIT_DATABASE_URL` deve apontar para um banco **distinto** do acadêmico. Aplicar `prisma/audit-database.sql` nessa instância. A aplicação:
+Em produção, `AUDIT_DATABASE_URL` deve apontar para um banco **distinto** do acadêmico — de preferência em uma instância Postgres separada, com credenciais próprias e permissões apenas de `INSERT`/`SELECT` para a aplicação. Em desenvolvimento o docker-compose usa outro **database** (`<DATABASE_NAME>_audit`) no mesmo cluster, o que não substitui o isolamento produtivo. Aplicar `prisma/audit-database.sql` nessa instância. As URLs não são mais repetidas no `.env`: `app/lib/env/database.ts` deriva `DATABASE_URL`, `AUDIT_DATABASE_URL` e `BACKUP_TEST_DATABASE_URL` dos componentes compartilhados, e um valor explícito tem precedência. A aplicação:
 
 - espelha cada registro e alerta na base isolada (`SeparateAuditStore`);
 - lê logs e alertas pela base isolada quando configurada (`auditReader()`);
