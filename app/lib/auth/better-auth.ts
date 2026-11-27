@@ -153,9 +153,6 @@ export const auth = betterAuth({
         withTotpClockSkew(
           twoFactor({
             issuer: "Sistema Acadêmico",
-            // A chave é gerada logo após o login (sessão válida), sem pedir a
-            // senha novamente na tela de configuração.
-            allowPasswordless: true,
             // 8.9: limite de tentativas no segundo fator.
             accountLockout: {
               enabled: true,

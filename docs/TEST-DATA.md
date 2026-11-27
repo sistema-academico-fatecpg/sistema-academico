@@ -112,8 +112,11 @@ conta única e as operações críticas ficam suspensas.
 Após definir a senha, o titular é levado ao **login**. Ao entrar, perfis com MFA
 obrigatório (Admin Master/Secundário e Professor) são direcionados para
 `/configurar-2fa`; a chave é gerada com a sessão já autenticada, **sem pedir a
-senha novamente** nem consultar `/api/auth/me` sem login. Alunos entram
-diretamente no painel e podem configurar o autenticador depois, se quiserem.
+senha novamente** nem consultar `/api/auth/me` sem login: a chave é gerada por
+`POST /api/auth/mfa/setup` com a sessão válida e confirmada com `verifyTotp`.
+Não existe link "Configurar 2FA" na tela de login — deslogado, o usuário apenas
+entra. Alunos entram diretamente no painel e podem configurar o autenticador
+depois, se quiserem.
 
 > **Atenção:** a chave TOTP muda se você recriar o volume do Postgres
 > (`docker compose down -v`) ou usar "Gerar nova chave" na tela. Reexecutar o

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button, FormFeedback } from "@/components";
@@ -106,9 +105,6 @@ export function LoginForm({ dpoEmail }: { dpoEmail: string }) {
         {loading ? "Verificando..." : needsTotp ? "Confirmar código" : "Entrar"}
       </Button>
 
-      <div className={styles.links}>
-        <Link href="/configurar-2fa">Configurar 2FA</Link>
-      </div>
       <PrivacyNote email={dpoEmail} />
     </form>
   );
