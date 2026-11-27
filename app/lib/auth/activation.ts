@@ -1,5 +1,5 @@
-import { sendEmail } from "@/app/lib/email";
 import { accountActivationEmail } from "@/app/lib/email/templates";
+import { MessagingService } from "@/app/lib/messaging";
 import { validationError } from "./errors";
 import { TokenService } from "./tokens";
 
@@ -46,6 +46,7 @@ type ActivationRecipient = {
 export async function deliverActivation(
   user: ActivationRecipient,
   tokens = new TokenService(),
+  messaging = new MessagingService(),
 ): Promise<void> {
   const personalEmail = user.personalEmail?.trim().toLowerCase();
   if (!personalEmail) {
@@ -55,7 +56,7 @@ export async function deliverActivation(
   }
 
   const issued = await tokens.issue(user.id, "ACCOUNT_ACTIVATION");
-  await sendEmail(
+  await messaging.sendEmail(
     accountActivationEmail({
       to: personalEmail,
       name: user.name,

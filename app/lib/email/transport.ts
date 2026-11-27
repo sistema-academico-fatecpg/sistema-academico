@@ -82,29 +82,6 @@ export function createEmailTransport(): EmailTransport {
   return new ConsoleEmailTransport();
 }
 
-let defaultTransport: EmailTransport | null = null;
-
-export function setEmailTransportForTests(transport: EmailTransport | null) {
-  defaultTransport = transport;
-}
-
-export async function sendEmail(
-  message: Omit<EmailMessage, "kind"> & { kind?: EmailMessage["kind"] },
-  transport: EmailTransport = defaultTransport ?? createEmailTransport(),
-): Promise<EmailSendResult> {
-  try {
-    return await transport.send({ ...message, kind: message.kind ?? "GENERIC" });
-  } catch (error) {
-    // Log sem conteúdo sensível (seção 10.5).
-    console.error("[email] falha no envio", {
-      kind: message.kind ?? "GENERIC",
-      to: maskEmail(message.to),
-      error: error instanceof Error ? error.name : "unknown",
-    });
-    throw error;
-  }
-}
-
 export function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
   if (!local || !domain) return "***";
