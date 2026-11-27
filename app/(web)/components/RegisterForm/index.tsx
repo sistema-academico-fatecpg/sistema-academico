@@ -20,9 +20,11 @@ const DIRETORIA_ROLES: RoleName[] = ["ADMIN_MASTER", "ADMIN_SECUNDARIO"];
 export interface RegisterFormProps {
   /** Perfis que o usuário logado tem permissão para criar (um único cargo por inscrição). */
   creatableRoles: RoleName[];
+  /** Turmas já cadastradas, carregadas no servidor. */
+  classGroups: Array<{ id: string; label: string }>;
 }
 
-export function RegisterForm({ creatableRoles }: RegisterFormProps) {
+export function RegisterForm({ classGroups, creatableRoles }: RegisterFormProps) {
   const [role, setRole] = useState<RoleName>(creatableRoles[0] ?? "ALUNO");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export function RegisterForm({ creatableRoles }: RegisterFormProps) {
   const [registrationNumber, setRegistrationNumber] = useState<string | null>(null);
 
   const needsTurma = TURMA_ROLES.includes(role);
+  const turmaUnavailable = needsTurma && classGroups.length === 0;
   const needsAuthorization = AUTHORIZATION_ROLES.includes(role);
   const needsDiretoriaDocument = DIRETORIA_ROLES.includes(role);
 
@@ -42,7 +45,7 @@ export function RegisterForm({ creatableRoles }: RegisterFormProps) {
     const personalEmail = String(formData.get("personalEmail") ?? "").trim();
     const requestReason = String(formData.get("requestReason") ?? "").trim();
     const authorizationDocument = String(formData.get("authorizationDocument") ?? "").trim();
-    const turma = String(formData.get("turma") ?? "").trim();
+    const classGroupId = String(formData.get("classGroupId") ?? "").trim();
 
     setErrors(null);
     setMessage(null);
@@ -54,7 +57,11 @@ export function RegisterForm({ creatableRoles }: RegisterFormProps) {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalEmail)) {
       fieldErrors.push("E-mail inválido.");
     }
-    if (needsTurma && !turma) fieldErrors.push("Informe a turma.");
+    if (turmaUnavailable) {
+      fieldErrors.push("Cadastre uma turma antes de incluir alunos ou professores.");
+    } else if (needsTurma && !classGroupId) {
+      fieldErrors.push("Informe a turma.");
+    }
     if (needsAuthorization && requestReason.length < 10) {
       fieldErrors.push("Justificativa obrigatória (mínimo de 10 caracteres).");
     }
@@ -73,7 +80,7 @@ export function RegisterForm({ creatableRoles }: RegisterFormProps) {
           personalEmail,
           role,
           ...(needsAuthorization ? { requestReason } : {}),
-          ...(needsTurma ? { turma } : {}),
+          ...(needsTurma && classGroupId ? { classGroupId } : {}),
           ...(needsDiretoriaDocument ? { authorizationDocument } : {}),
         }),
       });
@@ -161,11 +168,29 @@ export function RegisterForm({ creatableRoles }: RegisterFormProps) {
       </div>
       {needsTurma ? (
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="turma">
+          <label className={styles.label} htmlFor="classGroupId">
             Turma
           </label>
-          <Input id="turma" name="turma" placeholder="Ex.: 3º período A" required />
-          <p className={styles.hint}>Campo exibido para aluno e professor.</p>
+          <select
+            id="classGroupId"
+            name="classGroupId"
+            className={styles.select}
+            defaultValue=""
+            disabled={turmaUnavailable}
+            required
+          >
+            <option value="" disabled>
+              {turmaUnavailable ? "Nenhuma turma cadastrada" : "Selecione a turma"}
+            </option>
+            {classGroups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.label}
+              </option>
+            ))}
+          </select>
+          <p className={styles.hint}>
+            A turma define as notas que o aluno consulta e que o professor lança.
+          </p>
         </div>
       ) : null}
       {needsAuthorization ? (
@@ -197,7 +222,7 @@ export function RegisterForm({ creatableRoles }: RegisterFormProps) {
         </div>
       ) : null}
       <div className={styles.actions}>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading || turmaUnavailable}>
           {loading ? "Cadastrando…" : "Cadastrar usuário"}
         </Button>
       </div>

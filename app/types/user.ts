@@ -45,7 +45,12 @@ export const CreateUserRequestSchema = z.object({
   // antigas, sendo ignorado a favor do valor gerado.
   registrationNumber: z.string().trim().min(1).max(30).nullable().optional(),
   role: RoleAssignmentSchema,
-  /** Turma vinculada ao aluno ou professor (apenas coleta de cadastro). */
+  /**
+   * Turma (ClassGroup) vinculada no cadastro. Obrigatória para aluno e
+   * professor: é ela que define o escopo de notas de cada um.
+   */
+  classGroupId: z.string().uuid().optional(),
+  /** Campo antigo de texto livre, aceito apenas para não quebrar chamadas antigas. */
   turma: z.string().trim().max(100).optional(),
 });
 

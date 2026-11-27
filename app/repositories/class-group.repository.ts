@@ -67,4 +67,39 @@ export class ClassGroupRepository {
       }),
     );
   }
+
+  /** Todas as turmas cadastradas, com filtros opcionais. */
+  list(filter: { academicPeriodId?: string; professorId?: string } = {}) {
+    return withRepositoryErrors(() =>
+      this.client.classGroup.findMany({
+        where: {
+          ...(filter.academicPeriodId ? { academicPeriodId: filter.academicPeriodId } : {}),
+          ...(filter.professorId ? { professorId: filter.professorId } : {}),
+        },
+        include: {
+          ...withSubject,
+          professor: { select: { id: true, name: true } },
+        },
+        orderBy: [
+          { academicPeriod: { year: "desc" } },
+          { academicPeriod: { semester: "desc" } },
+          { subject: { name: "asc" } },
+        ],
+      }),
+    );
+  }
+
+  create(data: Prisma.ClassGroupCreateInput) {
+    return withRepositoryErrors(() => this.client.classGroup.create({ data }));
+  }
+
+  update(id: string, data: Prisma.ClassGroupUpdateInput) {
+    return withRepositoryErrors(() => this.client.classGroup.update({ where: { id }, data }));
+  }
+
+  assignProfessor(id: string, professorId: string) {
+    return withRepositoryErrors(() =>
+      this.client.classGroup.update({ where: { id }, data: { professorId } }),
+    );
+  }
 }

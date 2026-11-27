@@ -41,6 +41,22 @@ export class EnrollmentRepository {
     return withRepositoryErrors(() => this.client.enrollment.createMany({ data }));
   }
 
+  /** Matrícula criada pela secretaria no cadastro; idempotente por aluno/turma. */
+  upsertForStudent(input: { studentId: string; classGroupId: string; createdBy: string }) {
+    return withRepositoryErrors(() =>
+      this.client.enrollment.upsert({
+        where: {
+          studentId_classGroupId: {
+            studentId: input.studentId,
+            classGroupId: input.classGroupId,
+          },
+        },
+        create: { ...input, status: "ACTIVE", isDependency: false },
+        update: { status: "ACTIVE" },
+      }),
+    );
+  }
+
   listForClassGroup(classGroupId: string) {
     return withRepositoryErrors(() =>
       this.client.enrollment.findMany({
