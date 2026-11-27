@@ -10,7 +10,9 @@ async function SessionRedirect() {
   // redirect aconteça no streaming, sem virar erro no shell estático.
   await connection();
   const actor = await getAuthenticatedUser();
-  redirect(actor ? "/dashboard" : "/login");
+  if (!actor) redirect("/login");
+  if (actor.mfaSetupRequired) redirect("/configurar-2fa");
+  redirect("/dashboard");
   return null;
 }
 

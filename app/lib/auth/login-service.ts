@@ -3,7 +3,7 @@ import { AUDIT_ACTIONS, sanitizeLoginIdentifier } from "@/app/lib/audit/audit-se
 import { getClientIp } from "@/app/lib/request-context";
 import { UserRepository, type UserWithRoles } from "@/app/repositories/user.repository";
 import type { RoleName } from "@/app/types/common";
-import { auth } from "./better-auth";
+import { auth, needsTwoFactorSetup } from "./better-auth";
 import { AuthError } from "./errors";
 
 export const MAX_LOGIN_ATTEMPTS = 5;
@@ -148,10 +148,17 @@ export async function loginWithPassword(input: {
   }
 
   const payload = (await upstream.json()) as Record<string, unknown>;
-  const response = new Response(JSON.stringify(payload), {
-    status: upstream.status,
-    headers: { "content-type": "application/json" },
-  });
+  const userId = (payload.user as { id?: string } | undefined)?.id;
+  const response = new Response(
+    JSON.stringify({
+      ...payload,
+      mfaSetupRequired: userId ? await needsTwoFactorSetup(userId) : false,
+    }),
+    {
+      status: upstream.status,
+      headers: { "content-type": "application/json" },
+    },
+  );
   copyCookies(upstream, response);
   return response;
 }

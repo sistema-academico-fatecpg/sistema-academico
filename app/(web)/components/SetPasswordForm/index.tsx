@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { savePendingTotpSetup } from "@/app/lib/auth/totp-setup";
 import { Button, Field, FormFeedback, PageHeader } from "@/components";
-import { authClient } from "@/web/lib/auth/client";
 import styles from "./styles.module.scss";
 
 export type SetPasswordMode = "activation" | "reset";
@@ -19,7 +17,8 @@ export interface SetPasswordFormProps {
 
 /**
  * Tela única para definir a senha: ativação inicial ou redefinição solicitada
- * pela secretaria. A política impede que a senha seja definida por administrador.
+ * pela secretaria. Depois de definir a senha, o titular vai para o login — a
+ * configuração do TOTP acontece após o login, com sessão válida.
  */
 export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPasswordFormProps) {
   const isActivation = mode === "activation";
@@ -29,7 +28,6 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
   const [confirm, setConfirm] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [activatedUserId, setActivatedUserId] = useState<string | null>(null);
   const [error, setError] = useState<string[] | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -55,37 +53,6 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
     onClick: () => setShowConfirmPassword((visible) => !visible),
   };
 
-  /** Aproveita a senha recém-criada: a tela TOTP não pede a senha outra vez. */
-  async function startTotpSetup(userIdFromActivation?: string) {
-    setError(null);
-    setLoading(true);
-    const userId = userIdFromActivation ?? activatedUserId;
-    const result = await authClient.twoFactor.enable({ password });
-    setLoading(false);
-    if (result.error || result.data?.method !== "totp") {
-      setError([
-        result.error?.message ?? "Não foi possível iniciar a configuração do autenticador.",
-      ]);
-      return;
-    }
-    if (!result.data.totpURI || !result.data.backupCodes) {
-      setError(["O autenticador não retornou a chave de configuração."]);
-      return;
-    }
-    if (!userId) {
-      setError(["Não foi possível identificar a sessão. Entre novamente e tente outra vez."]);
-      return;
-    }
-    setActivatedUserId(userId);
-    savePendingTotpSetup({
-      totpURI: result.data.totpURI,
-      backupCodes: result.data.backupCodes,
-      userId,
-      createdAt: Date.now(),
-    });
-    router.push("/configurar-2fa");
-  }
-
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -95,94 +62,46 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
     }
 
     setLoading(true);
-    if (!isActivation) {
-      const response = await fetch("/api/auth/password-reset/confirm", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, code, password }),
-      });
+    try {
+      const response = await fetch(
+        isActivation ? "/api/auth/activate" : "/api/auth/password-reset/confirm",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ token, code, password }),
+        },
+      );
       const data = (await response.json().catch(() => ({}))) as {
         error?: string;
         details?: Array<{ message?: string } | string>;
       };
-      setLoading(false);
       if (!response.ok) {
         setError(
           Array.isArray(data.details)
             ? data.details.map((item) => (typeof item === "string" ? item : (item.message ?? "")))
-            : [data.error ?? "Falha ao redefinir a senha"],
+            : [data.error ?? (isActivation ? "Falha na ativação" : "Falha ao redefinir a senha")],
         );
         return;
       }
       setDone(true);
-      return;
+    } catch {
+      setError(["Não foi possível completar a operação. Tente novamente."]);
+    } finally {
+      setLoading(false);
     }
-
-    const response = await fetch("/api/auth/activate", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, code, password }),
-    });
-    const data = (await response.json()) as {
-      requiresTwoFactorSetup?: boolean;
-      sessionStarted?: boolean;
-      user?: { id?: string };
-      error?: string;
-      details?: Array<{ message?: string } | string>;
-    };
-    if (data.user?.id) setActivatedUserId(data.user.id);
-    setLoading(false);
-    if (!response.ok) {
-      setError(
-        Array.isArray(data.details)
-          ? data.details.map((item) => (typeof item === "string" ? item : (item.message ?? "")))
-          : [data.error ?? "Falha na ativação"],
-      );
-      return;
-    }
-    if (!data.sessionStarted) {
-      router.push("/login");
-      return;
-    }
-    if (data.requiresTwoFactorSetup) {
-      await startTotpSetup(data.user?.id);
-      return;
-    }
-    setDone(true);
   }
 
   if (done) {
     return (
       <div className={styles.state}>
         <PageHeader
-          description={
-            isActivation
-              ? "Sua senha foi definida e você já está autenticado. Para alunos, o segundo fator é opcional."
-              : "Todas as sessões anteriores foram encerradas."
-          }
+          description="Entre com seu e-mail institucional para continuar. Perfis que exigem segundo fator serão levados à configuração do autenticador."
           eyebrow="Sistema Acadêmico"
-          title={isActivation ? "Conta ativada" : "Senha redefinida"}
+          title={isActivation ? "Senha definida" : "Senha redefinida"}
         />
-        {isActivation ? (
-          <div className={styles.actions}>
-            <Button iconName="next" onClick={() => router.push("/dashboard")} type="button">
-              Entrar diretamente
-            </Button>
-            <Button
-              disabled={loading}
-              iconName="shield"
-              onClick={() => void startTotpSetup(activatedUserId ?? undefined)}
-              type="button"
-              variant="secondary"
-            >
-              {loading ? "Gerando chave..." : "Configurar autenticador (opcional)"}
-            </Button>
-          </div>
-        ) : (
-          <Button iconName="next" onClick={() => router.push("/login")} type="button">
-            Entrar
-          </Button>
-        )}
+        <Button iconName="next" onClick={() => router.push("/login")} type="button">
+          Ir para o login
+        </Button>
       </div>
     );
   }
@@ -193,7 +112,7 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
         description={
           isActivation
             ? "Crie sua própria senha. O código de 6 dígitos veio junto com o link e já foi preenchido; ele continua sendo conferido no servidor."
-            : "A redefinição foi solicitada pela secretaria e enviada ao seu e-mail pessoal. Crie uma nova senha: o link é de uso único, válido por 30 minutos, e o código de 6 dígitos veio junto com ele."
+            : "A redefinição foi solicitada pela secretaria. Crie uma nova senha com o código enviado ao seu e-mail pessoal."
         }
         eyebrow="Sistema Acadêmico"
         title={isActivation ? "Ativação de conta" : "Definir nova senha"}
