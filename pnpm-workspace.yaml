@@ -1,4 +1,6 @@
 allowBuilds:
+  # Declarado explicitamente para evitar ERR_PNPM_IGNORED_BUILDS no CI.
+  "@parcel/watcher": false
   "@prisma/engines": true
   esbuild: true
   prisma: true
