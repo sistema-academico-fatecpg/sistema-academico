@@ -36,7 +36,12 @@ const NEW_URI = "otpauth://totp/Sistema:new?secret=NEWSECRET&digits=6&period=30"
 function seedPendingSetup() {
   window.sessionStorage.setItem(
     "sistema-academico:totp-setup",
-    JSON.stringify({ totpURI: OLD_URI, backupCodes: BACKUP_CODES }),
+    JSON.stringify({
+      totpURI: OLD_URI,
+      backupCodes: BACKUP_CODES,
+      userId: "user-1",
+      createdAt: Date.now(),
+    }),
   );
 }
 
@@ -60,7 +65,13 @@ beforeEach(() => {
   refresh.mockReset();
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: "CONFIGURED" }) }),
+    vi.fn().mockImplementation((input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve({ ok: true, json: async () => ({ id: "user-1" }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ status: "CONFIGURED" }) });
+    }),
   );
   Object.defineProperty(navigator, "clipboard", {
     value: { writeText: vi.fn().mockResolvedValue(undefined) },

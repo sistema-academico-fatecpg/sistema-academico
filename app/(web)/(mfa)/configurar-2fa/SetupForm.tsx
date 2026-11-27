@@ -26,6 +26,7 @@ export function SetupForm() {
   const [totpURI, setTotpURI] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [code, setCode] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
   const [error, setError] = useState<{
     scope: "setup" | "confirm" | "done";
     message: string;
@@ -34,13 +35,29 @@ export function SetupForm() {
   const [done, setDone] = useState(false);
 
   // Quando a configuração começa durante a ativação, a chave já vem preparada
-  // e a senha não é solicitada novamente.
+  // e a senha não é solicitada novamente. A chave só é aceita se pertencer ao
+  // usuário da sessão atual e tiver sido gerada recentemente — uma chave antiga
+  // no sessionStorage geraria TOTP inválido (401).
   useEffect(() => {
-    const pending = readPendingTotpSetup();
-    if (pending) {
+    let cancelled = false;
+    async function loadPending() {
+      const response = await fetch("/api/auth/me").catch(() => null);
+      if (!response?.ok || cancelled) return;
+      const me = (await response.json()) as { id?: string };
+      if (!me.id || cancelled) return;
+      setUserId(me.id);
+      const pending = readPendingTotpSetup(me.id);
+      if (!pending) {
+        clearPendingTotpSetup();
+        return;
+      }
       setTotpURI(pending.totpURI);
       setBackupCodes(pending.backupCodes);
     }
+    void loadPending();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function showError(scope: "setup" | "confirm" | "done", message: string) {
@@ -107,10 +124,20 @@ export function SetupForm() {
       setBackupCodes(result.data.backupCodes);
       setCode("");
       setPassword("");
-      savePendingTotpSetup({
-        totpURI: result.data.totpURI,
-        backupCodes: result.data.backupCodes,
-      });
+      let currentUserId = userId;
+      if (!currentUserId) {
+        const me = await fetch("/api/auth/me").catch(() => null);
+        if (me?.ok) currentUserId = ((await me.json()) as { id?: string }).id ?? null;
+      }
+      if (currentUserId) {
+        setUserId(currentUserId);
+        savePendingTotpSetup({
+          totpURI: result.data.totpURI,
+          backupCodes: result.data.backupCodes,
+          userId: currentUserId,
+          createdAt: Date.now(),
+        });
+      }
     } catch {
       showError(
         "setup",
