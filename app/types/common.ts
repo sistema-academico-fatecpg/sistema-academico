@@ -56,7 +56,11 @@ export type Email = z.infer<typeof EmailSchema>;
 /** Domínio padrão dos e-mails institucionais gerados pelo sistema (8.4.1). */
 export const DEFAULT_INSTITUTIONAL_EMAIL_DOMAIN = "academico.com";
 
-export const InstitucionalEmailSchema = EmailSchema;
+/** Aceita `usuario@academico.com` e os subdomínios por cargo (`@prof.academico.com`). */
+export const InstitucionalEmailSchema = EmailSchema.refine(
+  (value) => /@(?:[a-z0-9-]+\.)*academico\.com$/i.test(value),
+  "E-mail institucional deve usar o domínio academico.com ou um subdomínio de cargo",
+);
 export type InstitucionalEmail = z.infer<typeof InstitucionalEmailSchema>;
 
 export const DateTimeSchema = z

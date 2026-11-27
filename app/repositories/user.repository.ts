@@ -88,6 +88,17 @@ export class UserRepository {
           },
           include: userWithRoles,
         });
+
+        // O banco gera user_roles.institutional_email no INSERT; o valor vem no
+        // RETURNING e passa a ser também o e-mail de login em users.email.
+        const roleLink = user.roles.find((link) => link.roleId === role.id);
+        if (roleLink?.institutionalEmail && roleLink.institutionalEmail !== user.email) {
+          return await tx.user.update({
+            where: { id: user.id },
+            data: { email: roleLink.institutionalEmail },
+            include: userWithRoles,
+          });
+        }
         return user;
       }),
     );

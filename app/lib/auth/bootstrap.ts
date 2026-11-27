@@ -31,9 +31,7 @@ export async function bootstrapMaster(input: BootstrapMasterInput) {
   const users = new UserRepository();
   const accountService = new AccountService();
   const audit = createAuditService();
-  const email = await generateInstitutionalEmail(input.name, async (candidate) =>
-    Boolean(await users.findByEmail(candidate)),
-  );
+  const email = generateInstitutionalEmail(input.name, null, "ADMIN_MASTER");
 
   const user = await users.create({
     name: input.name,
