@@ -2,15 +2,23 @@ import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { conflict, validationError } from "@/app/lib/auth/errors";
 import { db } from "@/app/lib/db";
+import { lastRestoreMeasurement } from "@/app/lib/security/backup-service";
 import {
   BACKUP_MEDIA_MAX_YEARS,
   backupCloudStatus,
   KEY_ROTATION_DAYS,
   keyRotationStatus,
   RESTORE_TEST_DAYS,
+  RPO_TARGET_HOURS,
+  RTO_TARGET_HOURS,
 } from "@/app/lib/security/env";
 
 type Actor = { id: string; roles: readonly string[]; ipAddress: string };
+
+/** 16: alteração legal registrada na trilha de auditoria dispara nova revisão. */
+export const LEGAL_CHANGE_ACTION = "LEGAL_CHANGE_RECORDED";
+
+export type PolicyReviewType = "ANNUAL" | "LEGAL_CHANGE" | "INCIDENT" | "OTHER";
 
 function alert(type: string, message: string, ipAddress: string, details: Record<string, unknown>) {
   return createAuditService()
@@ -125,13 +133,16 @@ export async function backupMediaReport(now = new Date(), ipAddress = "maintenan
   return { maxYears: BACKUP_MEDIA_MAX_YEARS, items, overdueCount: overdue.length };
 }
 
-/** 11.3.4/11.3.5: teste mensal de restauração e RPO/RTO. */
+/** 11.3.4/11.3.5: teste mensal de restauração e RPO/RTO medidos. */
 export async function restoreTestReport(now = new Date()) {
-  const latest = await db.backupRecord.findFirst({
-    where: { restoreTestAt: { not: null } },
-    orderBy: { restoreTestAt: "desc" },
-    select: { id: true, restoreTestAt: true },
-  });
+  const [latest, measurement] = await Promise.all([
+    db.backupRecord.findFirst({
+      where: { restoreTestAt: { not: null } },
+      orderBy: { restoreTestAt: "desc" },
+      select: { id: true, restoreTestAt: true },
+    }),
+    lastRestoreMeasurement(),
+  ]);
   const daysSince = latest?.restoreTestAt
     ? (now.getTime() - latest.restoreTestAt.getTime()) / 86_400_000
     : null;
@@ -140,8 +151,15 @@ export async function restoreTestReport(now = new Date()) {
     daysSinceLastTest: daysSame(daysSince),
     intervalDays: RESTORE_TEST_DAYS,
     overdue: daysSince === null || daysSince > RESTORE_TEST_DAYS,
-    rpoHours: 24,
-    rtoHours: 8,
+    rpoHours: RPO_TARGET_HOURS,
+    /** Meta contratual: 8h; valor medido em `rtoHours`. */
+    rtoTargetHours: RTO_TARGET_HOURS,
+    rtoHours: measurement.durationHours,
+    restoreDurationMs: measurement.durationMs,
+    restoreMeasuredAt: measurement.measuredAt,
+    restoreMode: measurement.mode,
+    rtoWithinTarget:
+      measurement.durationHours === null ? null : measurement.durationHours <= RTO_TARGET_HOURS,
   };
 }
 
@@ -149,33 +167,64 @@ function daysSame(value: number | null): number | null {
   return value === null ? null : Number(value.toFixed(2));
 }
 
-/** 16: revisão anual (ou após incidente relevante). */
+/** 16: revisão anual (ou após incidente relevante ou mudança legal). */
 export async function policyReviewReport(now = new Date(), ipAddress = "maintenance") {
   const last = await db.policyReview.findFirst({ orderBy: { reviewedAt: "desc" } });
-  const relevantIncident = await db.incident.findFirst({
-    where: {
-      severity: { in: ["HIGH", "CRITICAL"] },
-      reportedAt: { gt: last?.reviewedAt ?? new Date(0) },
-    },
-    orderBy: { reportedAt: "desc" },
-    select: { id: true, reportedAt: true },
-  });
+  const [relevantIncident, legalChange] = await Promise.all([
+    db.incident.findFirst({
+      where: {
+        severity: { in: ["HIGH", "CRITICAL"] },
+        reportedAt: { gt: last?.reviewedAt ?? new Date(0) },
+      },
+      orderBy: { reportedAt: "desc" },
+      select: { id: true, reportedAt: true },
+    }),
+    db.log.findFirst({
+      where: {
+        action: LEGAL_CHANGE_ACTION,
+        createdAt: { gt: last?.reviewedAt ?? new Date(0) },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, newValue: true },
+    }),
+  ]);
   const nextReviewAt = last?.nextReviewAt ?? null;
+  const legalChangeValue = legalChange?.newValue as {
+    description?: unknown;
+    source?: unknown;
+    detectedAt?: unknown;
+  } | null;
   const overdue =
-    !last || (nextReviewAt !== null && now > nextReviewAt) || Boolean(relevantIncident);
+    !last ||
+    (nextReviewAt !== null && now > nextReviewAt) ||
+    Boolean(relevantIncident) ||
+    Boolean(legalChange);
   const report = {
     lastReviewedAt: last?.reviewedAt.toISOString() ?? null,
     lastReviewedBy: last?.reviewedBy ?? null,
     nextReviewAt: nextReviewAt?.toISOString() ?? null,
     reasonForReview: last?.reason ?? null,
     relevantIncidentSinceLastReview: relevantIncident?.id ?? null,
+    legalChangeSinceLastReview: legalChange
+      ? {
+          detectedAt:
+            typeof legalChangeValue?.detectedAt === "string"
+              ? legalChangeValue.detectedAt
+              : legalChange.createdAt.toISOString(),
+          description:
+            typeof legalChangeValue?.description === "string" ? legalChangeValue.description : null,
+          source: typeof legalChangeValue?.source === "string" ? legalChangeValue.source : null,
+        }
+      : null,
     annualReviewRequired: true,
     overdue,
   };
   if (overdue) {
     await alert(
       "POLICY_REVIEW_OVERDUE",
-      "Revisão anual da política vencida ou incidente relevante.",
+      legalChange
+        ? "Alteração legal desde a última revisão exige nova revisão da política (16)."
+        : "Revisão anual da política vencida ou incidente relevante.",
       ipAddress,
       report as never,
     );
@@ -183,10 +232,49 @@ export async function policyReviewReport(now = new Date(), ipAddress = "maintena
   return report;
 }
 
-export async function recordPolicyReview(actor: Actor, input: { reason: string; notes?: string }) {
+/** 16: mudança legal detectada — dispara revisão mesmo sem decorrido o prazo. */
+export async function recordLegalChange(
+  actor: Actor,
+  input: { description: string; source?: string; detectedAt?: string },
+) {
+  if (input.description.trim().length < 10) {
+    throw validationError("Descreva a alteração legal (mínimo 10 caracteres)");
+  }
+  const detectedAt = input.detectedAt ?? new Date().toISOString();
+  if (Number.isNaN(Date.parse(detectedAt))) {
+    throw validationError("detectedAt deve ser uma data ISO válida");
+  }
+  const audit = await createAuditService().record({
+    ...auditActor(actor),
+    action: LEGAL_CHANGE_ACTION,
+    module: "REPORTS",
+    recordType: "PolicyReview",
+    result: "SUCCESS",
+    newValue: {
+      result: "SUCCESS",
+      description: input.description.trim(),
+      source: input.source?.trim() ?? null,
+      detectedAt,
+      forcesReview: true,
+    },
+  });
+  await alert(
+    "POLICY_REVIEW_OVERDUE",
+    "Alteração legal registrada: revisão de política obrigatória (16).",
+    actor.ipAddress,
+    { description: input.description.trim(), source: input.source?.trim() ?? null },
+  );
+  return { id: audit.id, detectedAt, forcesReview: true };
+}
+
+export async function recordPolicyReview(
+  actor: Actor,
+  input: { reason: string; notes?: string; type?: PolicyReviewType },
+) {
   if (input.reason.trim().length < 10) {
     throw validationError("Informe o motivo da revisão (mínimo 10 caracteres)");
   }
+  const type = input.type ?? "ANNUAL";
   const now = new Date();
   const nextReviewAt = new Date(now.getTime() + 365 * 86_400_000);
   const record = await db.policyReview.create({
@@ -205,9 +293,13 @@ export async function recordPolicyReview(actor: Actor, input: { reason: string; 
     recordType: "PolicyReview",
     recordId: record.id,
     result: "SUCCESS",
-    newValue: { reason: input.reason, nextReviewAt: nextReviewAt.toISOString() },
+    newValue: {
+      reason: input.reason,
+      type,
+      nextReviewAt: nextReviewAt.toISOString(),
+    },
   });
-  return record;
+  return { ...record, type };
 }
 
 /** 15: registro de descumprimento e sanção. */

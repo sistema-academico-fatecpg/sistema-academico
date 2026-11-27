@@ -11,6 +11,7 @@ export {
 } from "./Button";
 export { Confirm, type ConfirmProps } from "./Confirm";
 export { type Column, DataTable } from "./DataTable";
+export { DownloadDataButton } from "./DownloadDataButton";
 export { Field, type FieldProps } from "./Field";
 export { FormFeedback } from "./FormFeedback";
 export { Icon, type IconName, type IconProps } from "./Icon";

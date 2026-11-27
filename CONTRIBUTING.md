@@ -51,9 +51,10 @@ pnpm test:run
 5. Keep the PR focused on a single concern and update the linked issue.
 
 GitHub Actions runs Conventional Commits validation, Biome formatting/linting,
-and TypeScript typecheck on every pull request and push. Biome may
-automatically format your branch and push a commit named
-`chore: automatic lint from Github Actions` to the PR's head branch.
+and TypeScript typecheck on every pull request and push. All CI checks are
+read-only: CI does not reformat files, create commits, or push to your branch.
+Formatting must be applied locally before committing (`pnpm check:fix`), which
+the `pre-commit` hook enforces after `pnpm hooks:install`.
 
 ## Conventional Commits
 
@@ -88,15 +89,14 @@ Breaking changes are indicated by appending `!` after the type/scope:
   feature request). Blank issues are disabled.
 - Use the pull request template at `.github/pull_request_template.md`.
 - Link related issues in the PR description.
-- Automatic formatting is performed by GitHub Actions on pull requests from
-  non-fork branches; fork pull requests must be formatted locally with
-  `pnpm check:fix` before pushing.
+- Formatting is always applied locally with `pnpm check:fix`; GitHub Actions
+  only verifies it (for fork and non-fork pull requests alike).
 
-## Automatic formatting by GitHub Actions
+## Formatting and CI
 
-The CI workflow runs `pnpm check:fix` (Biome safe fixes and formatting). If
-tracked files changed, a commit is created with the message
-`chore: automatic lint from Github Actions` using the
-`github-actions[bot]` identity and pushed to the branch being checked. No
-commit is created when nothing changed. Fork pull requests and pushes to the
-default branch are not auto-pushed; contributors must apply formatting locally.
+The CI workflows share the same commands as the git hooks through
+`.github/hooks/checks.sh`, but they are read-only: they run `pnpm format:check`,
+`pnpm check`, `pnpm typecheck`, tests, build, and the security checks without
+modifying files or pushing commits. Install the hooks once with
+`pnpm hooks:install` so `pre-commit` applies Biome fixes and validates the
+commit message before each commit.

@@ -80,27 +80,33 @@ export class SupportAccessService {
     actor: SupportActor,
     directionAuthorization?: string,
   ) {
-    if (!actor.roles.includes("AUDITOR")) {
-      throw forbidden("Somente o Auditor aprova acesso excepcional aos logs");
-    }
     const grant = await this.grants.findById(id);
     if (!grant) throw notFound("Solicitação não encontrada");
     if (grant.status !== "PENDING") throw conflict("Solicitação já decidida");
     if (grant.requestedBy === actor.id) {
       throw forbidden("O solicitante não pode aprovar o próprio acesso");
     }
-    if (
-      grant.involvesAuditor &&
-      (!directionAuthorization || directionAuthorization !== grant.authorizationDocument)
-    ) {
-      throw forbidden("Investigação do Auditor exige a autorização formal da direção (10.8.4)");
+
+    // 10.8.4: se a investigação envolve o próprio Auditor, a decisão cabe à
+    // direção (representada no sistema pelo Admin Master) com autorização
+    // formal; o Auditor não pode decidir sobre a própria investigação.
+    if (grant.involvesAuditor) {
+      if (
+        !actor.roles.includes("ADMIN_MASTER") ||
+        !directionAuthorization ||
+        directionAuthorization !== grant.authorizationDocument
+      ) {
+        throw forbidden("Investigação do Auditor exige a autorização formal da direção (10.8.4)");
+      }
+    } else if (!actor.roles.includes("AUDITOR")) {
+      throw forbidden("Somente o Auditor aprova acesso excepcional aos logs");
     }
 
     const status = decision === "APPROVE" ? "APPROVED" : "REJECTED";
     const updated = await this.grants.decide(id, status, actor.id);
     await this.audit.record({
       userId: actor.id as never,
-      role: "AUDITOR",
+      role: (actor.roles[0] ?? null) as never,
       ipAddress: actor.ipAddress,
       action:
         decision === "APPROVE"
@@ -115,8 +121,16 @@ export class SupportAccessService {
     return updated;
   }
 
-  /** 10.8.2/10.8.3: escopo, prazo e registro de cada consulta. */
-  async assertCanRead(actor: SupportActor, module: SystemModule): Promise<void> {
+  /**
+   * 10.8.2/10.8.3: escopo, prazo e registro de cada consulta. Todos os módulos
+   * efetivamente solicitados (filtro `?module=`) devem constar da concessão;
+   * o Auditor, por sua vez, tem acesso pleno aos logs.
+   */
+  async assertCanRead(
+    actor: SupportActor,
+    modules: SystemModule | readonly SystemModule[],
+  ): Promise<void> {
+    const requested: readonly SystemModule[] = Array.isArray(modules) ? modules : [modules];
     if (actor.roles.includes("AUDITOR")) return;
     if (!actor.roles.includes("SUPORTE_TECNICO")) {
       throw forbidden("Consulta de logs restrita ao Auditor ou Suporte Técnico autorizado");
@@ -124,7 +138,13 @@ export class SupportAccessService {
 
     await this.grants.expireDue();
     const active = await this.grants.findActiveForUser(actor.id);
-    if (!active?.modules.some((item) => item.module === module && item.canRead)) {
+    if (!active) {
+      throw forbidden("Acesso temporário ausente, expirado ou fora do escopo aprovado");
+    }
+    const allowed = new Set(
+      active.modules.filter((item) => item.canRead).map((item) => item.module as SystemModule),
+    );
+    if (requested.length === 0 || requested.some((module) => !allowed.has(module))) {
       throw forbidden("Acesso temporário ausente, expirado ou fora do escopo aprovado");
     }
 
@@ -133,10 +153,10 @@ export class SupportAccessService {
       role: "SUPORTE_TECNICO",
       ipAddress: actor.ipAddress,
       action: AUDIT_ACTIONS.SUPPORT_ACCESS_CONSULTED,
-      module,
+      module: requested[0],
       recordType: "Log",
       result: "SUCCESS",
-      newValue: { grantId: active.id, module },
+      newValue: { grantId: active.id, modules: [...requested] },
     });
   }
 

@@ -60,13 +60,16 @@ tem seu próprio status check no PR. Detalhes: `.github/hooks/README.md`.
 
 ## Estrutura de rotas
 
-`app/(private)` = área autenticada (sidebar + guard), `app/(auth)` = login/ativação
-(cartão centralizado), raiz = layout HTML e páginas públicas. Os parênteses são
-*route groups*: não aparecem na URL. Detalhes em `docs/APP-STRUCTURE.md`.
+Toda a interface está em `app/(web)`. Dentro dela, `app/(web)/(private)` é a
+área autenticada (sidebar + guard) e as páginas públicas ficam direto em
+`app/(web)` (login, ativação, redefinição e privacidade); a raiz `app/` mantém
+layout HTML, API e bibliotecas. Os parênteses são *route groups*: não aparecem
+na URL. A área autenticada inclui `/meus-dados`, onde o titular baixa a própria
+cópia em CSV (11.1.4). Detalhes em `docs/APP-STRUCTURE.md`.
 
 ## Documentação de conformidade
 
-- `docs/APP-STRUCTURE.md` — por que `(private)`/`(auth)` existem e onde ficam os componentes.
+- `docs/APP-STRUCTURE.md` — por que `(web)`/`(private)` existem e onde ficam os componentes.
 - `docs/IMPLEMENTATION-STATUS.md` — matriz por seção da política.
 - `docs/COMPLIANCE-REPORT.md` — relatório de desenvolvimento por requisito.
 - `docs/RESPONSIBILITIES.md` — responsabilidades e revisão anual.

@@ -5,7 +5,8 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  // HSTS é emitido em proxy.ts (também nos redirecionamentos HTTP→HTTPS);
+  // mantê-lo aqui duplicaria a diretiva nas respostas.
   {
     key: "Content-Security-Policy",
     value:

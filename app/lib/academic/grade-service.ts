@@ -107,7 +107,18 @@ export class GradeService {
     actor: AcademicActor,
     input: { enrollmentId: string; value: number; reason: string },
   ): Promise<{ requestId: string }> {
-    this.assertProfessor(actor);
+    const isAdmin = actor.roles.some(
+      (role) => role === "ADMIN_MASTER" || role === "ADMIN_SECUNDARIO",
+    );
+    if (!isAdmin) {
+      this.assertProfessor(actor);
+      const enrollment = await this.enrollments.findByIdWithClass(input.enrollmentId);
+      if (!enrollment) throw notFound("Matrícula não encontrada");
+      if (enrollment.classGroup.professorId !== actor.id) {
+        throw forbidden("Professor não vinculado à turma desta matrícula");
+      }
+    }
+
     const request = await this.criticalOperations.request(
       {
         id: actor.id,

@@ -691,6 +691,7 @@ model Incident {
   directionAuthorization  String?         @map("direction_authorization")
   notifiedAnpdAt          DateTime?       @map("notified_anpd_at")
   notifiedSubjectsAt      DateTime?       @map("notified_subjects_at")
+  notificationProtocol    Json?           @map("notification_protocol")
   evidence                Json?
   reportedAt              DateTime        @default(now()) @map("reported_at")
   containedAt             DateTime?       @map("contained_at")

@@ -1,0 +1,7 @@
+@use "@/web/styles/tokens" as *;
+
+.wrapper {
+  display: grid;
+  gap: $space-sm;
+  justify-items: start;
+}

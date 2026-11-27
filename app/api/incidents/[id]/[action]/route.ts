@@ -5,11 +5,21 @@ import { IncidentService } from "@/app/lib/security/incident-service";
 import {
   AnalyzeIncidentSchema,
   ContainIncidentSchema,
+  MarkRestoredSchema,
   NotifyIncidentSchema,
+  RecordNotificationProtocolSchema,
   RequestRestoreSchema,
 } from "@/app/types/incident";
 
-const ActionSchema = z.enum(["contain", "analyze", "restore", "notify", "close"]);
+const ActionSchema = z.enum([
+  "contain",
+  "analyze",
+  "restore",
+  "mark-restored",
+  "notify",
+  "notify-protocol",
+  "close",
+]);
 
 export async function POST(
   request: Request,
@@ -54,6 +64,14 @@ export async function POST(
       );
       return Response.json({ status: "RESTORE_REQUESTED", ...result }, { status: 202 });
     }
+    if (action === "mark-restored") {
+      const result = await service.markRestored(
+        incidentActor,
+        incidentId,
+        MarkRestoredSchema.parse(body),
+      );
+      return Response.json({ status: result.status, incident: result });
+    }
     if (action === "notify") {
       const result = await service.notify(
         incidentActor,
@@ -61,6 +79,14 @@ export async function POST(
         NotifyIncidentSchema.parse(body),
       );
       return Response.json({ status: "NOTIFIED", ...result });
+    }
+    if (action === "notify-protocol") {
+      const result = await service.recordNotificationProtocol(
+        incidentActor,
+        incidentId,
+        RecordNotificationProtocolSchema.parse(body),
+      );
+      return Response.json({ status: result.status, incident: result });
     }
     const result = await service.close(incidentActor, incidentId);
     return Response.json({ status: result.status, incident: result });

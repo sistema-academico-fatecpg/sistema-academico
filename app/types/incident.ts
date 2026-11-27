@@ -28,7 +28,27 @@ export const RequestRestoreSchema = z.object({
   affectedRecordIds: z.array(z.string().uuid()).min(1),
 });
 
+/** 13.4: protocolo de comunicação com destinatário, conteúdo e evidência. */
+export const NotificationEntrySchema = z.object({
+  recipient: z.string().trim().min(3).max(255),
+  channel: z.enum(["ANPD", "DATA_SUBJECT", "DPO", "OTHER"]),
+  content: z.string().trim().min(5).max(4000),
+  deliveryEvidence: z.string().trim().min(3).max(1000),
+  sentAt: z.string().datetime().optional(),
+});
+
 export const NotifyIncidentSchema = z.object({
   anpd: z.boolean().default(false),
   subjects: z.boolean().default(false),
+  protocol: z.array(NotificationEntrySchema).max(50).optional(),
+});
+
+/** 13.3: conclusão da restauração (após execução aprovada). */
+export const MarkRestoredSchema = z.object({
+  backupId: z.string().uuid().optional(),
+  notes: z.string().trim().max(2000).optional(),
+});
+
+export const RecordNotificationProtocolSchema = z.object({
+  entries: z.array(NotificationEntrySchema).min(1).max(50),
 });

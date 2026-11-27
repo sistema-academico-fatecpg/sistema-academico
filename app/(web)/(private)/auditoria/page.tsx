@@ -1,6 +1,7 @@
 export const instant = false;
 
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
@@ -35,17 +36,25 @@ export default async function Page({
       .map(([key, value]) => [key, Array.isArray(value) ? value[0] : value] as const)
       .filter(([, value]) => typeof value === "string" && value.trim() !== ""),
   ) as Record<string, string>;
+  const requestHeaders = await headers();
+  const clientIp =
+    requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    requestHeaders.get("x-real-ip")?.trim() ||
+    "unknown";
   const filter = LogFilterSchema.parse(raw);
   const alertFilter = AlertFilterSchema.parse({ acknowledged: "false", pageSize: "10", ...raw });
 
+  // A tela lê tanto logs (módulo filtrado) quanto alertas (AUDIT_LOGS): ambos
+  // precisam estar no escopo da concessão temporária do Suporte Técnico.
+  const requestedModules = [...new Set([filter.module ?? "AUDIT_LOGS", "AUDIT_LOGS" as const])];
   await new SupportAccessService().assertCanRead(
-    { id: actor.id, roles: actor.roles, ipAddress: "server" },
-    "AUDIT_LOGS",
+    { id: actor.id, roles: actor.roles, ipAddress: clientIp },
+    requestedModules,
   );
   await createAuditService().record({
     userId: actor.id as never,
     role: actor.roles[0] ?? null,
-    ipAddress: "server",
+    ipAddress: clientIp,
     action: AUDIT_ACTIONS.AUDIT_LOG_VIEWED,
     module: "AUDIT_LOGS",
     recordType: "Log",
