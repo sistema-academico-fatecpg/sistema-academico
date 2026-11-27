@@ -56,6 +56,17 @@ export const CreateClassGroupSchema = z.object({
   schedule: z.array(ScheduleSlotSchema).min(1),
 });
 
+export const UpdateClassGroupSchema = z
+  .object({
+    room: z.string().trim().max(50).nullable().optional(),
+    schedule: z.array(ScheduleSlotSchema).min(1).optional(),
+    professorId: z.string().uuid().nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Informe ao menos um campo para atualizar",
+  });
+export type UpdateClassGroupInput = z.infer<typeof UpdateClassGroupSchema>;
+
 export const EnrollSchema = z.object({
   classGroupIds: z.array(z.string().uuid()).min(1).max(20),
 });

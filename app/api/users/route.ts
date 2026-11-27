@@ -1,8 +1,11 @@
 import { z } from "zod";
+import { assignUserToClassGroup, classGroupIsRequired } from "@/app/lib/academic/class-assignment";
 import { actorFrom, jsonError } from "@/app/lib/api/responses";
 import { AccountService, visibleRolesFor } from "@/app/lib/auth/account-service";
+import { conflict, notFound, validationError } from "@/app/lib/auth/errors";
 import { generateInstitutionalEmail } from "@/app/lib/auth/institutional-email";
 import { requirePermission } from "@/app/lib/auth/session";
+import { ClassGroupRepository } from "@/app/repositories/class-group.repository";
 import { UserRepository, type UserWithRoles } from "@/app/repositories/user.repository";
 import { PERMISSIONS } from "@/app/types/roles";
 import { CreateUserRequestSchema, ListUsersQuerySchema, type UserInput } from "@/app/types/user";
@@ -61,6 +64,21 @@ export async function POST(request: Request) {
     );
     const users = new UserRepository();
 
+    // Aluno e professor só entram no sistema já vinculados a uma turma: esse
+    // vínculo é o que restringe o acesso às notas (9.2.3 e 9.3.1).
+    if (classGroupIsRequired(body.role) && !body.classGroupId) {
+      throw validationError("Informe a turma.");
+    }
+    if (body.classGroupId) {
+      const group = await new ClassGroupRepository().findById(body.classGroupId);
+      if (!group) throw notFound("Turma não encontrada");
+      // Falhar antes de criar a conta evita usuário órfão quando a turma já
+      // está comprometida com outro professor.
+      if (body.role === "PROFESSOR" && group.professorId) {
+        throw conflict("Esta turma já possui outro professor vinculado");
+      }
+    }
+
     // A matrícula é gerada automaticamente pelo servidor, com índice crescente
     // por cargo. O valor enviado pelo cliente é ignorado.
     const registrationNumber = await users.nextRegistrationNumber(body.role);
@@ -89,6 +107,15 @@ export async function POST(request: Request) {
         },
         { status: 202 },
       );
+    }
+
+    if (body.classGroupId) {
+      await assignUserToClassGroup({
+        userId: result.user.id,
+        role: body.role,
+        classGroupId: body.classGroupId,
+        actorId: actor.id,
+      });
     }
 
     return Response.json(
