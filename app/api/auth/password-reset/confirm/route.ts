@@ -5,6 +5,9 @@ import { getClientIp } from "@/app/lib/request-context";
 
 const ConfirmSchema = z.object({
   token: z.string().min(20).max(200),
+  // 8.4.3: o token sozinho não basta; o código de 6 dígitos é conferido pelo
+  // TokenService exatamente como na ativação da conta.
+  code: z.string().length(6),
   password: z.string().min(12).max(128),
 });
 

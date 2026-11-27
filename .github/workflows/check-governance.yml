@@ -44,6 +44,9 @@ jobs:
         run: pnpm db:generate
 
       - name: Code review / branch protection (12.5)
+        # A proteção da branch é configurada no repositório; o GITHUB_TOKEN não
+        # tem permissão de administração, então o script registra um aviso
+        # quando não consegue consultar a API (fork/token sem acesso).
         run: sh .github/hooks/checks.sh governance
         env:
           GH_TOKEN: ${{ github.token }}

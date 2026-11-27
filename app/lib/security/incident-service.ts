@@ -9,7 +9,10 @@ import { addBusinessDays, isOverdue } from "@/app/lib/security/business-days";
 import type {
   AnalyzeIncidentSchema,
   ContainIncidentSchema,
+  MarkRestoredSchema,
+  NotificationEntrySchema,
   NotifyIncidentSchema,
+  RecordNotificationProtocolSchema,
   ReportIncidentSchema,
   RequestRestoreSchema,
 } from "@/app/types/incident";
@@ -27,10 +30,24 @@ type Contain = z.infer<typeof ContainIncidentSchema>;
 type Analyze = z.infer<typeof AnalyzeIncidentSchema>;
 type Restore = z.infer<typeof RequestRestoreSchema>;
 type Notify = z.infer<typeof NotifyIncidentSchema>;
+type MarkRestored = z.infer<typeof MarkRestoredSchema>;
+type ProtocolEntry = z.infer<typeof NotificationEntrySchema>;
+type NotificationProtocol = z.infer<typeof RecordNotificationProtocolSchema>;
 
 /** Prazos e responsabilidades do fluxo de incidentes (seção 13). */
 export const INCIDENT_NOTIFICATION_BUSINESS_DAYS = 3;
 export const INCIDENT_RETENTION_YEARS = 5;
+
+const INCIDENT_RESTORED_ACTION = "INCIDENT_RESTORED";
+const NOTIFICATION_PROTOCOL_ACTION = "INCIDENT_NOTIFICATION_PROTOCOL_RECORDED";
+
+function withRecordedBy(entries: ProtocolEntry[], actorId: string) {
+  return entries.map((entry) => ({
+    ...entry,
+    sentAt: entry.sentAt ?? new Date().toISOString(),
+    recordedBy: actorId,
+  }));
+}
 
 export class IncidentService {
   constructor(
@@ -207,6 +224,68 @@ export class IncidentService {
     return { requestId: request.id };
   }
 
+  /**
+   * 13.3: registra a conclusão da restauração (restoredAt), preservando a
+   * exigência de solicitação aprovada e executada em dupla aprovação.
+   */
+  async markRestored(actor: IncidentActor, id: string, input: MarkRestored) {
+    this.assertAdminOrAuditor(actor);
+    const incident = await this.find(id);
+    if (incident.status !== "RESTORE_REQUESTED" && incident.status !== "RESTORED") {
+      throw conflict("Registro de restauração exige análise e solicitação aprovada (13.2)");
+    }
+    if (incident.status === "RESTORE_REQUESTED") {
+      const executed = await db.criticalOperationRequest.findFirst({
+        where: {
+          recordId: id,
+          operation: "DATA_RESTORE_AFTER_INCIDENT",
+          status: "EXECUTED",
+        },
+        select: { id: true },
+      });
+      if (!executed)
+        throw conflict("A restauração ainda não foi executada após a aprovação (13.2)");
+    }
+    const restoredAt = incident.restoredAt ?? new Date();
+    const updated = await db.incident.update({
+      where: { id },
+      data: {
+        status: "RESTORED",
+        restoredAt,
+        ...(input.backupId ? { backupId: input.backupId } : {}),
+      },
+    });
+    await this.event(actor, INCIDENT_RESTORED_ACTION, id, {
+      restoredAt: restoredAt.toISOString(),
+      backupId: input.backupId ?? incident.backupId ?? null,
+      notes: input.notes ?? null,
+    });
+    return updated;
+  }
+
+  /** 13.4: protocolo de comunicação com destinatário, conteúdo e evidência. */
+  async recordNotificationProtocol(actor: IncidentActor, id: string, input: NotificationProtocol) {
+    this.assertAdminOrAuditor(actor);
+    const incident = await this.find(id);
+    if (incident.status === "CLOSED") {
+      throw conflict("Incidente encerrado não aceita novos registros de notificação");
+    }
+    const entries = withRecordedBy(input.entries, actor.id);
+    const previous = Array.isArray(incident.notificationProtocol)
+      ? (incident.notificationProtocol as unknown[])
+      : [];
+    const updated = await db.incident.update({
+      where: { id },
+      data: { notificationProtocol: [...previous, ...entries] as never },
+    });
+    await this.event(actor, NOTIFICATION_PROTOCOL_ACTION, id, {
+      count: entries.length,
+      recipients: entries.map((entry) => entry.recipient),
+      channels: entries.map((entry) => entry.channel),
+    });
+    return updated;
+  }
+
   /** 13 / LGPD art. 48: comunicação em até 3 dias úteis, se houver risco. */
   async notify(actor: IncidentActor, id: string, input: Notify) {
     this.assertAdminOrAuditor(actor);
@@ -214,16 +293,27 @@ export class IncidentService {
     const now = new Date();
     const deadline = addBusinessDays(incident.reportedAt, INCIDENT_NOTIFICATION_BUSINESS_DAYS);
     const late = isOverdue(deadline, now);
+    const previous = Array.isArray(incident.notificationProtocol)
+      ? (incident.notificationProtocol as unknown[])
+      : [];
+    const entries = input.protocol?.length ? withRecordedBy(input.protocol, actor.id) : [];
     const updated = await db.incident.update({
       where: { id },
       data: {
         status: "NOTIFIED",
         notifiedAnpdAt: input.anpd ? now : null,
         notifiedSubjectsAt: input.subjects ? now : null,
+        ...(entries.length ? { notificationProtocol: [...previous, ...entries] as never } : {}),
       },
     });
     await this.event(actor, AUDIT_ACTIONS.INCIDENT_NOTIFIED, id, {
-      ...input,
+      anpd: input.anpd,
+      subjects: input.subjects,
+      protocolEntries: entries.map((entry) => ({
+        recipient: entry.recipient,
+        channel: entry.channel,
+        deliveryEvidence: entry.deliveryEvidence,
+      })),
       deadline: deadline.toISOString(),
       late,
     });

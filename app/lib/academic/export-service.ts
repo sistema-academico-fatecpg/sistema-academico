@@ -3,6 +3,7 @@ import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
 import { conflict, forbidden, notFound } from "@/app/lib/auth/errors";
 import { db } from "@/app/lib/db";
 import { CriticalOperationRequestRepository } from "@/app/repositories/critical-operation-request.repository";
+import { AccountStatusSchema, EnrollmentStatusSchema, GradeStatusSchema } from "@/app/types/common";
 import { MassExportPayloadSchema } from "@/app/types/critical-operation";
 import type { AcademicActor } from "./enrollment-service";
 
@@ -39,6 +40,7 @@ export class ExportService {
         where: {
           ...(filters.studentId ? { studentId: filters.studentId } : {}),
           ...(filters.classGroupId ? { classGroupId: filters.classGroupId } : {}),
+          ...(filters.status ? { status: EnrollmentStatusSchema.parse(filters.status) } : {}),
         },
         include: {
           student: { select: { name: true, socialName: true, registrationNumber: true } },
@@ -62,6 +64,7 @@ export class ExportService {
         where: {
           ...(filters.studentId ? { enrollment: { studentId: filters.studentId } } : {}),
           ...(filters.classGroupId ? { enrollment: { classGroupId: filters.classGroupId } } : {}),
+          ...(filters.status ? { status: GradeStatusSchema.parse(filters.status) } : {}),
         },
         include: {
           enrollment: {
@@ -85,7 +88,7 @@ export class ExportService {
     }
 
     const items = await db.user.findMany({
-      where: filters.status ? { status: filters.status as never } : {},
+      where: filters.status ? { status: AccountStatusSchema.parse(filters.status) } : {},
       include: { roles: { include: { role: { select: { name: true } } } } },
       take: 5000,
     });
@@ -116,8 +119,11 @@ export class ExportService {
     return data;
   }
 
-  /** 9.4.2: exportação em massa só após solicitação EXECUTED (7.5). */
-  async massExport(actor: AcademicActor, requestId: string): Promise<Record<string, unknown>[]> {
+  /**
+   * 9.4.2/7.5.4: única validação da solicitação que autoriza exportação em
+   * massa. Reutilizada pelo download direto e pelas consultas sem filtro.
+   */
+  private async approvedMassRequest(actor: AcademicActor, requestId: string) {
     const request = await this.requests.findById(requestId);
     if (!request) throw notFound("Solicitação não encontrada");
     if (request.operation !== "MASS_PERSONAL_DATA_EXPORT" || request.status !== "EXECUTED") {
@@ -126,8 +132,20 @@ export class ExportService {
     if (request.requestedBy !== actor.id && !actor.roles.includes("ADMIN_MASTER")) {
       throw forbidden("Somente o solicitante ou um Admin Master pode baixar o relatório");
     }
-
     const payload = MassExportPayloadSchema.parse(request.payload ?? {});
+    return { request, payload };
+  }
+
+  /** 9.4.2: exportação em massa só após solicitação EXECUTED (7.5). */
+  async massExport(
+    actor: AcademicActor,
+    requestId: string,
+    expectedScope?: ExportScope,
+  ): Promise<Record<string, unknown>[]> {
+    const { request, payload } = await this.approvedMassRequest(actor, requestId);
+    if (expectedScope && payload.scope !== expectedScope) {
+      throw conflict("A solicitação aprovada autoriza outro escopo de exportação");
+    }
     const data = await this.rows(payload.scope, filtersOf(payload.filters));
     await this.audit.record({
       ...auditActor(actor),

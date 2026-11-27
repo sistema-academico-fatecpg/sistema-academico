@@ -3,11 +3,23 @@ import { actorFrom, jsonError } from "@/app/lib/api/responses";
 import { forbidden } from "@/app/lib/auth/errors";
 import { requireUser } from "@/app/lib/auth/session";
 import { db } from "@/app/lib/db";
-import { policyReviewReport, recordPolicyReview } from "@/app/lib/security/compliance-service";
+import {
+  policyReviewReport,
+  recordLegalChange,
+  recordPolicyReview,
+} from "@/app/lib/security/compliance-service";
 
 const ReviewSchema = z.object({
   reason: z.string().trim().min(10).max(2000),
   notes: z.string().trim().max(2000).optional(),
+});
+
+/** 16: uma alteração legal também dispara a revisão da política. */
+const LegalChangeSchema = z.object({
+  kind: z.literal("legal-change"),
+  description: z.string().trim().min(10).max(2000),
+  source: z.string().trim().max(500).optional(),
+  detectedAt: z.string().datetime().optional(),
 });
 
 /** 16: revisão anual (ou após incidente relevante). */
@@ -33,12 +45,17 @@ export async function POST(request: Request) {
     if (!actor.roles.includes("ADMIN_MASTER") && !actor.roles.includes("AUDITOR")) {
       throw forbidden("Registro de revisão restrito ao Admin Master e ao Auditor/DPO");
     }
-    const body = ReviewSchema.parse(await request.json());
+    const body = await request.json();
     const ctx = actorFrom(actor, request);
-    const record = await recordPolicyReview(
-      { id: ctx.actorId, roles: ctx.actorRoles, ipAddress: ctx.ipAddress },
-      body,
-    );
+    const actorContext = { id: ctx.actorId, roles: ctx.actorRoles, ipAddress: ctx.ipAddress };
+
+    const legalChange = LegalChangeSchema.safeParse(body);
+    if (legalChange.success) {
+      await recordLegalChange(actorContext, legalChange.data);
+      return Response.json({ status: "LEGAL_CHANGE_RECORDED" }, { status: 201 });
+    }
+
+    const record = await recordPolicyReview(actorContext, ReviewSchema.parse(body));
     return Response.json({ status: "REVIEWED", record }, { status: 201 });
   } catch (error) {
     return jsonError(error);

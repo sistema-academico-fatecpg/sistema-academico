@@ -24,6 +24,8 @@ import { UserInputSchema } from "@/app/types/user";
 export type ExecutionActor = {
   id: string;
   ipAddress: string;
+  /** Perfis do aprovador, quando disponíveis no chamador. */
+  roles?: readonly string[];
 };
 
 export type ExecutionResult = {
@@ -69,7 +71,7 @@ export class CriticalOperationExecutor {
       case "ENROLLMENT_RULE_EXCEPTION":
         return this.executeEnrollmentException(client, payload, actor);
       case "ACADEMIC_RECORD_DELETION":
-        return this.executeAcademicRecordDeletion(client, payload);
+        return this.executeAcademicRecordDeletion(client, payload, actor);
       case "MASS_PERSONAL_DATA_EXPORT":
         return this.executeMassExport(payload);
       case "DATA_RESTORE_AFTER_INCIDENT":
@@ -310,6 +312,7 @@ export class CriticalOperationExecutor {
   private async executeAcademicRecordDeletion(
     client: DbExecutor,
     payload: Payload,
+    actor: ExecutionActor,
   ): Promise<ExecutionResult> {
     const data = parsePayload(
       AcademicRecordDeletionPayloadSchema,
@@ -323,10 +326,12 @@ export class CriticalOperationExecutor {
       where: { id: data.enrollmentId },
       data: { status: "CANCELLED" },
     });
+    // A exclusão lógica é executada pela aprovação: o log deve apontar o
+    // aprovador humano (10.3), mantendo o registro append-only.
     await new AuditService(new LogRepository(client)).record({
-      userId: null,
-      role: null,
-      ipAddress: "system:critical-operation",
+      userId: actor.id as never,
+      role: (actor.roles?.[0] ?? null) as never,
+      ipAddress: actor.ipAddress,
       action: AUDIT_ACTIONS.ACADEMIC_RECORD_DELETED,
       module: "ENROLLMENTS",
       recordType: "Enrollment",

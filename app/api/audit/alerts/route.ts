@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const ctx = actorFrom(actor, request);
     await new SupportAccessService().assertCanRead(
       { id: ctx.actorId, roles: ctx.actorRoles, ipAddress: ctx.ipAddress },
-      "AUDIT_LOGS",
+      ["AUDIT_LOGS"],
     );
     const result = await auditReader().listAlerts(filter);
     return Response.json(result);

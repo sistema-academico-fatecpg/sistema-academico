@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { closeExpiredGradePeriods } from "@/app/lib/academic/grade-closing-service";
 import { jsonError } from "@/app/lib/api/responses";
 import { createAuditService } from "@/app/lib/audit";
 import { AUDIT_ACTIONS, auditActor } from "@/app/lib/audit/audit-service";
@@ -39,6 +40,10 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     if (input.isCurrent) period = await repository.setCurrent(periodId);
 
     if (input.closeGradesNow) {
+      // O fechamento manual passa pelo mesmo serviço do fechamento automático:
+      // ele grava o snapshot de segurança das notas antes de fechar a janela.
+      await repository.setGradesWindow(periodId, existing.gradesOpenAt, new Date());
+      await closeExpiredGradePeriods(getClientIp(request));
       period = await repository.closeGrades(periodId);
     } else if (input.gradesOpenAt !== undefined || input.gradesCloseAt !== undefined) {
       period = await repository.setGradesWindow(

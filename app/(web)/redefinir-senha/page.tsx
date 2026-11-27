@@ -5,12 +5,12 @@ import { AuthCard, SetPasswordForm } from "@/components";
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; code?: string }>;
 }) {
-  const { token } = await searchParams;
+  const { token, code } = await searchParams;
   return (
     <AuthCard>
-      <SetPasswordForm mode="reset" token={token ?? ""} />
+      <SetPasswordForm code={code ?? ""} mode="reset" token={token ?? ""} />
     </AuthCard>
   );
 }

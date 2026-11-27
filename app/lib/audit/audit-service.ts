@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { LogRepository } from "@/app/repositories/log.repository";
 import type { AlertType, RoleName, SystemModule } from "@/app/types/common";
 import type { LogInput } from "@/app/types/log";
@@ -107,6 +108,18 @@ const ALERT_BY_ACTION: Partial<Record<string, AlertType>> = {
 const LOGIN_FAILURE_ALERT_THRESHOLD = 3;
 const LOGIN_FAILURE_WINDOW_MINUTES = 15;
 
+/**
+ * Identificador de login (e-mail informado) reduzido a um resumo estável: nunca
+ * persistimos o valor bruto, que pode conter dados pessoais ou segredos (10.5).
+ * O valor já sanitizado é idempotente para chamadas repetidas.
+ */
+export function sanitizeLoginIdentifier(identifier: string | null | undefined): string | null {
+  const value = identifier?.trim().toLowerCase();
+  if (!value) return null;
+  if (value.startsWith("sha256:")) return value;
+  return `sha256:${createHash("sha256").update(value).digest("hex").slice(0, 16)}`;
+}
+
 export class AuditService {
   constructor(
     private readonly repository: LogRepository,
@@ -129,11 +142,29 @@ export class AuditService {
         ? await emergencyCheck.call(this.repository, event.userId)
         : false;
 
+    const redactedNewValue = redactSensitiveData(event.newValue);
+    const loginFailed = event.action === AUDIT_ACTIONS.LOGIN_FAILED;
+    // Falhas de conta inexistente também são registradas e alertadas: o
+    // identificador é sanitizado ANTES de qualquer persistência (10.5).
+    const rawIdentifier =
+      loginFailed && redactedNewValue && typeof redactedNewValue === "object"
+        ? (redactedNewValue as { identifier?: unknown }).identifier
+        : undefined;
+    const identifier =
+      typeof rawIdentifier === "string" ? sanitizeLoginIdentifier(rawIdentifier) : null;
+    const newValue =
+      loginFailed &&
+      rawIdentifier !== undefined &&
+      redactedNewValue &&
+      typeof redactedNewValue === "object"
+        ? { ...(redactedNewValue as Record<string, unknown>), identifier }
+        : redactedNewValue;
+
     const sanitized: AuditEvent = {
       ...event,
       emergency,
       oldValue: redactSensitiveData(event.oldValue),
-      newValue: redactSensitiveData(event.newValue),
+      newValue,
     };
 
     const log = await this.repository.append(sanitized);
@@ -141,8 +172,12 @@ export class AuditService {
     // o espelho é nulo e vale apenas a base local de desenvolvimento.
     await this.mirror?.append(sanitized);
 
-    if (event.userId && event.action === AUDIT_ACTIONS.LOGIN_FAILED) {
-      await this.alertLoginFailureSequence(event.userId, event.ipAddress);
+    if (loginFailed) {
+      await this.alertLoginFailureSequence(
+        (event.userId ?? null) as string | null,
+        event.ipAddress,
+        identifier,
+      );
     }
 
     const alertType = ALERT_BY_ACTION[event.action];
@@ -169,12 +204,18 @@ export class AuditService {
     return alert;
   }
 
-  private async alertLoginFailureSequence(userId: string, ipAddress: string) {
+  private async alertLoginFailureSequence(
+    userId: string | null,
+    ipAddress: string,
+    identifier: string | null,
+  ) {
     const since = new Date(Date.now() - LOGIN_FAILURE_WINDOW_MINUTES * 60_000);
-    const failures = await this.repository.countRecentFailures(userId, since);
+    const failures = userId
+      ? await this.repository.countRecentFailures(userId, since)
+      : await this.countRecentFailuresByIdentifier(identifier, ipAddress, since);
     if (failures < LOGIN_FAILURE_ALERT_THRESHOLD) return;
 
-    const loginFailureMetadata = redactSensitiveData({ userId, ipAddress, failures });
+    const loginFailureMetadata = redactSensitiveData({ userId, identifier, ipAddress, failures });
     await this.repository.createAlert(
       "LOGIN_FAILURE_SEQUENCE",
       `Sequência de ${failures} falhas de login em ${LOGIN_FAILURE_WINDOW_MINUTES} minutos.`,
@@ -185,6 +226,36 @@ export class AuditService {
       `Sequência de ${failures} falhas de login em ${LOGIN_FAILURE_WINDOW_MINUTES} minutos.`,
       loginFailureMetadata,
     );
+  }
+
+  /**
+   * Conta falhas de contas inexistente pelo identificador sanitizado (e IP), já
+   * que não há userId para a consulta indexada. Repositórios mínimos de teste
+   * que não expõem `findMany` usam a contagem genérica disponível.
+   */
+  private async countRecentFailuresByIdentifier(
+    identifier: string | null,
+    ipAddress: string,
+    since: Date,
+  ): Promise<number> {
+    const repository = this.repository as Partial<LogRepository>;
+    if (typeof repository.findMany !== "function") {
+      return this.repository.countRecentFailures(identifier ?? "unknown", since);
+    }
+
+    const { items } = await repository.findMany.call(this.repository, {
+      action: AUDIT_ACTIONS.LOGIN_FAILED,
+      module: "USERS",
+      result: "FAILURE",
+      from: since.toISOString(),
+      page: 1,
+      pageSize: 200,
+    });
+    return items.filter((item) => {
+      if (ipAddress && item.ipAddress !== ipAddress) return false;
+      const stored = (item.newValue as { identifier?: unknown } | null)?.identifier ?? null;
+      return stored === identifier;
+    }).length;
   }
 }
 

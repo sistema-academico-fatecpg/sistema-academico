@@ -5,8 +5,6 @@ import { withTotpClockSkew } from "@/app/lib/auth/totp-clock-skew";
 import { withTotpDiagnostics } from "@/app/lib/auth/totp-diagnostics";
 import { withSingleUseTotp } from "@/app/lib/auth/totp-single-use";
 import { db } from "@/app/lib/db";
-import { sendEmail } from "@/app/lib/email";
-import { passwordResetEmail } from "@/app/lib/email/templates";
 import { hashPassword, verifyPassword } from "@/app/lib/security/password-hash";
 import { requiresMfa } from "@/app/types/roles";
 
@@ -56,16 +54,11 @@ export const auth = betterAuth({
       hash: hashPassword,
       verify: ({ hash, password }) => verifyPassword(hash, password),
     },
-    sendResetPassword: async ({ user, url }) => {
-      await sendEmail(
-        passwordResetEmail({
-          to: user.email,
-          name: user.name,
-          resetUrl: url,
-          validMinutes: 30,
-        }),
-      );
-    },
+    // Não há hook de envio: a recuperação é presencial, solicitada pela
+    // secretaria, e o link + código vão ao e-mail pessoal pelo AccountService
+    // (8.6). Os endpoints self-service de senha do Better Auth são bloqueados
+    // no handler catch-all; o e-mail institucional é fictício e nunca é usado
+    // como destino de mensagens.
   },
   user: {
     modelName: "user",
