@@ -56,14 +56,10 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
   };
 
   /** Aproveita a senha recém-criada: a tela TOTP não pede a senha outra vez. */
-  async function startTotpSetup() {
+  async function startTotpSetup(userIdFromActivation?: string) {
     setError(null);
     setLoading(true);
-    let userId = activatedUserId;
-    if (!userId) {
-      const me = await fetch("/api/auth/me").catch(() => null);
-      if (me?.ok) userId = ((await me.json()) as { id?: string }).id ?? null;
-    }
+    const userId = userIdFromActivation ?? activatedUserId;
     const result = await authClient.twoFactor.enable({ password });
     setLoading(false);
     if (result.error || result.data?.method !== "totp") {
@@ -149,7 +145,7 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
       return;
     }
     if (data.requiresTwoFactorSetup) {
-      await startTotpSetup();
+      await startTotpSetup(data.user?.id);
       return;
     }
     setDone(true);
@@ -175,7 +171,7 @@ export function SetPasswordForm({ token, mode, code: initialCode = "" }: SetPass
             <Button
               disabled={loading}
               iconName="shield"
-              onClick={() => void startTotpSetup()}
+              onClick={() => void startTotpSetup(activatedUserId ?? undefined)}
               type="button"
               variant="secondary"
             >
