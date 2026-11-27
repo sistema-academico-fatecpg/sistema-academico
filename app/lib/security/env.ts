@@ -18,6 +18,9 @@ const PLACEHOLDERS = new Set([
 export const KEY_ROTATION_DAYS = 365;
 export const BACKUP_MEDIA_MAX_YEARS = 3;
 export const RESTORE_TEST_DAYS = 30;
+/** 11.3.5: metas contratuais; o RTO medido vem do teste de restauração real. */
+export const RPO_TARGET_HOURS = 24;
+export const RTO_TARGET_HOURS = 8;
 
 export function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
@@ -137,8 +140,11 @@ export function assertProductionSecrets(): void {
   if (appEnv !== "production") {
     throw new Error("APP_ENV deve ser 'production' neste ambiente (12.1)");
   }
+  // 12.1/7.4: a variável é obrigatória e só aceita "false" — ausência não vale.
   const devAccess = process.env.DEV_TEAM_PRODUCTION_ACCESS?.trim().toLowerCase();
-  if (devAccess && devAccess !== "false") {
-    throw new Error("Equipe de Desenvolvimento não pode ter acesso à produção (7.4/12.1)");
+  if (devAccess !== "false") {
+    throw new Error(
+      "DEV_TEAM_PRODUCTION_ACCESS=false é obrigatório: equipe de Desenvolvimento não pode ter acesso à produção (7.4/12.1)",
+    );
   }
 }

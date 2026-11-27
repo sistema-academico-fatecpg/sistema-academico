@@ -146,14 +146,16 @@ conta única e a API recusa cadastros de perfil administrativo.
 - **Login**: após entrar com senha, um perfil com 2º fator ativo recebe
   `twoFactorRedirect`; o formulário mostra o campo de **6 dígitos do
   autenticador** e um link "Perdi o celular: usar código de recuperação".
-  Implementado em `app/(auth)/login/LoginForm.tsx` + `TotpStep.tsx`.
-- **Configuração do autenticador**: `app/(auth)/configurar-2fa/SetupForm.tsx`
+  Implementado em `app/(web)/login/LoginForm.tsx` + `TotpStep.tsx`.
+- **Configuração do autenticador**: `app/(web)/(private)/configurar-2fa/SetupForm.tsx`
   pede a senha quando a configuração é iniciada pelo login, mostra a URI TOTP e
   valida o código de 6 dígitos. Após ativar, exibe os 10 códigos de recuperação
   **uma única vez**.
-- **Ativação da conta**: `app/(auth)/ativar/AtivarForm.tsx` tem um campo de
-  6 dígitos, mas é o **código de confirmação por e-mail**, não TOTP (8.4.3). O
-  código vem preenchido pela URL e continua sendo validado no servidor.
+- **Ativação da conta**: `app/(web)/ativar/page.tsx` usa o
+  `SetPasswordForm` compartilhado (`app/(web)/components/SetPasswordForm`), que
+  tem um campo de 6 dígitos para o **código de confirmação por e-mail**, não
+  TOTP (8.4.3). O código vem preenchido pela URL e continua sendo validado no
+  servidor. Não existe mais `AtivarForm.tsx`.
 
 Após definir a senha, a ativação abre sessão automaticamente. Perfis com MFA
 obrigatório (Admin Master/Secundário, Professor, Auditor e Suporte) vão direto

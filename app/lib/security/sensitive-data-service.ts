@@ -10,6 +10,18 @@ export type SensitiveActor = {
   ipAddress: string;
 };
 
+/**
+ * 11.1.3: maioridade calculada apenas a partir da data de nascimento armazenada
+ * no cadastro, nunca de um valor recebido do cliente. `null` indica data
+ * ausente/inválida (idade não verificável).
+ */
+export function minorStatusFromBirthDate(birthDate: Date | null): boolean | null {
+  if (!birthDate || Number.isNaN(birthDate.getTime())) return null;
+  const age = (Date.now() - birthDate.getTime()) / (365.25 * 86_400_000);
+  if (age < 0) return null;
+  return age < 18;
+}
+
 export class SensitiveDataService {
   constructor(private readonly audit = createAuditService()) {}
 
@@ -19,13 +31,13 @@ export class SensitiveDataService {
     // de pelo menos um responsável legal antes de receber dado sensível.
     const profile = await db.studentProfile.findUnique({ where: { userId } });
     if (profile) {
-      if (!profile.birthDate) {
+      const isMinor = minorStatusFromBirthDate(profile.birthDate);
+      if (isMinor === null) {
         throw validationError(
           "Registre a data de nascimento e o consentimento do responsável antes de armazenar dado sensível de aluno (11.1.3)",
         );
       }
-      const age = (Date.now() - profile.birthDate.getTime()) / (365.25 * 86_400_000);
-      if (age < 18 && !profile.guardianConsentAt) {
+      if (isMinor && !profile.guardianConsentAt) {
         throw validationError(
           "Consentimento do responsável legal obrigatório para dados de menores (11.1.3)",
         );
@@ -90,6 +102,36 @@ export class SensitiveDataService {
         revealedAt: record.revealedAt,
       };
     });
+  }
+
+  /**
+   * 11.1.4: cópia integral dos próprios dados sensíveis para o titular. O filtro
+   * é sempre pelo id da sessão; este método nunca recebe um id de terceiros e
+   * não deve ser usado para exibição (que permanece mascarada).
+   */
+  async plaintextForUser(userId: string) {
+    const records = await db.sensitiveData.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        type: true,
+        createdAt: true,
+        cipherText: true,
+        iv: true,
+        authTag: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return records.map((record) => ({
+      id: record.id,
+      type: record.type,
+      createdAt: record.createdAt,
+      value: decryptText({
+        cipherText: record.cipherText,
+        iv: record.iv,
+        authTag: record.authTag,
+      }),
+    }));
   }
 
   async reveal(actor: SensitiveActor, id: string): Promise<string> {

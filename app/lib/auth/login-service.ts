@@ -1,5 +1,5 @@
 import { createAuditService } from "@/app/lib/audit";
-import { AUDIT_ACTIONS } from "@/app/lib/audit/audit-service";
+import { AUDIT_ACTIONS, sanitizeLoginIdentifier } from "@/app/lib/audit/audit-service";
 import { getClientIp } from "@/app/lib/request-context";
 import { UserRepository, type UserWithRoles } from "@/app/repositories/user.repository";
 import type { RoleName } from "@/app/types/common";
@@ -37,6 +37,8 @@ export async function loginWithPassword(input: {
   const audit = createAuditService();
   const ipAddress = getClientIp(input.request);
   const email = input.email.toLowerCase();
+  // Resumo estável do e-mail informado: nunca vai em claro para o log (10.5).
+  const identifier = sanitizeLoginIdentifier(email);
   const user = await users.findByEmail(email);
 
   if (user?.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
@@ -64,7 +66,7 @@ export async function loginWithPassword(input: {
       recordType: "User",
       recordId: user.id,
       result: "FAILURE",
-      newValue: { reason: "ACCOUNT_NOT_ACTIVE" },
+      newValue: { reason: "ACCOUNT_NOT_ACTIVE", identifier },
     });
     throw new AuthError(GENERIC_CREDENTIALS_MESSAGE, "UNAUTHENTICATED", 401);
   }
@@ -100,6 +102,7 @@ export async function loginWithPassword(input: {
         recordType: "User",
         recordId: user.id,
         result: "FAILURE",
+        newValue: { identifier },
       });
 
       if (updated?.lockedUntil && updated.lockedUntil.getTime() > Date.now()) {
@@ -129,6 +132,7 @@ export async function loginWithPassword(input: {
         );
       }
     } else {
+      // Conta inexistente continua com resposta genérica, mas gera log e alerta.
       await audit.record({
         userId: null,
         role: null,
@@ -136,6 +140,7 @@ export async function loginWithPassword(input: {
         action: AUDIT_ACTIONS.LOGIN_FAILED,
         module: "USERS",
         result: "FAILURE",
+        newValue: { identifier },
       });
     }
 

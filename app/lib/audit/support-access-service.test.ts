@@ -81,10 +81,15 @@ describe("acesso excepcional aos logs (10.8)", () => {
       },
     });
     const auditor = { ...actor, id: "auditor-1", roles: ["AUDITOR"] };
+    const direction = { ...actor, id: "master-1", roles: ["ADMIN_MASTER"] };
     await expect(service.decide("grant-1", "APPROVE", auditor, "documento errado")).rejects.toThrow(
       /autorização formal da direção/,
     );
-    await expect(service.decide("grant-1", "APPROVE", auditor, "Ofício 7/2026")).resolves.toEqual(
+    // 10.8.4: o Auditor não decide sobre a própria investigação; a direção decide.
+    await expect(service.decide("grant-1", "APPROVE", auditor, "Ofício 7/2026")).rejects.toThrow(
+      /autorização formal da direção/,
+    );
+    await expect(service.decide("grant-1", "APPROVE", direction, "Ofício 7/2026")).resolves.toEqual(
       expect.objectContaining({ status: "APPROVED" }),
     );
   });

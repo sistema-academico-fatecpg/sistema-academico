@@ -205,13 +205,13 @@ O usuário informa login e senha. Para perfis com acesso a dados de outras pesso
 
 **COMO FUNCIONA**
 
-O usuário que esquecer a senha solicita a recuperação na tela de login e recebe um link no próprio e-mail. Nenhum administrador redefine senhas. Se o usuário perder o celular com o aplicativo autenticador, entra com um dos códigos de recuperação; se também não os tiver, comparece à secretaria para comprovar a identidade.
+A pessoa que esquecer a senha comparece presencialmente à secretaria e solicita a recuperação. A secretaria (Admin Secundário) registra a solicitação na tela de usuários; não existe atendimento automatizado de "esqueci minha senha". O sistema envia **somente ao e-mail pessoal real da titular** — o e-mail institucional é fictício e não tem caixa postal — um link de uso único válido por 30 minutos, acompanhado de um código de confirmação de 6 dígitos (8.4.3). A própria titular abre o link, informa o código e cria a nova senha; nenhum administrador conhece ou redefine senhas. Se a pessoa também perder o celular com o aplicativo autenticador, a redefinição do segundo fator segue 8.6.2.
 
 **O QUE O SISTEMA DEVE TER**
 
-**8.6.1**  Link de redefinição de uso único, enviado somente ao e-mail cadastrado, válido por 30 minutos.
+**8.6.1**  Link de redefinição de uso único, enviado somente ao e-mail pessoal cadastrado da titular, válido por 30 minutos e acompanhado de código de confirmação de 6 dígitos, que também deve ser validado no servidor (8.4.3).
 
-**8.6.2**  Redefinição do segundo fator, sem códigos de recuperação, somente após identificação presencial na secretaria e aprovação de um Admin Master, com registro em log. Para Admin Master, a aprovação cabe a outro Admin Master.
+**8.6.2**  Redefinição do segundo fator, sem códigos de recuperação e sem usar o código por e-mail como segundo fator, somente após identificação presencial na secretaria e aprovação de um Admin Master, com registro em log. Para Admin Master, a aprovação cabe a outro Admin Master.
 
 ## **8.7 Bloqueio e desligamento**
 

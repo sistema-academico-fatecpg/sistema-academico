@@ -79,5 +79,25 @@ services:
       BACKUP_TEST_DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}_backup_test
     ports: ["${PORT:? PORT is required}:3000"]
 
+  # 11.3.1: agendamento automático no mesmo segredo de manutenção do endpoint
+  # protegido. Frequências (UTC) definidas em BACKUP_SCHEDULE (backup-service):
+  # FULL semanal (0 3 * * 0), INCREMENTAL diário (30 2 * * *),
+  # SEMESTER_CLOSING no início de janeiro/julho (0 4 1 1,7 *).
+  backup-scheduler:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+      target: builder
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}
+      BACKUP_SCHEDULER_URL: http://app:3000/api/maintenance/backup
+      MAINTENANCE_SECRET: ${MAINTENANCE_SECRET:?MAINTENANCE_SECRET is required}
+    command: ["pnpm", "backup", "schedule"]
+
 volumes:
   database_volume:

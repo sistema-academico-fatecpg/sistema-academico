@@ -64,7 +64,9 @@ export class TokenService {
       expiresAt,
     });
 
-    if (purpose === "ACCOUNT_ACTIVATION") {
+    // Ativação (8.3.1) e redefinição solicitada pela secretaria (8.4.3/8.6.1)
+    // exigem o código de 6 dígitos além do link de uso único.
+    if (purpose === "ACCOUNT_ACTIVATION" || purpose === "PASSWORD_RESET") {
       await this.issueConfirmationCode(userId, code);
     }
 

@@ -124,6 +124,9 @@ export async function getAuthenticatedUser(
 export async function requireUser(requestHeaders?: Headers): Promise<AuthenticatedUser> {
   const user = await getAuthenticatedUser(requestHeaders);
   if (!user) throw unauthenticated();
+  // A matriz de perfis com MFA obrigatório vale para toda autenticação
+  // server-side, inclusive rotas que só chamam requireUser (8.4.2).
+  assertMfaConfigured(user);
   return user;
 }
 

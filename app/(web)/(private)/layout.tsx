@@ -69,6 +69,12 @@ const navigation = [
     icon: "shield",
     roles: ["ADMIN_MASTER", "ADMIN_SECUNDARIO", "PROFESSOR", "ALUNO", "AUDITOR", "SUPORTE_TECNICO"],
   },
+  {
+    href: "/meus-dados",
+    label: "Meus dados",
+    icon: "user",
+    roles: ["ADMIN_MASTER", "ADMIN_SECUNDARIO", "PROFESSOR", "ALUNO", "AUDITOR", "SUPORTE_TECNICO"],
+  },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
