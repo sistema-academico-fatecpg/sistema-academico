@@ -77,7 +77,21 @@ services:
       DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}
       AUDIT_DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}_audit
       BACKUP_TEST_DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}_backup_test
+    expose: ["3000"]
+
+  # Terminação TLS local: o Next roda HTTP internamente e o Caddy serve HTTPS
+  # em localhost:3000, com certificado autoassinado (11.2.1/12.3).
+  tls-proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
     ports: ["${PORT:? PORT is required}:3000"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
   # 11.3.1: agendamento automático no mesmo segredo de manutenção do endpoint
   # protegido. Frequências (UTC) definidas em BACKUP_SCHEDULE (backup-service):
@@ -101,3 +115,5 @@ services:
 
 volumes:
   database_volume:
+  caddy_data:
+  caddy_config:

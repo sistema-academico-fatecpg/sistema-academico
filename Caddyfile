@@ -1,0 +1,8 @@
+# TLS local para desenvolvimento via docker compose.
+# O Caddy gera uma CA interna e um certificado autoassinado para localhost;
+# confie a CA (ver docs/HTTPS-LOCAL.md) ou aceite o aviso do navegador.
+
+https://localhost:3000 {
+	tls internal
+	reverse_proxy app:3000
+}
