@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ProfessorRosterItem } from "@/app/lib/academic/grade-service";
-import { DataTable, PageHeader } from "@/components";
-import { GradeForm } from "./GradeForm";
+import { PageHeader } from "@/components";
+import { GradeRosterForm } from "./GradeRosterForm";
 import styles from "./styles.module.scss";
 
 type ClassGroupLink = {
@@ -45,27 +45,7 @@ export function ProfessorRoster({
           </Link>
         ))}
       </div>
-      {classGroupId ? (
-        <DataTable
-          columns={[
-            { key: "studentName", header: "Aluno" },
-            {
-              key: "registrationNumber",
-              header: "Matrícula",
-              render: (row) => row.registrationNumber ?? "—",
-            },
-            { key: "grade", header: "Nota", render: (row) => row.grade ?? "-" },
-            {
-              key: "launch",
-              header: "Lançamento",
-              render: (row) => <GradeForm enrollmentId={row.enrollmentId} />,
-            },
-          ]}
-          rows={roster}
-          rowKey={(row) => row.enrollmentId}
-          emptyMessage="Nenhum aluno nesta turma."
-        />
-      ) : null}
+      {classGroupId ? <GradeRosterForm key={classGroupId} roster={roster} /> : null}
     </section>
   );
 }
