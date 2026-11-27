@@ -33,9 +33,9 @@ services:
       DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASS}@postgres:5432/${DATABASE_NAME}
     command: ["pnpm", "tsx", "scripts/ensure-aux-databases.ts"]
 
-  # Dispara na subida: aplica migrações, cria a massa de teste com 4 Masters e
-  # envia o link/código de ativação para TEST_EMAIL pela Resend.
-  activation-mailer:
+  # Dispara na subida: aplica migrações e cria a massa de teste. Nenhum e-mail é
+  # enviado; os links/códigos ficam no arquivo local e no console do serviço.
+  seed-test-data:
     build:
       context: .
       dockerfile: app/Dockerfile
@@ -58,7 +58,7 @@ services:
     command:
       - sh
       - -c
-      - pnpm db:deploy && pnpm db:seed:test && { [ "$$TEST_DATA_SEND_EMAIL" != 1 ] || pnpm tsx scripts/send-master-activation.ts; } && chown -R "$HOST_UID:$HOST_GID" /tmp/opencode
+      - pnpm db:deploy && pnpm db:seed:test && chown -R "$HOST_UID:$HOST_GID" /tmp/opencode
 
   app:
     build:
@@ -70,7 +70,7 @@ services:
         condition: service_healthy
       prepare-databases:
         condition: service_completed_successfully
-      activation-mailer:
+      seed-test-data:
         condition: service_started
     env_file: [.env]
     environment:
